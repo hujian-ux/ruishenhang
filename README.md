@@ -45,6 +45,12 @@ cd web && npm install && npm run dev
 
 > 注：`web/vite.config.ts` 已显式将 dev server 绑定 `host: 127.0.0.1`，避免某些环境 `localhost` 解析到 IPv6(`::1`) 导致本机/代理连不上。前端联调契约脚本：`node web/scripts/contract_check.mjs`（需后端先起）。
 
+## CI 与 Git（已接入 GitHub Actions）
+- 本仓库已 `git init` 并完成初始提交；`.github/workflows/quality-gate.yml` 即 CI 门禁，触发条件：`push` 到 `main` / 任意 `pull_request`。
+- 流水线三道关：`backend-build`（pytest 全量含最小闭环 e2e）→ `rag-recall-gate`（Recall@100≥0.95）→ `ml-objective-gate`（第37章客观指标，不依赖 LLM-as-judge）。任一不达标非零退出即阻断合并（第20章演化联动）。
+- 冗余备份：`ci/quality-gate.yml`（同逻辑，可对接 GitLab CI 等其他平台）。
+- **触发方式**：把本仓库 `git remote add origin <你的GitHub地址>` 后 `git push -u origin main`，GitHub 即自动跑该工作流（需先在仓库 Secrets/环境装好 Python 3.11，无需其他配置）。
+
 ## 与蓝图的对应（契约同源）
 - **openapi.yaml（8 paths / 22 schemas）** ←→ `backend/app/routers/*` 一一映射
 - **第18章 单一过滤点** ←→ `core/filter.py` + `core/middleware.py`（只在网关一处）
