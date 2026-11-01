@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 立项评审包</title>
+<style>
+  :root{
+    --wb-navy:#0a2540; --wb-blue:#1565c0; --wb-accent:#2d7ff9;
+    --wb-bg:#f6f8fb; --wb-card:#fff; --wb-line:#dbe6f2; --wb-ink:#1f2d3d; --wb-muted:#5b7185;
+    --wb-green:#2e7d32; --wb-orange:#ef6c00; --wb-red:#c62828;
+    --radius:12px; --shadow:0 8px 30px rgba(10,37,64,.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--wb-bg);color:var(--wb-ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6;}
+  .top{background:linear-gradient(135deg,var(--wb-navy),var(--wb-blue));color:#fff;padding:34px 24px 28px;}
+  .top .wrap{max-width:1040px;margin:0 auto;}
+  .top h1{margin:0 0 6px;font-size:24px;letter-spacing:.5px;}
+  .top .sub{color:#bcd8ff;font-size:14px;}
+  .top .meta{margin-top:14px;font-size:12.5px;color:#cfe0f5;}
+  .top .meta b{color:#fff;}
+  .body{max-width:1040px;margin:0 auto;padding:24px 24px 60px;}
+  .sec{margin:26px 0 8px;}
+  .sec h2{font-size:16px;color:var(--wb-navy);margin:0 0 4px;display:flex;align-items:center;gap:8px;}
+  .sec .n{width:24px;height:24px;border-radius:50%;background:var(--wb-blue);color:#fff;font-size:13px;
+    display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none;}
+  .sec .desc{font-size:12.5px;color:var(--wb-muted);margin:0 0 10px;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .card{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:var(--radius);padding:13px 15px;
+    display:flex;align-items:center;gap:12px;transition:.15s;text-decoration:none;color:inherit;}
+  .card:hover{border-color:var(--wb-blue);box-shadow:var(--shadow);transform:translateY(-1px);}
+  .card .ic{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:800;color:#fff;background:var(--wb-accent);}
+  .card .info{min-width:0;}
+  .card .fn{font-weight:600;font-size:13.5px;word-break:break-all;}
+  .card .ds{font-size:11.5px;color:var(--wb-muted);margin-top:2px;}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;color:#fff;flex:none;}
+  .b-html{background:var(--wb-blue);} .b-pdf{background:var(--wb-red);} .b-docx{background:var(--wb-accent);}
+  .b-csv{background:var(--wb-green);} .b-yaml{background:var(--wb-orange);}
+  .steps{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:var(--radius);padding:16px 20px;margin-top:10px;}
+  .steps ol{margin:0;padding-left:20px;}
+  .steps li{margin:7px 0;font-size:13.5px;}
+  .steps li b{color:var(--wb-navy);}
+  .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--wb-muted);}
+  .note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:14px;}
+  @media(max-width:720px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="wrap">
+      <h1>企业 AI 智能体中台 · 立项评审包</h1>
+      <div class="sub">平台工程 + 模型工程双闭环 · 含蓝图 / 接口契约 / 高保真原型 / Sprint 任务卡</div>
+      <div class="meta">版本 <b>v1.15</b> · 蓝图共 <b>44 章</b> · 接口契约 <b>8 paths / 22 schemas</b>（含新增 <b>POST /agents</b>）· 生成于 2026-11-01</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="sec">
+      <h2><span class="n">★</span>建议立项评审顺序</h2>
+      <div class="steps">
+        <ol>
+          <li><b>通读主蓝图</b>：确认平台 + 模型双闭环的章节结构（第 1–44 章）。</li>
+          <li><b>看 AI 工程评审缺陷分析</b>：理解为什么要补模型工程十章（P0×3 / P1×4 / P2×3）。</li>
+          <li><b>走接口契约 Swagger UI</b>：确认后端契约，重点新增的 <b>POST /agents</b> 与各召回接口的单一过滤点。</li>
+          <li><b>走查高保真原型</b>：从「选型」向导得出推荐 → 一键新建智能体 → 看知识库可见性实时预览 → 导出选型结论 JSON。</li>
+          <li><b>导入 Sprint 任务卡</b>：把 P0 三章任务卡导入 Jira / 飞书多维表，进入第一迭代。</li>
+          <li><b>按需查阅附册</b>：模型工程 / 生产化 / 平台扩展 / 移动端权限等细化文档。</li>
+        </ol>
+      </div>
+      <div class="note">提示：本页最佳通过本地服务器打开（已起 <b>http://127.0.0.1:8000/立项评审包.html</b>）；直接双击打开亦可，CSV 与 PDF 以文件形式下载/查看。</div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">1</span>核心蓝图与评审基线</h2>
+      <div class="desc">立项评审的主文档与缺陷基线。</div>
+      <div class="grid">
+        <a class="card" href="企业AI智能体中台蓝图.html"><div class="ic">HT</div><div class="info"><div class="fn">企业AI智能体中台蓝图.html</div><div class="ds">主蓝图 v1.15 · 44 章 · 平台+模型双闭环</div></div><span class="badge b-html">HTML</span></a>
+        <a class="card" href="企业AI智能体中台蓝图_v1.15.docx"><div class="ic">WX</div><div class="info"><div class="fn">企业AI智能体中台蓝图_v1.15.docx</div><div class="ds">含评审封面页（摘要/章节地图/决策点）· 793 段 / 56 表 / 16 图</div></div><span class="badge b-docx">DOCX</span></a>
+        <a class="card" href="AI工程评审_缺陷分析.html"><div class="ic">AI</div><div class="info"><div class="fn">AI工程评审_缺陷分析.html</div><div class="ds">10 项缺陷：P0×3 / P1×4 / P2×3（已联网核验）</div></div><span class="badge b-html">HTML</span></a>
+        <a class="card" href="立项评审讲稿.html"><div class="ic">SP</div><div class="info"><div class="fn">立项评审讲稿.html</div><div class="ds">12 分钟 / 8 环节汇报提纲 · 含现场演示与决议清单</div></div><span class="badge b-html">HTML</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">2</span>接口契约（后端 / 架构）</h2>
+      <div class="desc">给后端直接开发的机器可读契约；新增 POST /agents 与 AgentRegisterRequest。</div>
+      <div class="grid">
+        <a class="card" href="接口契约SwaggerUI.html"><div class="ic">SW</div><div class="info"><div class="fn">接口契约SwaggerUI.html</div><div class="ds">交互式 Swagger UI · 可 Try-It-Out</div></div><span class="badge b-html">HTML</span></a>
+        <a class="card" href="接口契约参考.html"><div class="ic">AP</div><div class="info"><div class="fn">接口契约参考.html</div><div class="ds">静态参考页 · 8 paths / 22 schemas</div></div><span class="badge b-html">HTML</span></a>
+        <a class="card" href="openapi.yaml"><div class="ic">YM</div><div class="info"><div class="fn">openapi.yaml</div><div class="ds">OpenAPI 3.0.3 · 可导入 Swagger/Postman/代码生成</div></div><span class="badge b-yaml">YAML</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">3</span>高保真原型（走查用）</h2>
+      <div class="desc">参考 WorkBuddy 风格；选型向导 → 新建智能体 → 知识库可见性 → 导出 JSON 闭环。</div>
+      <div class="grid">
+        <a class="card" href="平台UI原型_参考WorkBuddy.html"><div class="ic">UI</div><div class="info"><div class="fn">平台UI原型_参考WorkBuddy.html</div><div class="ds">PC+手机 · 暗色一键切换 · 选型→新建智能体联动</div></div><span class="badge b-html">HTML</span></a>
+        <a class="card" href="启动期智能体与工具配置清单.html"><div class="ic">TO</div><div class="info"><div class="fn">启动期智能体与工具配置清单.html</div><div class="ds">预置智能体 / 工具 / 工作流清单</div></div><span class="badge b-html">HTML</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">4</span>立项 Sprint 任务卡（导入 Jira / 飞书）</h2>
+      <div class="desc">P0 三章（35 选型 / 36 RAG / 37 评测）第一迭代任务卡。</div>
+      <div class="grid">
+        <a class="card" href="Sprint任务卡_Jira导入.csv"><div class="ic">JI</div><div class="info"><div class="fn">Sprint任务卡_Jira导入.csv</div><div class="ds">Jira 外部系统导入识别表头 · 3 Epic + 12 Task</div></div><span class="badge b-csv">CSV</span></a>
+        <a class="card" href="Sprint任务卡_飞书多维表.csv"><div class="ic">FS</div><div class="info"><div class="fn">Sprint任务卡_飞书多维表.csv</div><div class="ds">飞书多维表格中文表头 · 可直接导入</div></div><span class="badge b-csv">CSV</span></a>
+        <a class="card" href="P0三章_Sprint任务卡_A4.pdf"><div class="ic">PF</div><div class="info"><div class="fn">P0三章_Sprint任务卡_A4.pdf</div><div class="ds">打印/评审配套 A4（任务/产出/工期/验收）</div></div><span class="badge b-pdf">PDF</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">5</span>模型工程补强附册</h2>
+      <div class="desc">第 35–44 章细化实施卡片与拆分下发版。</div>
+      <div class="grid">
+        <a class="card" href="模型工程补强_实施附册_A4.pdf"><div class="ic">M1</div><div class="info"><div class="fn">模型工程补强_实施附册_A4.pdf</div><div class="ds">P0/P1/P2 十章实施卡片（含 SVG）</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="模型工程补强_拆分下发.pdf"><div class="ic">M2</div><div class="info"><div class="fn">模型工程补强_拆分下发.pdf</div><div class="ds">每章一页拆分下发版（9 部门式卡片）</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="大模型接入与计量计费_A4.pdf"><div class="ic">M3</div><div class="info"><div class="fn">大模型接入与计量计费_A4.pdf</div><div class="ds">可插拔模型接入 + Token 计量计费</div></div><span class="badge b-pdf">PDF</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">6</span>平台能力附册（按需）</h2>
+      <div class="desc">生产化 / 运营化 / 平台扩展 / 启动演化等细化文档。</div>
+      <div class="grid">
+        <a class="card" href="生产化与运营化补强_A4.pdf"><div class="ic">P1</div><div class="info"><div class="fn">生产化与运营化补强_A4.pdf</div><div class="ds">第 26–34 章实施要点</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="生产化补强_拆分下发.pdf"><div class="ic">P2</div><div class="info"><div class="fn">生产化补强_拆分下发.pdf</div><div class="ds">每章一页拆分下发版（9 页）</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="平台扩展与UI规范_A4.pdf"><div class="ic">P3</div><div class="info"><div class="fn">平台扩展与UI规范_A4.pdf</div><div class="ds">部门自助 / 业务梳理 / 工具对接 / 暗色主题</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="启动与演化_A4.pdf"><div class="ic">P4</div><div class="info"><div class="fn">启动与演化_A4.pdf</div><div class="ds">自动演化 / 进步功能专章</div></div><span class="badge b-pdf">PDF</span></a>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2><span class="n">7</span>移动端与权限一致性</h2>
+      <div class="desc">移动端 MVP、PC/移动端单一过滤点一致性、角色权限速查。</div>
+      <div class="grid">
+        <a class="card" href="移动端设计_A4.pdf"><div class="ic">MB</div><div class="info"><div class="fn">移动端设计_A4.pdf</div><div class="ds">移动端信息架构与界面规范</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="移动端MVP开发清单_A4.pdf"><div class="ic">MV</div><div class="info"><div class="fn">移动端MVP开发清单_A4.pdf</div><div class="ds">MVP 接口与开发任务清单</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="PC与移动端权限一致性_A4.pdf"><div class="ic">PC</div><div class="info"><div class="fn">PC与移动端权限一致性_A4.pdf</div><div class="ds">单一过滤点一致性论证</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="角色权限速查卡_A4.pdf"><div class="ic">RB</div><div class="info"><div class="fn">角色权限速查卡_A4.pdf</div><div class="ds">三角色 RBAC 速查</div></div><span class="badge b-pdf">PDF</span></a>
+        <a class="card" href="九部门落地卡片_A4.pdf"><div class="ic">D9</div><div class="info"><div class="fn">九部门落地卡片_A4.pdf</div><div class="ds">九部门实施卡片（含拆分版）</div></div><span class="badge b-pdf">PDF</span></a>
+      </div>
+    </div>
+    <div class="sec">
+      <h2><span class="n">8</span>工程落地脚手架方案（下一步）</h2>
+      <div class="desc">评审通过后进入工程态：先搭技术底座，再跑 P0 三章第一迭代。</div>
+      <div class="grid">
+        <a class="card" href="平台脚手架方案.html"><div class="ic">SC</div><div class="info"><div class="fn">平台脚手架方案.html</div><div class="ds">架构图 / 目录 / docker-compose / 关键 stub / 里程碑</div></div><span class="badge b-html">HTML</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">企业 AI 智能体中台 · 立项评审包 · 内部使用 · 与 openapi.yaml / 主蓝图 v1.15 同源</div>
+</body>
+</html>

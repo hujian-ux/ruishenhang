@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 内部协作平台蓝图（通用版）</title>
+<style>
+  :root{
+    --navy:#0a2540; --blue:#1565c0; --blue2:#2196f3; --line:#dbe6f2;
+    --bg:#f5f8fc; --card:#ffffff; --ink:#1f2d3d; --muted:#5b7185;
+    --p0:#c62828; --p1:#ef6c00; --p2:#2e7d32; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.7;font-size:15px;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 64px;}
+  header.cover{background:linear-gradient(135deg,var(--navy),var(--blue));
+    color:#fff;padding:48px 24px 40px;margin-bottom:0;}
+  header.cover .inner{max-width:1080px;margin:0 auto;}
+  header.cover .tag{display:inline-block;background:rgba(255,255,255,.15);
+    padding:4px 12px;border-radius:20px;font-size:13px;letter-spacing:1px;margin-bottom:16px;}
+  header.cover h1{margin:0 0 8px;font-size:32px;font-weight:800;letter-spacing:1px;}
+  header.cover p{margin:4px 0;opacity:.92;font-size:15px;}
+  .concl{background:var(--soft);border-left:5px solid var(--blue);
+    padding:18px 22px;margin:28px 0;border-radius:6px;}
+  .concl b{color:var(--blue);}
+  h2{color:var(--navy);font-size:22px;margin:42px 0 14px;
+    padding-bottom:8px;border-bottom:2px solid var(--line);}
+  h3{color:var(--blue);font-size:17px;margin:26px 0 10px;}
+  p{margin:10px 0;}
+  table{border-collapse:collapse;width:100%;margin:14px 0;background:var(--card);
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:14px;}
+  th{background:var(--navy);color:#fff;text-align:left;padding:11px 14px;font-weight:600;}
+  td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top;}
+  tr:nth-child(even) td{background:#fafcff;}
+  .tagp{display:inline-block;padding:2px 9px;border-radius:4px;color:#fff;font-size:12px;font-weight:700;}
+  .p0{background:var(--p0);} .p1{background:var(--p1);} .p2{background:var(--p2);}
+  .card{border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0;background:var(--card);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .kv{font-size:14px;}
+  .kv b{color:var(--navy);}
+  ul{margin:10px 0 10px 2px;padding-left:20px;}
+  li{margin:6px 0;}
+  .arch{width:100%;height:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:16px 0;}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0;}
+  .step .h{font-weight:700;color:var(--navy);font-size:16px;margin-bottom:6px;}
+  .note{font-size:13px;color:var(--muted);background:#fff8e1;border:1px solid #ffe082;
+    border-radius:6px;padding:10px 14px;margin:14px 0;}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:48px;}
+  .check li{list-style:none;padding-left:26px;position:relative;}
+  .check li:before{content:"☐";position:absolute;left:0;color:var(--blue);font-size:16px;}
+  .pb{page-break-before:always;}
+  .refcard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:16px 0;}
+  .rolecol{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--card);}
+  .rolecol h4{margin:0 0 8px;color:var(--navy);font-size:16px;border-bottom:2px solid var(--blue);padding-bottom:6px;}
+  .rolecol p{margin:6px 0;font-size:13.5px;}
+  .deptgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:16px 0;}
+  .deptcard{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--card);}
+  .deptcard .dn{font-weight:800;color:var(--blue);font-size:16px;margin-bottom:2px;}
+  .deptcard .dp{font-size:12.5px;color:var(--muted);margin-bottom:8px;}
+  .deptcard p{margin:5px 0;font-size:13px;line-height:1.55;}
+  .deptcard p b{color:var(--navy);}
+  code{background:#eef4fb;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px;}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="inner">
+    <span class="tag">企业内部 AI 平台 · 通用蓝图 v1.15</span>
+    <h1>企业 AI 智能体中台</h1>
+    <p>基于开源 Agent 框架的多部门智能体协作与知识平台（私有化部署）</p>
+    <p>定位：企业统一的内部 AI 协作底座（非对外 SaaS）　|　制图日期：2026-10-31</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="concl">
+    <b>一句话结论：</b>把企业散落在<b>各部门</b>的知识与流程，沉淀成一套<b>多部门通用的智能体协作中台</b>，
+    用 Dify / LangGraph 等开源框架私有化搭建——每个部门拥有专属 AI 助手，但共用同一底座；
+    <b>三大支柱是"知识分级（全域/部门/个人）+ 多 Agent 编排 + 严格权限隔离"</b>，
+    MVP 可在 <b>4–6 周</b>内落地首个试点部门。
+    <br><br><b>覆盖用途：</b>平台面向企业<b>所有部门通用</b>——行政、人事、销售、设计、跟单、研发、推广、财务、客服等；
+    每个部门都能在统一底座上拥有专属 AI 助手与知识空间（详见第 12 章场景示例）。
+  </div>
+
+  <h2>1. 为什么做：定位与价值</h2>
+  <div class="grid">
+    <div class="card">
+      <h3 style="margin-top:0">企业普遍痛点</h3>
+      <ul>
+        <li>知识散落在各部门与个人，重复提问、重复造轮子</li>
+        <li>制度 / SOP / 产品资料版本混乱，找得到≠用得上</li>
+        <li>跨部门协作靠人工传递，效率低、易出错</li>
+        <li>员工被事务性工作淹没，核心人力未释放</li>
+        <li>缺乏统一 AI 入口，各部门各自买工具、数据难管控</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">平台价值</h3>
+      <ul>
+        <li><b>知识资产化</b>：制度/资料/经验进统一知识库，可问可答可复用</li>
+        <li><b>多部门共用底座</b>：一套平台，各部门独立空间，互不干扰</li>
+        <li><b>交付标准化</b>：把高频业务流程固化成可视化工作流</li>
+        <li><b>产能放大</b>：Agent 承担问答、初稿、分析、校对，人做判断</li>
+        <li><b>管控可控</b>：私有化部署、分级权限、全量审计</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">边界声明：本平台为<b>企业内部通用工具</b>，不绑定任何特定行业或业务；不对外售卖、不做多租户 SaaS（如需产品化对外，需另行评估）。所有数据私有化、不出域。</div>
+
+  <h2>2. 总体架构蓝图</h2>
+  <p>六层分层架构，自上而下：接入层 → 编排层 → 能力层 → 数据层 → 模型层 → 基础设施。多部门通过"部门空间"共用同一底座，数据按部门隔离。</p>
+
+  <svg class="arch" viewBox="0 0 680 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="平台分层架构图">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#0a2540"/><stop offset="1" stop-color="#1565c0"/>
+      </linearGradient>
+    </defs>
+    <text x="20" y="26" font-size="15" font-weight="700" fill="#0a2540">企业 AI 智能体中台 · 分层架构（多部门共用底座）</text>
+    <rect x="120" y="42" width="540" height="58" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="30" y="66" font-size="13" font-weight="700" fill="#0a2540">接入层</text>
+    <text x="30" y="84" font-size="11" fill="#5b7185">Access</text>
+    <text x="140" y="68" font-size="13" fill="#1f2d3d">Web 工作台 ｜ 企业微信 / 飞书 / 钉钉 ｜ 开放 API</text>
+    <text x="140" y="88" font-size="11" fill="#5b7185">业务系统连接器：ERP / CRM / OA / 邮件（统一入口触发 Agent）</text>
+
+    <rect x="120" y="112" width="540" height="58" rx="8" fill="#e3f0ff" stroke="#1565c0" stroke-width="1.5"/>
+    <text x="30" y="136" font-size="13" font-weight="700" fill="#0a2540">编排层</text>
+    <text x="30" y="154" font-size="11" fill="#5b7185">Orchestration</text>
+    <text x="140" y="138" font-size="13" fill="#1f2d3d">Dify 工作流 ｜ LangGraph 多 Agent 编排 ｜ 协调 Orchestrator</text>
+    <text x="140" y="158" font-size="11" fill="#5b7185">把企业高频流程拆成可编排的智能体协作链路（通用 + 部门专属）</text>
+
+    <rect x="120" y="182" width="540" height="74" rx="8" fill="#fff" stroke="#1565c0"/>
+    <text x="30" y="206" font-size="13" font-weight="700" fill="#0a2540">能力层</text>
+    <text x="30" y="224" font-size="11" fill="#5b7185">Capability</text>
+    <text x="140" y="204" font-size="13" fill="#1f2d3d">技能 / 插件 (MCP) ｜ RAG 知识库 ｜ 文档内容生产 ｜ 联网检索 ｜ 自动化</text>
+    <text x="140" y="224" font-size="11" fill="#5b7185">① 知识问答 / ② 文档写作 / ③ 数据分析 / ④ 流程自动化 / ⑤ 合规审核 五类通用 Agent 底座</text>
+    <text x="140" y="244" font-size="11" fill="#5b7185">自定义工具接入：爬虫、表格处理、文档/PPT 生成、业务系统 API</text>
+
+    <rect x="120" y="268" width="540" height="66" rx="8" fill="#fff" stroke="#1565c0"/>
+    <text x="30" y="292" font-size="13" font-weight="700" fill="#0a2540">数据层</text>
+    <text x="30" y="310" font-size="11" fill="#5b7185">Data</text>
+    <text x="140" y="288" font-size="13" fill="#1f2d3d">向量库 (Qdrant) ｜ 业务库 (PG) ｜ 对象存储 (MinIO)</text>
+    <text x="140" y="306" font-size="11" fill="#5b7185">知识库三级：全域(制度/手册/资料) · 部门 · 个人</text>
+    <text x="140" y="324" font-size="11" fill="#5b7185">检索按权限元数据过滤（owner / dept / scope）</text>
+
+    <rect x="120" y="346" width="540" height="50" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="30" y="370" font-size="13" font-weight="700" fill="#0a2540">模型层</text>
+    <text x="30" y="388" font-size="11" fill="#5b7185">Models</text>
+    <text x="140" y="374" font-size="13" fill="#1f2d3d">模型网关 (One API / LiteLLM)：DeepSeek ｜ 通义 ｜ 智谱 ｜ 私有 Qwen</text>
+
+    <rect x="120" y="408" width="540" height="46" rx="8" fill="url(#g1)"/>
+    <text x="30" y="432" font-size="13" font-weight="700" fill="#fff">基础设施</text>
+    <text x="140" y="428" font-size="13" fill="#fff">Docker Compose → K8s 私有化部署 ｜ RBAC 权限 ｜ 审计日志 ｜ 多部门数据隔离</text>
+    <text x="140" y="446" font-size="11" fill="#cfe3ff">数据不出域，满足企业保密与合规要求</text>
+  </svg>
+
+  <h2>3. 核心能力模块</h2>
+
+  <h3>3.1 多 Agent 协作编排 <span class="tagp p0">P0 重点</span></h3>
+  <p>平台提供<b>通用能力 Agent</b>（所有部门可用）和<b>部门专属 Agent</b>（各部门自定义），由协调 Orchestrator 按任务编排协作。</p>
+  <table>
+    <thead><tr><th>Agent 角色</th><th>类型</th><th>输入</th><th>输出</th><th>核心技能</th></tr></thead>
+    <tbody>
+      <tr><td><b>知识问答 Agent</b></td><td>通用</td><td>自然语言问题</td><td>基于知识库的准确答复（含引用）</td><td>RAG 检索、引用溯源</td></tr>
+      <tr><td><b>文档写作 Agent</b></td><td>通用</td><td>主题 / 模板 / 要点</td><td>报告 / 方案 / 文稿初稿</td><td>文档生成、模板库</td></tr>
+      <tr><td><b>数据分析 Agent</b></td><td>通用</td><td>数据 / 指标问题</td><td>图表 / 洞察 / 结论</td><td>表格处理、可视化、统计</td></tr>
+      <tr><td><b>流程自动化 Agent</b></td><td>通用</td><td>触发条件 / 任务</td><td>跨系统执行结果</td><td>连接器、API 调用</td></tr>
+      <tr><td><b>合规审核 Agent</b></td><td>通用</td><td>初稿 / 操作</td><td>合规 / 质量修订建议</td><td>校验规则、人工复核接口</td></tr>
+      <tr><td><b>部门专属 Agent</b></td><td>部门自定义</td><td>部门业务上下文</td><td>部门专属产出</td><td>部门知识库 + 专属技能</td></tr>
+      <tr><td><b>协调 Orchestrator</b></td><td>总控</td><td>任务目标</td><td>拆解与派发</td><td>工作流编排、状态机</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 技能 / 插件（MCP）体系 <span class="tagp p1">P1</span></h3>
+  <ul>
+    <li>把联网检索、爬虫、表格处理、文档/PPT 生成、业务系统 API 封装成可复用"技能"</li>
+    <li>采用 MCP 标准接入，便于复用开源生态插件并自行扩展</li>
+    <li>部门可发布本部门的专属技能，平台统一注册与治理</li>
+  </ul>
+
+  <h3>3.3 企业知识库（RAG） <span class="tagp p0">P0</span></h3>
+  <ul>
+    <li><b>全域知识库</b>：公司制度、SOP、产品手册、公共案例、行业资料</li>
+    <li><b>部门知识库</b>：各部门业务知识、项目复盘、部门模板</li>
+    <li><b>个人知识库</b>：个人草稿、笔记、在途工作</li>
+    <li>向量库选型 Qdrant（轻量、易私有化）或 Milvus（大体量）</li>
+  </ul>
+
+  <h3>3.4 工作流编排 <span class="tagp p0">P0</span></h3>
+  <p>用 Dify 可视化工作流把高频业务流程（如"制度咨询→答复""周报生成""跨系统对账"）固化下来，新人也能一键跑通标准流程。</p>
+
+  <h3>3.5 文档 / 内容生产 <span class="tagp p1">P1</span></h3>
+  <ul>
+    <li>自动产出：分析报告、方案文档、PPT 大纲与初稿、通知/邮件草稿</li>
+    <li>复用企业统一版式与语气规范，保证输出一致性</li>
+  </ul>
+
+  <h3>3.6 连接器 <span class="tagp p2">P2</span></h3>
+  <ul>
+    <li>协同入口：企业微信 / 飞书 / 钉钉——员工在聊天里直接触发 Agent</li>
+    <li>业务系统：ERP / CRM / OA / 邮件——打通数据与流程自动化</li>
+  </ul>
+
+  <h3>3.7 自动化 <span class="tagp p2">P2</span></h3>
+  <ul>
+    <li>定时资讯抓取、报表生成、定期复盘、异常监控告警</li>
+    <li>与各部门既有业务节奏联动（如周报、月结、巡检）</li>
+  </ul>
+
+  <h2>4. 技术选型（开源二次开发）</h2>
+  <table>
+    <thead><tr><th>层级</th><th>推荐选型</th><th>理由</th><th>备选</th></tr></thead>
+    <tbody>
+      <tr><td>编排底座</td><td><b>Dify</b>（开源 LLMOps / Agent 平台）</td><td>开箱即用的 Agent、RAG、工作流、插件，最快出活</td><td>LangChain / n8n</td></tr>
+      <tr><td>复杂多 Agent</td><td><b>LangGraph</b></td><td>状态机式编排，适合多 Agent 协作与回溯</td><td>AutoGen / CrewAI</td></tr>
+      <tr><td>向量库</td><td><b>Qdrant</b></td><td>轻量、易私有化、中文友好</td><td>Milvus / PGVector</td></tr>
+      <tr><td>模型网关</td><td><b>One API / LiteLLM</b></td><td>统一接入多模型、可限流计费、便于切换</td><td>自研适配层</td></tr>
+      <tr><td>业务存储</td><td><b>PostgreSQL + MinIO</b></td><td>成熟稳定，知识元数据与交付物归档</td><td>MySQL + 对象存储</td></tr>
+      <tr><td>部署</td><td><b>Docker Compose → K8s</b></td><td>先单机快速验证，后容器编排扩容</td><td>单机裸部署</td></tr>
+    </tbody>
+  </table>
+  <div class="note">选型说明：技术栈以"开源 + 私有化"为前提，版本请以部署时官网最新稳定版为准（Dify / LangGraph / Qdrant 迭代较快）。建议先用 Dify 跑通 MVP，复杂多 Agent 场景再叠加 LangGraph。</div>
+
+  <h2>5. 知识库分级、关联与权限模型 <span class="tagp p0">P0</span></h2>
+  <p>把"知识库链接起来"与"分级可见"合并设计：底层是<b>三级知识库 + 权限元数据</b>，上层通过<b>关联机制</b>打通检索，所有召回都按使用者权限过滤——做到"库能连、权能控、部门隔离"。</p>
+
+  <h3>5.1 知识库三级架构</h3>
+  <table>
+    <thead><tr><th>层级</th><th>scope 标签</th><th>内容示例</th><th>可见范围</th><th>维护者</th></tr></thead>
+    <tbody>
+      <tr><td><b>全域级</b></td><td>global</td><td>公司制度、SOP、产品手册、公共案例、行业资料</td><td>全员可读</td><td>平台管理员</td></tr>
+      <tr><td><b>部门级</b></td><td>department</td><td>部门业务知识、项目复盘、部门模板</td><td>本部门</td><td>部门管理员</td></tr>
+      <tr><td><b>个人级</b></td><td>personal</td><td>个人草稿、私人笔记、在途工作</td><td>仅本人</td><td>本人</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 知识库"链接"机制（多库联邦 + 关联）</h3>
+  <ul>
+    <li><b>多库联邦检索</b>：Agent 可同时检索多个库，但只返回授权范围内的结果</li>
+    <li><b>关联打通</b>：用统一标签体系 + 实体关系（轻量关系表或 Neo4j 知识图谱）把分散条目连起来
+      <br><span style="color:var(--muted);font-size:13px">例：「产品手册」→ 关联 FAQ → 关联销售话术 → 关联客户案例</span></li>
+    <li><b>跨库关联召回</b>：检索时支持"沿关系链扩展"，提升答案完整性与可追溯</li>
+    <li><b>权限即过滤</b>：向量 metadata 带 owner_id / dept_id / scope，召回阶段即过滤，越权内容不进上下文</li>
+  </ul>
+
+  <h3>5.3 三级权限模型（个人 / 部门 / 全域）</h3>
+  <table>
+    <thead><tr><th>角色</th><th>层级</th><th>可见范围</th><th>典型人员</th><th>操作权限</th></tr></thead>
+    <tbody>
+      <tr><td>普通员工</td><td>个人级</td><td>自己 + 被授权内容</td><td>各部门员工</td><td>读个人/部门/全域公开，写个人</td></tr>
+      <tr><td>部门管理员</td><td>部门级</td><td>本部门全部 + 全域只读</td><td>部门负责人</td><td>增：写部门库、管理部门 Agent</td></tr>
+      <tr><td>平台管理员</td><td>全域级</td><td>全部</td><td>IT / 数字化团队</td><td>全部 + 权限配置 + 部门入驻</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.4 数据隔离实现</h3>
+  <ul>
+    <li><b>行级权限</b>：每条知识 / 文档带 (owner_id, dept_id, scope) 元数据</li>
+    <li><b>检索过滤</b>：查询注入用户上下文，只召回 scope 命中且归属匹配（个人 / 部门 / 全域）的内容</li>
+    <li><b>网关拦截</b>：RBAC 在模型网关 + API 层生效，越权调用直接拒绝</li>
+    <li><b>审计留痕</b>：谁在何时检索 / 导出什么，全量记录</li>
+  </ul>
+
+  <h3>5.5 Agent 如何遵守权限</h3>
+  <ul>
+    <li>Agent 调用检索工具时自动携带<b>调用者身份上下文</b></li>
+    <li>协调 Orchestrator 按任务把子 Agent 约束在授权范围</li>
+    <li>审核 Agent 额外校验：输出不得泄露越权内容（脱敏红线）</li>
+  </ul>
+
+  <h3>5.6 实施建议</h3>
+  <ul>
+    <li>MVP 阶段先上<b>"全域 + 个人"</b>两级，部门级在首个试点部门落地时补齐</li>
+    <li>权限元数据<b>从第一天就打标</b>，后期补标签成本极高</li>
+  </ul>
+
+  <h3>5.7 三级权限 + 多库联邦检索 · 数据流向图</h3>
+  <p>下图说明一次"带权限的检索"如何流转：使用者身份决定能碰哪些库，联邦检索器从三级库取候选，<b>权限闸门</b>在召回阶段丢弃越权内容，最终只把授权片段交给 Agent。</p>
+  <svg class="arch" viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="三级权限多库联邦检索数据流向图">
+    <defs>
+      <marker id="ab" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#1565c0"/></marker>
+      <marker id="ar2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#c62828"/></marker>
+    </defs>
+    <text x="20" y="24" font-size="15" font-weight="700" fill="#0a2540">三级权限 + 多库联邦检索 · 数据流向</text>
+    <rect x="20" y="120" width="120" height="58" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="30" y="146" font-size="13" font-weight="700" fill="#0a2540">使用者（角色）</text>
+    <text x="30" y="164" font-size="11" fill="#5b7185">员工/部门/平台</text>
+    <rect x="160" y="120" width="130" height="58" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="170" y="146" font-size="13" font-weight="700" fill="#0a2540">身份上下文注入</text>
+    <text x="170" y="164" font-size="11" fill="#5b7185">role / dept / owner</text>
+    <rect x="310" y="120" width="130" height="58" rx="8" fill="#e3f0ff" stroke="#1565c0" stroke-width="1.5"/>
+    <text x="320" y="146" font-size="13" font-weight="700" fill="#0a2540">多库联邦检索器</text>
+    <text x="320" y="164" font-size="11" fill="#5b7185">query 全域/部门/个人</text>
+    <rect x="460" y="120" width="130" height="58" rx="8" fill="#fdecea" stroke="#c62828" stroke-width="2"/>
+    <text x="470" y="146" font-size="13" font-weight="700" fill="#c62828">权限过滤闸门</text>
+    <text x="470" y="164" font-size="11" fill="#c62828">scope/owner/dept 匹配</text>
+    <rect x="600" y="120" width="75" height="58" rx="8" fill="#e8f5e9" stroke="#2e7d32"/>
+    <text x="608" y="146" font-size="12" font-weight="700" fill="#2e7d32">授权结果</text>
+    <text x="608" y="164" font-size="11" fill="#2e7d32">→ Agent</text>
+    <line x1="140" y1="149" x2="158" y2="149" stroke="#1565c0" stroke-width="2" marker-end="url(#ab)"/>
+    <line x1="290" y1="149" x2="308" y2="149" stroke="#1565c0" stroke-width="2" marker-end="url(#ab)"/>
+    <line x1="440" y1="149" x2="458" y2="149" stroke="#1565c0" stroke-width="2" marker-end="url(#ab)"/>
+    <line x1="590" y1="149" x2="598" y2="149" stroke="#1565c0" stroke-width="2" marker-end="url(#ab)"/>
+    <text x="20" y="232" font-size="13" font-weight="700" fill="#0a2540">知识库三级（候选来源）</text>
+    <rect x="300" y="250" width="110" height="56" rx="8" fill="#fff" stroke="#1565c0"/>
+    <text x="310" y="276" font-size="13" font-weight="700" fill="#1f2d3d">全域库</text>
+    <text x="310" y="294" font-size="11" fill="#5b7185">global · 全员</text>
+    <rect x="420" y="250" width="110" height="56" rx="8" fill="#fff" stroke="#1565c0"/>
+    <text x="430" y="276" font-size="13" font-weight="700" fill="#1f2d3d">部门库</text>
+    <text x="430" y="294" font-size="11" fill="#5b7185">department · 本部门</text>
+    <rect x="540" y="250" width="110" height="56" rx="8" fill="#fff" stroke="#1565c0"/>
+    <text x="550" y="276" font-size="13" font-weight="700" fill="#1f2d3d">个人库</text>
+    <text x="550" y="294" font-size="11" fill="#5b7185">personal · 本人</text>
+    <line x1="345" y1="178" x2="330" y2="248" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ab)"/>
+    <line x1="375" y1="178" x2="475" y2="248" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ab)"/>
+    <line x1="405" y1="178" x2="595" y2="248" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ab)"/>
+    <text x="150" y="210" font-size="11" fill="#5b7185">查询（取候选）</text>
+    <line x1="355" y1="250" x2="470" y2="180" stroke="#c62828" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+    <line x1="475" y1="250" x2="500" y2="180" stroke="#c62828" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+    <line x1="595" y1="250" x2="560" y2="180" stroke="#c62828" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+    <text x="360" y="320" font-size="11" fill="#c62828">候选召回（含越权，闸门丢弃）</text>
+    <rect x="20" y="350" width="14" height="14" rx="3" fill="#fdecea" stroke="#c62828" stroke-width="2"/>
+    <text x="42" y="362" font-size="12" fill="#1f2d3d">红框 = 权限闸门（越权内容在此丢弃）</text>
+    <rect x="320" y="350" width="14" height="14" rx="3" fill="#e8f5e9" stroke="#2e7d32"/>
+    <text x="342" y="362" font-size="12" fill="#1f2d3d">绿框 = 授权结果（仅交付 Agent）</text>
+  </svg>
+  <p style="font-size:13px;color:var(--muted)">说明：虚线为候选召回（含被丢弃的越权内容），实线为最终授权结果；红框为权限闸门。</p>
+
+  <h3>5.8 知识库字段 Schema 与标签体系</h3>
+  <p>知识库每条记录由<b>正文（切片向量化）</b>与<b>元数据（结构化字段）</b>两部分组成，元数据同时承载"分级权限"与"关联检索"两大能力。</p>
+  <p><b>5.8.1 核心元数据字段</b></p>
+  <table>
+    <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明 / 取值示例</th></tr></thead>
+    <tbody>
+      <tr><td>doc_id</td><td>string</td><td>是</td><td>全局唯一 ID（如 KB-2026-000123）</td></tr>
+      <tr><td>title</td><td>string</td><td>是</td><td>文档标题</td></tr>
+      <tr><td>content</td><td>text</td><td>是</td><td>正文，切片后存入向量库</td></tr>
+      <tr><td>owner_id</td><td>string</td><td>是</td><td>创建者/归属人，个人级判定依据</td></tr>
+      <tr><td>dept_id</td><td>string</td><td>是</td><td>所属部门，部门级判定依据</td></tr>
+      <tr><td>scope</td><td>enum</td><td>是</td><td>global / department / personal</td></tr>
+      <tr><td>kb_tier</td><td>enum</td><td>是</td><td>全域库 / 部门库 / 个人库（与 scope 对应）</td></tr>
+      <tr><td>category</td><td>enum</td><td>否</td><td>业务分类：制度/流程/SOP/产品/项目/培训</td></tr>
+      <tr><td>doc_type</td><td>enum</td><td>是</td><td>手册/制度/模板/数据/笔记/报告</td></tr>
+      <tr><td>industry / domain</td><td>array</td><td>否</td><td>业务域标签：研发/销售/HR/财务/运营…</td></tr>
+      <tr><td>client / project_id</td><td>string</td><td>否</td><td>客户名 / 项目编号，用于归因</td></tr>
+      <tr><td>tags</td><td>array</td><td>否</td><td>自由标签，辅助检索</td></tr>
+      <tr><td>entities</td><td>array</td><td>否</td><td>实体（产品/系统/概念），用于知识图谱关联</td></tr>
+      <tr><td>source</td><td>string</td><td>否</td><td>来源：公开/内部/系统导出</td></tr>
+      <tr><td>sensitivity</td><td>enum</td><td>否</td><td>公开/内部/机密（脱敏红线）</td></tr>
+      <tr><td>status</td><td>enum</td><td>是</td><td>draft / published / archived</td></tr>
+      <tr><td>version</td><td>int</td><td>是</td><td>版本号，便于回溯</td></tr>
+      <tr><td>access_list</td><td>array</td><td>否</td><td>额外授权用户/角色白名单（跨级特批）</td></tr>
+      <tr><td>created_at / updated_at</td><td>datetime</td><td>是</td><td>时间戳，全量审计</td></tr>
+      <tr><td>embedding</td><td>vector</td><td>是</td><td>向量（存 Qdrant），原文存 PG</td></tr>
+    </tbody>
+  </table>
+  <p><b>5.8.2 标签体系（多维打标）</b></p>
+  <table>
+    <thead><tr><th>维度</th><th>取值示例</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>业务分类</td><td>制度/流程/SOP/产品/项目/培训</td><td>归类与导航</td></tr>
+      <tr><td>文档类型</td><td>手册/制度/模板/数据/笔记/报告</td><td>检索与复用</td></tr>
+      <tr><td>业务域</td><td>研发/销售/HR/财务/运营/客服</td><td>部门与域隔离、推荐</td></tr>
+      <tr><td>客户 / 项目</td><td>客户名 / 项目编号</td><td>项目归因与权限</td></tr>
+      <tr><td>实体</td><td>产品/系统/概念名词</td><td>知识图谱关联</td></tr>
+    </tbody>
+  </table>
+  <p><b>5.8.3 示例记录（全域级制度手册）</b></p>
+  <pre style="background:#f5f8fc;border:1px solid var(--line);border-radius:8px;padding:14px;font-size:12.5px;overflow:auto;white-space:pre-wrap;">{
+  "doc_id": "KB-2026-000123",
+  "title": "员工报销制度与流程手册",
+  "owner_id": "u_admin",
+  "dept_id": "d_finance",
+  "scope": "global",
+  "kb_tier": "全域库",
+  "category": "制度",
+  "doc_type": "手册",
+  "domain": ["财务", "全员"],
+  "client": null,
+  "project_id": null,
+  "tags": ["报销", "差旅", "审批流"],
+  "entities": ["报销系统", "审批流程"],
+  "source": "内部",
+  "sensitivity": "内部",
+  "status": "published",
+  "version": 2,
+  "access_list": [],
+  "created_at": "2026-03-12T09:00:00",
+  "updated_at": "2026-10-20T18:30:00"
+}</pre>
+
+  <h3>5.9 多部门治理模型</h3>
+  <p>平台采用"<b>一套底座 + 多部门独立空间</b>"模式：所有部门共用模型网关、编排引擎与平台能力，但每个部门拥有独立的知识库、Agent 与工作流空间，数据彼此隔离。</p>
+  <ul>
+    <li><b>部门空间</b>：每个部门是一个隔离空间（独立知识库 / Agent / 工作流），由部门管理员自治</li>
+    <li><b>平台层</b>：平台管理员负责全局模型、权限策略、技能市场与部门入驻审批</li>
+    <li><b>跨部门协作</b>：通过"共享空间"或 access_list 白名单，实现受控的跨域知识/流程复用</li>
+    <li><b>治理机制</b>：部门入驻流程、知识归属规则、合规巡检、用量与成本看板</li>
+    <li><b>扩展性</b>：新部门入驻只需开通空间 + 导入本部门知识，无需改动平台</li>
+  </ul>
+
+  <h3>5.10 部门入驻流程（流程图）</h3>
+  <p>新部门接入平台采用标准化"申请 → 审批 → 开通 → 配置 → 验证 → 上线"流程，由平台管理员把控，确保数据隔离与权限正确。</p>
+  <svg class="arch" viewBox="0 0 680 730" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="部门入驻流程图">
+    <defs>
+      <marker id="af" markerWidth="10" markerHeight="10" refX="6" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#1565c0"/></marker>
+    </defs>
+    <text x="20" y="26" font-size="15" font-weight="700" fill="#0a2540">部门入驻流程</text>
+
+    <rect x="130" y="50" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="77" text-anchor="middle" font-size="13" fill="#0a2540">① 部门申请入驻（部门负责人 / 种子用户提交）</text>
+
+    <rect x="130" y="126" width="420" height="42" rx="8" fill="#fdecea" stroke="#c62828" stroke-width="1.5"/>
+    <text x="340" y="153" text-anchor="middle" font-size="13" fill="#0a2540">② 平台管理员审批（必要性与数据敏感性评估）</text>
+    <text x="568" y="148" font-size="11" fill="#c62828">不通过 → 退回 ①</text>
+
+    <rect x="130" y="202" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="229" text-anchor="middle" font-size="13" fill="#0a2540">③ 开通部门空间（生成 dept_id，自动建部门知识库）</text>
+
+    <rect x="130" y="278" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="305" text-anchor="middle" font-size="13" fill="#0a2540">④ 配置部门管理员（RBAC 角色绑定）</text>
+
+    <rect x="130" y="354" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="381" text-anchor="middle" font-size="13" fill="#0a2540">⑤ 部门知识梳理入库（清洗打标 scope=department）</text>
+
+    <rect x="130" y="430" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="457" text-anchor="middle" font-size="13" fill="#0a2540">⑥ 配置部门专属 Agent 与工作流（通用 Agent 定制）</text>
+
+    <rect x="130" y="506" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="533" text-anchor="middle" font-size="13" fill="#0a2540">⑦ 隔离与权限验证（跨部门 / 越级不可见）</text>
+
+    <rect x="130" y="582" width="420" height="42" rx="8" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="609" text-anchor="middle" font-size="13" fill="#0a2540">⑧ 试运行与培训（部门内试点 + 使用培训）</text>
+
+    <rect x="130" y="658" width="420" height="42" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="340" y="685" text-anchor="middle" font-size="13" fill="#0a2540">⑨ 正式上线 + 纳入治理（用量看板、定期巡检）</text>
+
+    <line x1="340" y1="95" x2="340" y2="123" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="171" x2="340" y2="199" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="247" x2="340" y2="275" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="323" x2="340" y2="351" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="399" x2="340" y2="427" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="475" x2="340" y2="503" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="551" x2="340" y2="579" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+    <line x1="340" y1="627" x2="340" y2="655" stroke="#1565c0" stroke-width="2" marker-end="url(#af)"/>
+  </svg>
+  <p style="font-size:13px;color:var(--muted)">说明：② 审批环节不通过则退回 ① 重新评估；⑧ 试运行通过后方可 ⑨ 正式上线并纳入治理看板。</p>
+
+  <h3>5.11 部门入驻 SOP（行政落地版 · 纯文字分步）</h3>
+  <p>本 SOP 供<b>行政 / 平台管理员</b>在接到部门入驻申请时按步骤执行，配套 5.10 流程图。每步标注<b>责任人、操作动作、产出物、验收标准</b>。</p>
+  <p><b>目的与适用范围：</b>规范新部门接入平台的标准动作，确保数据隔离、权限正确、知识归口清晰。适用于所有职能部门的首次入驻与复用。</p>
+  <p><b>角色与职责：</b>① <b>申请方</b> = 部门负责人 / 部门种子用户；② <b>审批与执行方</b> = 平台管理员（IT/数字化）；③ <b>协作方</b> = 行政（表单与培训）、部门管理员（本部门配置）。</p>
+
+  <div class="step"><div class="h">Step 1 · 提交申请（申请方）</div>填写《部门入驻申请表》（见附录）：部门名称、业务域、拟贡献知识范围、数据敏感性自评（公开/内部/机密）、期望上线时间。提交至平台管理员。
+  <br><b>产出：</b>《部门入驻申请表》　<b>验收：</b>字段完整、敏感性自评已勾选。</div>
+
+  <div class="step"><div class="h">Step 2 · 审批评估（平台管理员）</div>评估入驻必要性、数据敏感性、是否已有可复用空间。敏感数据（薪酬/财务/客户信息）需额外标注加密与机密标签要求。
+  <br><b>产出：</b>审批结论（通过/退回）　<b>验收：</b>通过进入 Step 3；退回须注明原因并通知申请方。</div>
+
+  <div class="step"><div class="h">Step 3 · 开通空间（平台管理员）</div>在平台创建部门空间，生成唯一 <code>dept_id</code>，自动建立部门知识库（scope=department），绑定部门管理员角色占位。
+  <br><b>产出：</b>部门空间 + 部门知识库 + dept_id　<b>验收：</b>空间可见、dept_id 绑定正确。</div>
+
+  <div class="step"><div class="h">Step 4 · 配置管理员（平台管理员）</div>将部门负责人（或指定人）绑定为部门管理员角色（RBAC），赋予"本部门全部 + 全域只读 + 管理部门 Agent"权限。
+  <br><b>产出：</b>部门管理员账号与角色　<b>验收：</b>该账号仅见本部门、可管理部门 Agent。</div>
+
+  <div class="step"><div class="h">Step 5 · 知识梳理入库（部门管理员 + 种子用户）</div>按入库模板清洗本部门资料：制度/模板/复盘等，打标 scope=department、dept_id、tags、sensitivity。公共制度/产品手册不重复入部门库（保留全域）。
+  <br><b>产出：</b>已打标部门知识库首批内容　<b>验收：</b>每条记录含 (dept_id, scope, tags)，召回测试可命中。</div>
+
+  <div class="step"><div class="h">Step 6 · 配置专属 Agent/工作流（平台 + 部门）</div>在通用 Agent 基础上，绑定本部门知识库，创建部门专属 Agent 与工作流（如 HR 招聘助手、销售话术助手）。
+  <br><b>产出：</b>≥1 个本部门 Agent / 工作流　<b>验收：</b>能基于部门知识给出准确答复。</div>
+
+  <div class="step"><div class="h">Step 7 · 隔离与权限验证（平台 + 部门管理员）</div>用跨部门测试账号验证：不可见对方部门空间、不可越级看其他部门草稿、个人库仅本人可见。
+  <br><b>产出：</b>越权测试用例与结果　<b>验收：</b>全部用例通过，无越权可见。</div>
+
+  <div class="step"><div class="h">Step 8 · 试运行与培训（行政 + 部门管理员）</div>部门内小范围试点 1–2 周，行政组织使用培训（问答/写作/工作流入口），收集反馈。
+  <br><b>产出：</b>试点反馈表 + 培训记录　<b>验收：</b>部门内用户可独立使用核心 Agent。</div>
+
+  <div class="step"><div class="h">Step 9 · 正式上线与纳入治理（平台管理员）</div>上线公告，纳入治理看板：用量统计、成本分摊、定期合规巡检。后续知识持续由部门管理员维护。
+  <br><b>产出：</b>上线通知 + 治理看板条目　<b>验收：</b>看板可见该部门用量与权限状态。</div>
+
+  <p><b>附录 · 部门入驻申请表（模板）</b></p>
+  <table>
+    <thead><tr><th>字段</th><th>填写说明</th><th>示例</th></tr></thead>
+    <tbody>
+      <tr><td>部门名称</td><td>正式部门名</td><td>销售部</td></tr>
+      <tr><td>业务域</td><td>所属业务分类</td><td>销售</td></tr>
+      <tr><td>拟贡献知识范围</td><td>本部门将入库的资料类型</td><td>产品手册、报价模板、案例</td></tr>
+      <tr><td>数据敏感性自评</td><td>公开 / 内部 / 机密（可多选）</td><td>内部（报价）</td></tr>
+      <tr><td>期望上线时间</td><td>建议 ≥ MVP 后 2 周</td><td>2026-12-15</td></tr>
+      <tr><td>部门管理员</td><td>负责人姓名 / 工号</td><td>张三 / E1024</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.12 部门入驻 RACI 责任矩阵</h3>
+  <p>将 5.11 的 9 个步骤映射为 RACI 责任分工，明确"谁负责执行、谁最终担责、谁被咨询、谁被知会"。<b>R</b>=Responsible 负责执行；<b>A</b>=Accountable 最终负责（唯一）；<b>C</b>=Consulted 被咨询；<b>I</b>=Informed 被知会。</p>
+  <table>
+    <thead><tr><th>步骤</th><th>申请方(部门)</th><th>平台管理员</th><th>部门管理员</th><th>行政</th><th>管理层</th></tr></thead>
+    <tbody>
+      <tr><td>① 提交申请</td><td><b>R / A</b></td><td>C</td><td>—</td><td>I</td><td>I</td></tr>
+      <tr><td>② 审批评估</td><td>C</td><td><b>R / A</b></td><td>—</td><td>—</td><td>I</td></tr>
+      <tr><td>③ 开通空间</td><td>I</td><td><b>R / A</b></td><td>I</td><td>—</td><td>—</td></tr>
+      <tr><td>④ 配置管理员</td><td>—</td><td><b>R / A</b></td><td>C</td><td>I</td><td>—</td></tr>
+      <tr><td>⑤ 知识入库</td><td>—</td><td>C</td><td><b>R / A</b></td><td>I</td><td>—</td></tr>
+      <tr><td>⑥ 配专属 Agent</td><td>—</td><td><b>A</b>（R：平台＋部门）</td><td>R / C</td><td>—</td><td>—</td></tr>
+      <tr><td>⑦ 隔离验证</td><td>—</td><td><b>R / A</b></td><td>R</td><td>—</td><td>I</td></tr>
+      <tr><td>⑧ 试运行培训</td><td>I</td><td>C</td><td><b>R / A</b></td><td>R</td><td>—</td></tr>
+      <tr><td>⑨ 上线治理</td><td>I</td><td><b>R / A</b></td><td>C</td><td>—</td><td>I</td></tr>
+    </tbody>
+  </table>
+  <div class="note">说明：部门管理员在 Step 4 之后才被正式绑定，故 Step 1–4 中其参与为"被咨询/被知会"或"—"；平台管理员对全流程 A（最终负责），申请方对本部门资料的真实性 A。涉及越权或高敏事项由管理层兜底决策。</div>
+
+  <h2>6. 数据安全与合规 <span class="tagp p0">P0</span></h2>
+  <div class="grid">
+    <div class="card">
+      <h3 style="margin-top:0">保密要求</h3>
+      <ul>
+        <li>全私有化部署，企业数据不出域</li>
+        <li>禁用公网模型回传敏感内容（网关层拦截）</li>
+        <li>部门间、项目间数据逻辑隔离</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">管控机制</h3>
+      <ul>
+        <li>RBAC 角色权限（员工 / 部门管理员 / 平台管理员）</li>
+        <li>全量操作审计日志</li>
+        <li>交付物版本管理与导出审批</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>7. 实施路线图（分阶段）</h2>
+  <table>
+    <thead><tr><th>阶段</th><th>目标</th><th>关键交付</th><th>周期</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>Phase 0 · MVP</b></td><td>跑通平台 + 首个试点部门</td><td>私有化部署；全域+个人知识库；通用 Agent；1 条跨部门/部门工作流</td><td>4–6 周</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>Phase 1 · 多部门</b></td><td>部门级隔离与推广</td><td>部门空间；部门管理员；部门专属 Agent；连接器</td><td>2–3 月</td><td><span class="tagp p1">P1</span></td></tr>
+      <tr><td><b>Phase 2 · 智能化</b></td><td>自动化与治理</td><td>定时自动化；用量/成本看板；治理巡检；持续优化</td><td>3–6 月</td><td><span class="tagp p2">P2</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Phase 0 落地步骤拆解</h3>
+  <div class="step"><div class="h">Step 1 · 环境（第 1 周）</div>服务器/本地 Docker 部署 Dify；配置模型网关接入主流模型；打通基础账号与权限（员工/管理员）。</div>
+  <div class="step"><div class="h">Step 2 · 知识库（第 2 周）</div>整理公司制度/SOP/产品手册等全域资料，切分导入 Qdrant，做召回测试与调优。</div>
+  <div class="step"><div class="h">Step 3 · 单 Agent（第 3 周）</div>先做"知识问答 Agent"和"文档写作 Agent"两个高价值单点，验证质量。</div>
+  <div class="step"><div class="h">Step 4 · 工作流（第 4–5 周）</div>用 Dify 工作流串起一条真实业务流程（如"制度咨询→答复"或"周报生成"），跑通试点部门。</div>
+  <div class="step"><div class="h">Step 5 · 验收（第 6 周）</div>用真实任务验收，输出 MVP 复盘与 Phase 1（多部门）需求清单。</div>
+
+  <h3>7.1 部门级（Phase 1）多部门落地细节</h3>
+  <p>MVP 已跑通"全域 + 个人"两级与首个试点部门后，Phase 1 推广到多部门，让各业务部门既能沉淀自有知识，又不破坏全域公共资产与个人草稿边界。</p>
+  <p><b>落地步骤</b></p>
+  <ul>
+    <li><b>开部门空间</b>：为每个业务部门开通独立空间，绑定 dept_id，自动建部门知识库</li>
+    <li><b>配部门管理员</b>：RBAC 新增部门管理员角色，可见本部门全部 + 全域只读，可管理部门 Agent</li>
+    <li><b>定沉淀规范</b>：部门复盘 / 模板统一入部门库，公共制度/产品手册只在全域库，避免重复与版本分裂</li>
+    <li><b>隔离验证</b>：用跨部门账号验证不可见对方部门空间、不可越级看全域草稿</li>
+    <li><b>部门工作流</b>：各部门跑通本领域的多 Agent 协作闭环（如 HR 招聘助手、销售话术助手）</li>
+  </ul>
+  <p><b>配置清单</b></p>
+  <table>
+    <thead><tr><th>事项</th><th>负责角色</th><th>产出</th><th>验收标准</th></tr></thead>
+    <tbody>
+      <tr><td>部门空间创建</td><td>平台管理员</td><td>部门空间 ×N + 部门知识库</td><td>空间可见且绑定 dept_id</td></tr>
+      <tr><td>角色与权限</td><td>平台管理员</td><td>部门管理员角色 + RBAC 规则</td><td>部门管理员仅见本部门</td></tr>
+      <tr><td>标签体系扩展</td><td>各部门种子用户</td><td>业务域 / 项目标签</td><td>可按部门 / 业务域过滤</td></tr>
+      <tr><td>沉淀规范</td><td>平台管理员</td><td>部门入库 SOP</td><td>知识归口正确</td></tr>
+      <tr><td>隔离验证</td><td>平台 + 部门管理员</td><td>越权测试用例</td><td>跨部门 / 越级不可见</td></tr>
+      <tr><td>部门工作流</td><td>各部门 + 技术</td><td>部门级多 Agent 流</td><td>部门内任务闭环</td></tr>
+    </tbody>
+  </table>
+  <p><b>与全域库 / 个人库的边界</b></p>
+  <ul>
+    <li><b>vs 全域库</b>：公共制度 / 产品手册只在全域库，部门库不重复存放，避免版本分裂</li>
+    <li><b>vs 个人库</b>：在途草稿、私人笔记留个人库；项目交付归档按权限升到部门 / 全域</li>
+    <li><b>权限升级</b>：个人 → 部门 → 全域 需平台管理员审批，全程审计留痕</li>
+  </ul>
+  <p><b>时间节点</b>：Phase 1 第 4–8 周（接续 MVP 之后），与多 Agent 编排、连接器建设并行推进。</p>
+
+  <h2>8. 团队与资源</h2>
+  <table>
+    <thead><tr><th>角色</th><th>职责</th><th>关键动作</th></tr></thead>
+    <tbody>
+      <tr><td><b>管理层 Sponsor</b></td><td>立项、资源、跨部门推动</td><td>明确战略价值，协调部门配合与预算</td></tr>
+      <tr><td><b>平台建设组（IT/数字化）</b></td><td>框架部署、Agent 编排、运维</td><td>Dify/LangGraph 部署；工作流搭建；权限与网关</td></tr>
+      <tr><td><b>各部门种子用户</b></td><td>知识库运营、场景验证</td><td>本部门资料清洗入库；提出并验证部门 Agent 场景</td></tr>
+      <tr><td><b>外部补充</b></td><td>兼职开发 / 外包</td><td>复杂编排、连接器开发等高技术密度环节</td></tr>
+    </tbody>
+  </table>
+  <div class="note">技术瓶颈在"Agent 编排 + 私有化运维"。建议 Phase 0 用 Dify 降低门槛，必要时引入一名熟悉 Python + Docker 的兼职后端即可推进；各部门种子用户是推广成败关键。</div>
+
+  <h2>9. MVP 启动检查清单</h2>
+  <ul class="check">
+    <li>确定部署环境（内网服务器 / 私有云）</li>
+    <li>选定模型供应商并拿到 API Key（DeepSeek / 通义 / 智谱）</li>
+    <li>梳理第一批全域知识库素材（制度/SOP/产品手册）</li>
+    <li>定义一条最小业务流程（建议选"制度/知识问答"）</li>
+    <li>明确质量验收标准（准确、可引用、不出域）</li>
+    <li>搭建 Dify + 模型网关 + 向量库（参考第 4 节选型）</li>
+    <li>指定平台建设组与首个试点部门，排期 6 周 MVP</li>
+  </ul>
+
+  <h2>10. 风险与应对</h2>
+  <table>
+    <thead><tr><th>风险</th><th>影响</th><th>应对</th></tr></thead>
+    <tbody>
+      <tr><td>技术人力不足</td><td>MVP 延期</td><td>优先 Dify 低代码；关键节点外包</td></tr>
+      <tr><td>知识库质量差 → 幻觉</td><td>回答不可信</td><td>严控入库、加审核 Agent、人工复核红线</td></tr>
+      <tr><td>部门配合度低</td><td>推广受阻</td><td>管理层牵头 + 种子用户 + 试点见效再扩</td></tr>
+      <tr><td>模型成本高</td><td>长期运营压力</td><td>网关限流、按部门计费、低价模型做初稿</td></tr>
+      <tr><td>数据保密泄露</td><td>企业信任危机</td><td>私有化 + RBAC + 审计，禁用公网回传</td></tr>
+      <tr><td>能力被"锁死"在工具</td><td>切换成本高</td><td>知识资产与框架解耦，工具可替换</td></tr>
+    </tbody>
+  </table>
+
+  <h2>11. 下一步建议</h2>
+  <ul>
+    <li><b>本周</b>：确认部署环境与模型供应商，启动私有化部署（Step 1）。</li>
+    <li><b>2 周内</b>：梳理全域知识库素材模板，并画出第一条工作流的节点图。</li>
+    <li><b>可选深化</b>：需要我把这份蓝图导出为 Word，或针对某一模块（如 Agent 编排设计 / 部门治理细则 / 权限矩阵总表）做详细设计稿，告诉我即可。</li>
+  </ul>
+
+  <h2>12. 多部门业务场景（通用用途示例）</h2>
+  <p>平台不绑定行业，面向企业内<b>所有职能部门通用</b>。下表给出典型部门如何使用平台、贡献什么知识、以及权限特征，验证"一套底座、各部门各有空间"的落地形态。</p>
+  <table>
+    <thead><tr><th>部门</th><th>典型痛点</th><th>平台用途 / Agent 场景</th><th>主要贡献知识</th><th>权限特征</th></tr></thead>
+    <tbody>
+      <tr><td><b>行政</b></td><td>制度/通知/资产信息分散，员工反复问</td><td>制度问答 Agent、通知与会议纪要自动生成、资产台账查询</td><td>制度手册、SOP、会务模板、资产台账</td><td>全域(制度公开) + 行政库(内部流程)</td></tr>
+      <tr><td><b>人事 / HR</b></td><td>招聘/入职/考勤/培训重复解答，敏感信息多</td><td>JD 与面试题生成、入职引导问答、培训材料生成、假期/报销制度问答</td><td>招聘话术、培训课件、组织架构、人事制度</td><td>HR 库(薪酬/员工信息机密) + 全域(通用制度)</td></tr>
+      <tr><td><b>销售</b></td><td>产品/报价/话术版本多，找资料慢</td><td>产品知识问答、销售话术助手、报价单与方案初稿、客户画像分析</td><td>产品手册、报价模板、成功案例、竞品分析</td><td>销售库 + 全域(产品) + 个人(客户跟进)</td></tr>
+      <tr><td><b>设计</b></td><td>设计规范/素材/品牌规范散落</td><td>设计规范问答、文案版式初稿、素材检索、评审清单</td><td>品牌规范、设计模板、组件库、视觉标准</td><td>设计库 + 全域(品牌公开部分)</td></tr>
+      <tr><td><b>跟单</b></td><td>订单进度/交期/异常跨系统查，口头传递易错</td><td>订单进度问答(对接 ERP)、交期预警、异常自动汇总、跟单日报</td><td>跟单 SOP、交期规则、异常处理模板</td><td>跟单库 + ERP 数据(按角色) + 个人(在途订单)</td></tr>
+      <tr><td><b>研发</b></td><td>技术文档/需求/接口散，知识易流失</td><td>技术文档问答、需求与测试用例生成、代码评审辅助、知识沉淀检索</td><td>技术方案、接口文档、复盘、研发规范</td><td>研发库(部分机密) + 个人(在途)</td></tr>
+      <tr><td><b>推广 / 市场</b></td><td>文案/投放/活动素材重复度高</td><td>营销文案生成、活动方案初稿、投放数据解读、社媒内容批量生成</td><td>投放策略、素材库、活动复盘、渠道手册</td><td>推广库 + 全域(品牌) + 个人</td></tr>
+      <tr><td><b>财务</b></td><td>报销/对账/报表重复劳动</td><td>报销政策问答、票据与对账自动化、报表生成</td><td>财务制度、科目说明、报表模板</td><td>财务库(机密) + 全域(报销制度公开)</td></tr>
+      <tr><td><b>客服</b></td><td>重复问答、知识更新慢</td><td>智能客服问答、工单摘要、话术推荐</td><td>常见问题、服务手册、客诉 SOP</td><td>客服库 + 全域(产品)</td></tr>
+    </tbody>
+  </table>
+  <div class="note">说明：上表为示例，实际可按企业组织架构裁剪；每个部门都复用同一套通用 Agent（知识问答/文档写作/数据分析/流程自动化/合规审核），差异只在"部门知识库 + 部门专属 Agent/工作流"。</div>
+
+  <h3>12.1 部门落地卡片（九部门 · 可直接照此推进）</h3>
+  <p>将第 12 章表格展开为可落地的"部门卡片"：每张给出定位、痛点、平台用途、贡献知识、权限特征、首周动作与关键指标。各部门可据此直接排期入驻（配合 5.11 SOP）。</p>
+  <div class="deptgrid">
+
+    <div class="deptcard">
+      <div class="dn">行政</div>
+      <div class="dp">企业制度的"总服务台"</div>
+      <p><b>痛点：</b>制度/通知/资产信息分散，员工反复问；会议/资产靠人工。</p>
+      <p><b>用途：</b>制度问答 Agent、会议纪要自动生成、资产台账查询、用印/差旅流程问答。</p>
+      <p><b>贡献知识：</b>制度手册、SOP、会务模板、资产台账。</p>
+      <p><b>权限：</b>全域(制度公开) + 行政库(内部流程) + 个人。</p>
+      <p><b>首周：</b>① 导入制度手册/SOP ② 配制度问答 Agent ③ 梳理资产台账模板。</p>
+      <p><b>指标：</b>制度类重复咨询↓%、会议纪要生成耗时↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">人事 / HR</div>
+      <div class="dp">招聘与员工体验中枢</div>
+      <p><b>痛点：</b>招聘/入职/考勤/培训重复解答，薪酬/员工信息敏感。</p>
+      <p><b>用途：</b>JD 与面试题生成、入职引导问答、培训材料生成、假期/报销制度问答。</p>
+      <p><b>贡献知识：</b>招聘话术、培训课件、组织架构、人事制度。</p>
+      <p><b>权限：</b>HR 库(薪酬/员工信息机密) + 全域(通用制度)。</p>
+      <p><b>首周：</b>① 导入人事制度与培训课件 ② 建招聘话术 Agent ③ 设 HR 库机密标签。</p>
+      <p><b>指标：</b>招聘初筛效率↑、入职引导自助率↑。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">销售</div>
+      <div class="dp">一线获客与转化引擎</div>
+      <p><b>痛点：</b>产品/报价/话术版本多，找资料慢。</p>
+      <p><b>用途：</b>产品知识问答、销售话术助手、报价单与方案初稿、客户画像分析。</p>
+      <p><b>贡献知识：</b>产品手册、报价模板、成功案例、竞品分析。</p>
+      <p><b>权限：</b>销售库 + 全域(产品) + 个人(客户跟进)。</p>
+      <p><b>首周：</b>① 导入产品手册与报价模板 ② 配销售话术助手 ③ 规范客户跟进个人库。</p>
+      <p><b>指标：</b>方案初稿生成时长↓、资料查找耗时↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">设计</div>
+      <div class="dp">品牌与视觉规范守护者</div>
+      <p><b>痛点：</b>设计规范/素材/品牌规范散落。</p>
+      <p><b>用途：</b>设计规范问答、文案版式初稿、素材检索、评审清单。</p>
+      <p><b>贡献知识：</b>品牌规范、设计模板、组件库、视觉标准。</p>
+      <p><b>权限：</b>设计库 + 全域(品牌公开部分)。</p>
+      <p><b>首周：</b>① 导入品牌规范与组件库 ② 配设计规范问答 ③ 建素材检索 Agent。</p>
+      <p><b>指标：</b>设计返工率↓、素材查找耗时↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">跟单</div>
+      <div class="dp">订单履约与交期把控</div>
+      <p><b>痛点：</b>订单进度/交期/异常跨系统查，口头传递易错。</p>
+      <p><b>用途：</b>订单进度问答(对接 ERP)、交期预警、异常自动汇总、跟单日报。</p>
+      <p><b>贡献知识：</b>跟单 SOP、交期规则、异常处理模板。</p>
+      <p><b>权限：</b>跟单库 + ERP 数据(按角色) + 个人(在途订单)。</p>
+      <p><b>首周：</b>① 建跟单 SOP 与交期规则 ② 对接 ERP 读取订单 ③ 配跟单日报 Agent。</p>
+      <p><b>指标：</b>异常响应时长↓、跟单日报生成耗时↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">研发</div>
+      <div class="dp">技术与知识沉淀中枢</div>
+      <p><b>痛点：</b>技术文档/需求/接口散，知识易流失。</p>
+      <p><b>用途：</b>技术文档问答、需求与测试用例生成、代码评审辅助、知识沉淀检索。</p>
+      <p><b>贡献知识：</b>技术方案、接口文档、复盘、研发规范。</p>
+      <p><b>权限：</b>研发库(部分机密) + 个人(在途)。</p>
+      <p><b>首周：</b>① 导入研发规范与接口文档 ② 配技术文档问答 ③ 建代码评审辅助 Agent。</p>
+      <p><b>指标：</b>文档查找耗时↓、需求初稿生成时长↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">推广 / 市场</div>
+      <div class="dp">获客内容与投放中枢</div>
+      <p><b>痛点：</b>文案/投放/活动素材重复度高。</p>
+      <p><b>用途：</b>营销文案生成、活动方案初稿、投放数据解读、社媒内容批量生成。</p>
+      <p><b>贡献知识：</b>投放策略、素材库、活动复盘、渠道手册。</p>
+      <p><b>权限：</b>推广库 + 全域(品牌) + 个人。</p>
+      <p><b>首周：</b>① 导入渠道手册与素材库 ② 配营销文案 Agent ③ 建活动方案初稿流。</p>
+      <p><b>指标：</b>文案产出量↑、活动方案初稿时长↓。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">财务</div>
+      <div class="dp">合规与资金管控</div>
+      <p><b>痛点：</b>报销/对账/报表重复劳动。</p>
+      <p><b>用途：</b>报销政策问答、票据与对账自动化、报表生成。</p>
+      <p><b>贡献知识：</b>财务制度、科目说明、报表模板。</p>
+      <p><b>权限：</b>财务库(机密) + 全域(报销制度公开)。</p>
+      <p><b>首周：</b>① 导入财务制度与报表模板 ② 配报销政策问答 ③ 设财务库机密标签。</p>
+      <p><b>指标：</b>报销咨询自助率↑、对账自动化率↑。</p>
+    </div>
+
+    <div class="deptcard">
+      <div class="dn">客服</div>
+      <div class="dp">客户问题第一响应</div>
+      <p><b>痛点：</b>重复问答、知识更新慢。</p>
+      <p><b>用途：</b>智能客服问答、工单摘要、话术推荐。</p>
+      <p><b>贡献知识：</b>常见问题、服务手册、客诉 SOP。</p>
+      <p><b>权限：</b>客服库 + 全域(产品)。</p>
+      <p><b>首周：</b>① 导入服务手册与常见问题 ② 配智能客服问答 ③ 建工单摘要 Agent。</p>
+      <p><b>指标：</b>自助解决率↑、工单处理时长↓。</p>
+    </div>
+
+  </div>
+
+  <h3>12.2 试点部门选择建议（价值 × 难度 优先级）</h3>
+  <p>首个试点部门决定项目第一印象与后续推广阻力。按"<b>知识复用价值</b>"（越高越值得先做）与"<b>落地难度</b>"（越高越慢、越易踩坑）两个维度对 9 个部门打分（1–5），给出排序与批次建议。</p>
+  <table>
+    <thead><tr><th>部门</th><th>知识复用价值</th><th>落地难度</th><th>综合判断</th><th>建议批次</th></tr></thead>
+    <tbody>
+      <tr><td><b>行政</b></td><td>5（全员高频问答）</td><td>2（公开制度、无需系统集成）</td><td>低风险、快见效、全员可见</td><td><b>第 1 批（起步）</b></td></tr>
+      <tr><td><b>客服</b></td><td>4（重复问答多）</td><td>2（FAQ 结构化、无敏感）</td><td>结构化好、易量化</td><td><b>第 1 批（起步）</b></td></tr>
+      <tr><td><b>销售</b></td><td>4（资料查找耗时大）</td><td>3（产品/报价需整理）</td><td>价值高、整理工作量中</td><td>第 2 批</td></tr>
+      <tr><td><b>推广 / 市场</b></td><td>4（内容重复度高）</td><td>3（依赖品牌规范）</td><td>内容产能提升明显</td><td>第 2 批</td></tr>
+      <tr><td><b>人事 / HR</b></td><td>4（重复解答多）</td><td>3（含敏感数据需标签）</td><td>价值高、需先做脱敏</td><td>第 2 批</td></tr>
+      <tr><td><b>设计</b></td><td>3（规范检索）</td><td>3（素材库需梳理）</td><td>价值中、依赖素材整理</td><td>第 2–3 批</td></tr>
+      <tr><td><b>研发</b></td><td>4（知识易流失）</td><td>4（文档散、部分机密）</td><td>价值高但整合难</td><td>第 3 批</td></tr>
+      <tr><td><b>跟单</b></td><td>4（跨系统查单）</td><td>4（需 ERP 集成）</td><td>价值高但依赖集成</td><td>第 3 批</td></tr>
+      <tr><td><b>财务</b></td><td>3（重复劳动）</td><td>5（高机密、合规严）</td><td>谨慎推进、放最后</td><td>第 3 批（谨慎）</td></tr>
+    </tbody>
+  </table>
+  <p><b>推荐首个试点：行政部。</b>理由：① 知识以公开制度 / SOP 为主，敏感性低、入库快；② 问答场景全员高频，见效即被全公司看见，利于建立样板与信任；③ 不依赖业务系统对接，4–6 周 MVP 内可完整跑通，为后续部门积累标准动作与培训材料。</p>
+  <p><b>批次安排：</b>第 1 批（行政、客服）打样与验证平台价值 → 第 2 批（销售、推广、HR）扩面、沉淀部门方法论 → 第 3 批（研发、跟单、财务）攻坚高难 / 高敏部门，配合系统集成与脱敏机制。</p>
+  <div class="note">选择原则：先选"价值高 × 难度低"的部门做快速胜利（quick win），再用样板说服难度高 / 敏感度高的部门；每个试点部门均按 5.11 SOP 与 12.1 卡片推进，避免一把推开导致资源分散。</div>
+
+  <div class="pb"></div>
+  <h2>13. 权限矩阵总表（角色 × 操作 × 可见范围）</h2>
+  <p>下表为平台核心权限矩阵，按"角色可执行的操作"与"可见范围"两个维度汇总。符号：<b>✓</b>=允许，<b>✗</b>=禁止，<b>条件</b>=需审批 / 白名单 / 仅本部门。</p>
+  <p><b>13.1 操作权限矩阵</b></p>
+  <table>
+    <thead><tr><th>操作</th><th>普通员工</th><th>部门管理员</th><th>平台管理员</th><th>可见范围 / 说明</th></tr></thead>
+    <tbody>
+      <tr><td>阅读全域知识库</td><td>✓ 全员只读</td><td>✓</td><td>✓</td><td>公开制度 / 产品手册等，全员可读</td></tr>
+      <tr><td>阅读本部门知识库</td><td>条件(属本部门)</td><td>✓ 本部门</td><td>✓ 全部</td><td>员工仅能看到自己所属部门</td></tr>
+      <tr><td>阅读其他部门知识库</td><td>✗(除非授权)</td><td>✗</td><td>✓ 全部</td><td>跨部门需共享空间 / 白名单</td></tr>
+      <tr><td>阅读个人知识库</td><td>✓ 仅自己</td><td>✓ 仅自己</td><td>✓ 全部</td><td>个人草稿仅本人可见</td></tr>
+      <tr><td>新建 / 编辑个人知识</td><td>✓</td><td>✓</td><td>✓</td><td>个人空间内</td></tr>
+      <tr><td>新建 / 编辑部门知识</td><td>✗</td><td>✓ 本部门</td><td>✓ 全部</td><td>部门管理员管本部门</td></tr>
+      <tr><td>删除知识</td><td>✓ 仅自己草稿</td><td>✓ 本部门</td><td>✓ 全部</td><td>删除受审计约束</td></tr>
+      <tr><td>使用通用 Agent</td><td>✓</td><td>✓</td><td>✓</td><td>知识问答 / 写作 / 分析等</td></tr>
+      <tr><td>管理部门 Agent / 工作流</td><td>✗</td><td>✓ 本部门</td><td>✓ 全部</td><td>部门自治</td></tr>
+      <tr><td>配置 RBAC / 权限</td><td>✗</td><td>✗</td><td>✓</td><td>平台级</td></tr>
+      <tr><td>部门入驻审批</td><td>✗</td><td>✗</td><td>✓</td><td>平台级</td></tr>
+      <tr><td>跨部门共享配置</td><td>✗</td><td>条件(申请)</td><td>✓</td><td>需平台管理员审批</td></tr>
+      <tr><td>查看审计日志</td><td>✗</td><td>条件(本部门)</td><td>✓ 全部</td><td>合规追溯</td></tr>
+      <tr><td>模型 / 网关配置</td><td>✗</td><td>✗</td><td>✓</td><td>平台级</td></tr>
+      <tr><td>导出交付物</td><td>条件(个人/本部门)</td><td>条件(本部门)</td><td>✓(可设审批)</td><td>敏感导出可走审批流</td></tr>
+    </tbody>
+  </table>
+  <p><b>13.2 角色可见范围总览</b></p>
+  <table>
+    <thead><tr><th>角色</th><th>知识可见范围</th><th>操作范围</th><th>典型人员</th></tr></thead>
+    <tbody>
+      <tr><td>普通员工</td><td>全域公开 + 本部门 + 个人</td><td>读写个人、读本部门、用通用 Agent</td><td>各部门员工</td></tr>
+      <tr><td>部门管理员</td><td>全域只读 + 本部门全部 + (授权)其他部门</td><td>管本部门知识 / Agent / 工作流、审批本部门共享</td><td>部门负责人</td></tr>
+      <tr><td>平台管理员</td><td>全部</td><td>平台配置、权限、部门入驻、审计、模型网关</td><td>IT / 数字化团队</td></tr>
+    </tbody>
+  </table>
+  <div class="note">越权防护：所有操作在 RBAC + API 网关层强制校验，检索在召回阶段即按 scope / owner / dept 过滤；跨部门协作仅通过"共享空间"或 access_list 白名单开通，且全程审计。</div>
+
+  <div class="pb"></div>
+  <h3>13.3 角色权限速查卡（一页 A4 · 员工 / 部门管理员 / 平台管理员）</h3>
+  <p>本卡可单独打印张贴或随账号下发，帮助各角色快速理解"我能看什么、能做什么"。</p>
+  <div class="refcard">
+    <div class="rolecol">
+      <h4>普通员工</h4>
+      <p><b>能看到：</b>全域公开知识（制度/产品手册）＋ 本部门知识 ＋ 个人知识。</p>
+      <p><b>能做：</b>使用通用 Agent（问答/写作/分析等）；新建/编辑个人知识；读本部门知识。</p>
+      <p><b>不能做：</b>看其他部门空间；管理部门 Agent；配权限；看审计日志。</p>
+      <p><b>典型：</b>各部门一线员工、实习生。</p>
+    </div>
+    <div class="rolecol">
+      <h4>部门管理员</h4>
+      <p><b>能看到：</b>全域只读 ＋ 本部门全部 ＋（授权）其他部门。</p>
+      <p><b>能做：</b>写部门知识；管理部门 Agent/工作流；审批本部门共享申请；维护本部门知识库。</p>
+      <p><b>不能做：</b>看其他未授权部门；配平台权限；部门入驻审批；看全公司审计。</p>
+      <p><b>典型：</b>部门负责人 / 指定的部门运营。</p>
+    </div>
+    <div class="rolecol">
+      <h4>平台管理员</h4>
+      <p><b>能看到：</b>全部（全域/部门/个人）。</p>
+      <p><b>能做：</b>平台与模型网关配置；RBAC 权限；部门入驻审批；跨部门共享配置；审计日志；用量看板。</p>
+      <p><b>不能做：</b>无（最高权限，但操作受审计约束，敏感删除需二次确认）。</p>
+      <p><b>典型：</b>IT / 数字化团队。</p>
+    </div>
+  </div>
+  <div class="note">越权防护铁律：所有检索在召回阶段按 scope/owner/dept 过滤；跨部门仅经"共享空间"或 access_list 白名单开通并审计。如遇权限异常，联系平台管理员。</div>
+
+  <h2>14. 给管理层的 1 页精简摘要</h2>
+  <div class="card">
+    <p><b>我们要做什么：</b>搭建一套<b>企业内部的 AI 智能体中台</b>——让各部门拥有专属 AI 助手与知识库，但共用同一私有化底座，数据不出域。</p>
+    <p><b>为什么现在做：</b></p>
+    <ul>
+      <li>知识散落各部门、重复提问造轮子；跨部门靠人工传递，低效易错</li>
+      <li>员工被事务性工作淹没；各部门各自买工具，数据难管控</li>
+      <li>统一平台可把制度 / 资料 / 经验资产化、可问可答可复用</li>
+    </ul>
+    <p><b>三大支柱：</b>① 知识分级（全域 / 部门 / 个人）② 多 Agent 编排 ③ 严格权限隔离（员工 / 部门 / 平台三级）</p>
+    <p><b>投入与周期：</b></p>
+    <ul>
+      <li>周期：MVP 4–6 周（单试点部门）→ 多部门 2–3 月 → 智能化 3–6 月</li>
+      <li>人力：平台建设组(IT) + 各部门种子用户 + 管理层 Sponsor；技术瓶颈环节可外包</li>
+      <li>成本：开源框架私有化，主要成本在模型调用与 1–2 名技术人力</li>
+    </ul>
+    <p><b>风险与保障：</b>知识幻觉（严控入库 + 审核 Agent）、泄密（私有化 + RBAC + 审计）、部门配合度（管理层牵头 + 试点见效）。</p>
+    <p><b>建议决策：</b>批准 ☐ 立项与预算　☐ 选定首个试点部门　☐ 排期 6 周 MVP　☐ 指定 Sponsor 与建设组。</p>
+  </div>
+
+  <h2>15. 给 IT 的部署清单</h2>
+  <p class="kv"><b>一、环境与网络</b></p>
+  <ul class="check">
+    <li>确定部署位置：内网服务器 / 私有云（数据不出域）</li>
+    <li>配置域名与反向代理（HTTPS / TLS）</li>
+    <li>资源评估：CPU/GPU、内存、磁盘（向量库与对象存储）</li>
+    <li>定期备份策略（PG + 向量库 + 对象存储快照）</li>
+  </ul>
+  <p class="kv"><b>二、平台部署栈</b></p>
+  <ul class="check">
+    <li>容器化部署：Docker Compose 起步，后期 K8s 编排</li>
+    <li>编排底座：Dify（Agent / RAG / 工作流）</li>
+    <li>复杂编排：LangGraph（多 Agent 协作）</li>
+    <li>向量库：Qdrant；业务库：PostgreSQL；对象存储：MinIO</li>
+    <li>模型网关：One API / LiteLLM（统一接入、限流、计费）</li>
+  </ul>
+  <p class="kv"><b>三、模型接入</b></p>
+  <ul class="check">
+    <li>申请并配置模型 API Key（DeepSeek / 通义 / 智谱 / 私有模型）</li>
+    <li>网关限流与按部门计费策略</li>
+    <li>禁用公网模型回传敏感内容（网关拦截规则）</li>
+  </ul>
+  <p class="kv"><b>四、账号与权限</b></p>
+  <ul class="check">
+    <li>对接企业 SSO / LDAP（员工账号统一）</li>
+    <li>配置 RBAC 三角色：员工 / 部门管理员 / 平台管理员</li>
+    <li>开通部门空间（dept_id 绑定）与部门知识库</li>
+    <li>配置 access_list 白名单（跨部门协作）</li>
+  </ul>
+  <p class="kv"><b>五、知识库初始化</b></p>
+  <ul class="check">
+    <li>制定入库模板与打标规范（scope / owner / dept / tags）</li>
+    <li>导入全域资料（制度 / SOP / 产品手册），切片与向量化</li>
+    <li>召回测试与调优（准确率、引用完整性）</li>
+  </ul>
+  <p class="kv"><b>六、安全与验收</b></p>
+  <ul class="check">
+    <li>全量操作审计日志开启</li>
+    <li>越权测试用例（跨部门 / 越级不可见）</li>
+    <li>定义质量验收标准：准确、可引用、不出域</li>
+    <li>试点部门真实任务验收 + MVP 复盘</li>
+  </ul>
+
+  <h2>16. 移动端（手机）操作设计</h2>
+  <p>平台不止服务于坐班 PC 场景。<b>管理层在外、销售/跟单在外勤、员工随时提问、审批待办</b>都发生在手机上。移动端设计目标是：<b>高频轻操作手机化、重编排留 PC、权限与安全同标准</b>。</p>
+
+  <h3>16.1 三种接入方式对比</h3>
+  <table>
+    <thead><tr><th>接入方式</th><th>适用</th><th>开发成本</th><th>SSO/通知</th><th>推荐度</th></tr></thead>
+    <tbody>
+      <tr><td><b>企微/钉钉/飞书 H5 / 小程序</b></td><td>全员日常使用、免安装、与 IM 通知打通</td><td>低（复用 Web App + 网页授权）</td><td>天然打通</td><td><b>首选（MVP）</b></td></tr>
+      <tr><td><b>独立 App（Flutter/RN）</b></td><td>功能最全、可离线缓存、强推送</td><td>中高</td><td>需自接 SSO</td><td>二期</td></tr>
+      <tr><td><b>微信小程序</b></td><td>外部协作/客户场景、免登录门槛</td><td>低</td><td>微信授权</td><td>对外场景</td></tr>
+    </tbody>
+  </table>
+
+  <h3>16.2 手机上做什么 / 不做什么（场景分级）</h3>
+  <table>
+    <thead><tr><th>层级</th><th>手机端（推荐）</th><th>PC 端（保留）</th></tr></thead>
+    <tbody>
+      <tr><td><b>问答与触发</b></td><td>语音/文字问知识、一句话触发 Agent、看结果卡片</td><td>复杂多轮调试</td></tr>
+      <tr><td><b>审批与待办</b></td><td>部门入驻/共享/导出申请一键通过驳回</td><td>权限策略配置</td></tr>
+      <tr><td><b>知识检索</b></td><td>搜制度/产品/案例，带权限标识的结果</td><td>批量入库打标</td></tr>
+      <tr><td><b>生产</b></td><td>即时生成短文案/日报/纪要</td><td>长文档/报表/工作流编排</td></tr>
+      <tr><td><b>管理</b></td><td>看用量看板、接收告警</td><td>部门入驻、RBAC、模型网关</td></tr>
+    </tbody>
+  </table>
+
+  <h3>16.3 核心界面设计（手机线框图）</h3>
+  <p>三块核心屏：<b>① 工作台首页</b>（快捷入口+待办）、<b>② Agent 对话页</b>（语音优先+引用来源）、<b>③ 审批页</b>（一键通过/驳回）。</p>
+  <svg class="arch" viewBox="0 0 680 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="移动端三屏线框图">
+    <defs>
+      <marker id="mf" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <text x="20" y="22" font-size="14" font-weight="700" fill="#0a2540">移动端核心屏（线框）</text>
+    <!-- Phone 1 工作台 -->
+    <rect x="30" y="40" width="150" height="300" rx="16" fill="#fff" stroke="#0a2540" stroke-width="2"/>
+    <rect x="30" y="40" width="150" height="30" rx="16" fill="#0a2540"/>
+    <rect x="30" y="55" width="150" height="15" fill="#0a2540"/>
+    <text x="105" y="61" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">工作台</text>
+    <rect x="42" y="82" width="126" height="22" rx="6" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="50" y="97" font-size="10" fill="#5b7185">搜索 / 语音提问</text>
+    <rect x="42" y="114" width="60" height="40" rx="6" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="72" y="135" text-anchor="middle" font-size="9.5" fill="#1f2d3d">我的Agent</text>
+    <rect x="108" y="114" width="60" height="40" rx="6" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="138" y="135" text-anchor="middle" font-size="9.5" fill="#1f2d3d">待我审批</text>
+    <rect x="42" y="160" width="60" height="40" rx="6" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="72" y="181" text-anchor="middle" font-size="9.5" fill="#1f2d3d">今日任务</text>
+    <rect x="108" y="160" width="60" height="40" rx="6" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="138" y="181" text-anchor="middle" font-size="9.5" fill="#1f2d3d">常用知识</text>
+    <text x="42" y="222" font-size="9.5" fill="#5b7185">待办</text>
+    <line x1="42" y1="228" x2="168" y2="228" stroke="#dbe6f2"/>
+    <text x="42" y="246" font-size="10" fill="#1f2d3d">• 行政部入驻申请</text>
+    <text x="42" y="264" font-size="10" fill="#1f2d3d">• 销售部共享申请</text>
+    <text x="42" y="282" font-size="10" fill="#1f2d3d">• 周报待生成 ×2</text>
+    <text x="42" y="308" font-size="9" fill="#1565c0">我的知识（个人/部门）</text>
+    <text x="105" y="338" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">① 工作台首页</text>
+
+    <!-- Phone 2 Agent -->
+    <rect x="265" y="40" width="150" height="300" rx="16" fill="#fff" stroke="#0a2540" stroke-width="2"/>
+    <rect x="265" y="40" width="150" height="30" rx="16" fill="#1565c0"/>
+    <rect x="265" y="55" width="150" height="15" fill="#1565c0"/>
+    <text x="340" y="61" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">销售话术助手</text>
+    <rect x="277" y="86" width="96" height="30" rx="10" fill="#e3f0ff"/>
+    <text x="325" y="105" text-anchor="middle" font-size="9.5" fill="#1f2d3d">五一活动话术?</text>
+    <rect x="277" y="124" width="120" height="58" rx="10" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="285" y="140" font-size="9.5" fill="#1f2d3d">建议分三档：① 到店礼</text>
+    <text x="285" y="154" font-size="9.5" fill="#1f2d3d">② 满减 ③ 老带新…</text>
+    <text x="285" y="172" font-size="8.5" fill="#2e7d32">来源：产品手册 v3</text>
+    <rect x="277" y="192" width="120" height="26" rx="8" fill="#e3f0ff"/>
+    <text x="337" y="209" text-anchor="middle" font-size="9.5" fill="#1f2d3d">再生成一版朋友圈文案</text>
+    <rect x="277" y="300" width="126" height="28" rx="14" fill="#eef4fb" stroke="#1565c0"/>
+    <text x="340" y="318" text-anchor="middle" font-size="10" fill="#1565c0">按住说话　发送</text>
+    <text x="340" y="338" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">② Agent 对话页</text>
+
+    <!-- Phone 3 审批 -->
+    <rect x="500" y="40" width="150" height="300" rx="16" fill="#fff" stroke="#0a2540" stroke-width="2"/>
+    <rect x="500" y="40" width="150" height="30" rx="16" fill="#0a2540"/>
+    <rect x="500" y="55" width="150" height="15" fill="#0a2540"/>
+    <text x="575" y="61" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">待我审批</text>
+    <rect x="512" y="84" width="126" height="56" rx="8" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="520" y="102" font-size="10" font-weight="700" fill="#1f2d3d">行政部入驻申请</text>
+    <text x="520" y="118" font-size="9" fill="#5b7185">申请方：行政 · 数据：内部</text>
+    <rect x="520" y="124" width="46" height="14" rx="3" fill="#2e7d32"/>
+    <text x="543" y="134" text-anchor="middle" font-size="8.5" fill="#fff">通过</text>
+    <rect x="572" y="124" width="46" height="14" rx="3" fill="#c62828"/>
+    <text x="595" y="134" text-anchor="middle" font-size="8.5" fill="#fff">驳回</text>
+    <rect x="512" y="150" width="126" height="56" rx="8" fill="#f5f8fc" stroke="#dbe6f2"/>
+    <text x="520" y="168" font-size="10" font-weight="700" fill="#1f2d3d">销售部共享申请</text>
+    <text x="520" y="184" font-size="9" fill="#5b7185">跨部门：销售→市场</text>
+    <rect x="520" y="190" width="46" height="14" rx="3" fill="#2e7d32"/>
+    <text x="543" y="200" text-anchor="middle" font-size="8.5" fill="#fff">通过</text>
+    <rect x="572" y="190" width="46" height="14" rx="3" fill="#c62828"/>
+    <text x="595" y="200" text-anchor="middle" font-size="8.5" fill="#fff">驳回</text>
+    <text x="512" y="226" font-size="9.5" fill="#5b7185">已处理（本周）</text>
+    <line x1="512" y1="232" x2="638" y2="232" stroke="#dbe6f2"/>
+    <text x="512" y="250" font-size="9.5" fill="#1f2d3d">已通过 研发部知识库开通</text>
+    <text x="512" y="268" font-size="9.5" fill="#1f2d3d">已通过 财务部导出审批</text>
+    <text x="512" y="294" font-size="9" fill="#1565c0">所有审批留痕 · 可回溯</text>
+    <text x="575" y="338" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">③ 审批页</text>
+  </svg>
+
+  <h3>16.4 交互设计原则</h3>
+  <ul>
+    <li><b>语音优先</b>：移动端默认语音输入（ASR），降低打字成本，适合外勤/驾驶场景</li>
+    <li><b>一句话触发 Agent</b>：自然语言指令直接映射到工作流（如"生成今日跟单日报"）</li>
+    <li><b>卡片化结果</b>：答案以结构化卡片 + 引用来源呈现，便于小屏阅读与转发</li>
+    <li><b>权限可视化</b>：每条结果标注可见范围（全域/部门/个人），避免越权困惑</li>
+    <li><b>轻审批流</b>：入驻/共享/导出等关键操作手机一键审批，PC 留痕</li>
+  </ul>
+
+  <h3>16.5 移动安全</h3>
+  <ul>
+    <li><b>SSO + 设备绑定</b>：首次登录绑定设备，换设备需二次验证</li>
+    <li><b>水印</b>：敏感页面叠加"姓名+时间"水印，震慑截屏外传</li>
+    <li><b>远程注销</b>：离职/丢机可在后台一键擦除会话与设备登录态</li>
+    <li><b>防截屏/复制</b>：高敏部门（财务/HR）可选禁止截屏与复制</li>
+    <li><b>越权防护同 PC</b>：召回层按 scope/owner/dept 过滤，移动端不绕过</li>
+  </ul>
+
+  <h3>16.6 弱网与离线</h3>
+  <ul>
+    <li><b>预缓存</b>：部门制度/产品手册等常用知识本地预取，弱网可查</li>
+    <li><b>断点续传</b>：对话与任务提交在网络恢复后自动续传</li>
+    <li><b>不存明文敏感</b>：本地仅存脱敏摘要，敏感内容随会话结束清除</li>
+  </ul>
+
+  <h3>16.7 实施建议</h3>
+  <p>MVP 阶段先以<b>企微/钉钉/飞书 H5</b> 嵌入（复用 Dify Web App，开发量最小、SSO 与通知天然打通），验证手机问答+审批闭环；二期再做<b>独立 App</b>（Flutter）补齐离线缓存与强推送；对外协作场景用<b>微信小程序</b>。所有移动端共享同一套权限与审计，不另起炉灶。</p>
+
+  <h2>17. 移动端 MVP 开发清单（给技术排期）</h2>
+  <p>本章给出移动端 MVP（以企微/钉钉/飞书 H5 嵌入为起步形态）的<b>页面、接口、权限点</b>清单，供技术排期与验收。核心原则：移动端与 PC 端共用同一套后端与权限层，H5 仅做轻量前端，不重复实现召回过滤与 RBAC。</p>
+
+  <h3>17.1 页面清单（MVP）</h3>
+  <table>
+    <thead><tr><th>页面</th><th>功能</th><th>优先级</th><th>依赖</th></tr></thead>
+    <tbody>
+      <tr><td><b>工作台首页</b></td><td>快捷入口、待办、搜索/语音提问、我的知识</td><td>P0</td><td>SSO、待办接口、知识检索</td></tr>
+      <tr><td><b>Agent 对话页</b></td><td>语音/文字提问、卡片化结果、引用来源、一句话触发工作流</td><td>P0</td><td>Agent 服务、RAG 召回（带权限）</td></tr>
+      <tr><td><b>审批页</b></td><td>入驻/共享/导出申请一键通过驳回、已处理记录</td><td>P0</td><td>审批流、权限校验</td></tr>
+      <tr><td><b>知识检索页</b></td><td>搜制度/产品/案例，带可见范围标识的结果</td><td>P1</td><td>RAG 召回、权限标识</td></tr>
+      <tr><td><b>我的知识页</b></td><td>个人/部门知识查看与轻量编辑</td><td>P1</td><td>知识库读写接口</td></tr>
+      <tr><td><b>用量看板（移动简版）</b></td><td>本部门用量、告警</td><td>P2</td><td>统计接口</td></tr>
+    </tbody>
+  </table>
+
+  <h3>17.2 接口 / 能力清单</h3>
+  <table>
+    <thead><tr><th>接口 / 能力</th><th>说明</th><th>权限约束</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>SSO / OAuth 登录</b></td><td>对接企业 IM（企微/钉钉/飞书）网页授权，获取员工身份与部门</td><td>设备绑定、二次验证</td><td>P0</td></tr>
+      <tr><td><b>带权召回 / RAG 检索</b></td><td>与 PC 同一召回服务，注入调用者身份，返回授权片段</td><td>scope/owner/dept 过滤（不可绕过）</td><td>P0</td></tr>
+      <tr><td><b>Agent 触发</b></td><td>自然语言映射工作流，调用带权工具</td><td>调用者上下文随任务下发</td><td>P0</td></tr>
+      <tr><td><b>审批 API</b></td><td>查询待办、通过/驳回、记录操作人</td><td>仅平台管理员/授权人可审批</td><td>P0</td></tr>
+      <tr><td><b>知识读写（个人/部门）</b></td><td>新建/编辑/删除个人与部门知识</td><td>受 RBAC 与 scope 约束</td><td>P1</td></tr>
+      <tr><td><b>用量统计</b></td><td>部门/个人用量、成本分摊</td><td>部门管理员看本部门、平台看全部</td><td>P2</td></tr>
+      <tr><td><b>审计日志</b></td><td>操作留痕、导出审批记录</td><td>平台管理员/授权人可见</td><td>P1</td></tr>
+    </tbody>
+  </table>
+
+  <h3>17.3 移动端权限点清单</h3>
+  <table>
+    <thead><tr><th>权限点</th><th>说明</th><th>校验位置</th></tr></thead>
+    <tbody>
+      <tr><td>登录身份</td><td>IM 网页授权获取 userId / deptId</td><td>SSO 网关</td></tr>
+      <tr><td>可访问部门空间</td><td>仅本人所属部门 + 授权共享部门</td><td>RBAC + 召回层</td></tr>
+      <tr><td>可见知识范围</td><td>全域公开 + 本部门 + 个人</td><td>召回过滤（同 PC）</td></tr>
+      <tr><td>审批资格</td><td>平台管理员 / 部门管理员 / 授权人</td><td>审批 API</td></tr>
+      <tr><td>敏感页操作</td><td>高敏部门可选禁截屏/禁复制</td><td>前端策略 + 后端校验</td></tr>
+      <tr><td>导出审批</td><td>敏感导出走审批流</td><td>审批 API + 审计</td></tr>
+    </tbody>
+  </table>
+
+  <h3>17.4 技术排期建议（MVP 4–6 周）</h3>
+  <table>
+    <thead><tr><th>周次</th><th>任务</th><th>产出</th></tr></thead>
+    <tbody>
+      <tr><td>W1</td><td>SSO 对接 IM、H5 框架搭建、登录与设备绑定</td><td>可登录 H5</td></tr>
+      <tr><td>W2</td><td>复用 PC 召回/RAG 与 Agent 服务，接入对话页</td><td>手机可问答、可触发 Agent</td></tr>
+      <tr><td>W3</td><td>工作台首页 + 搜索/语音 + 待办聚合</td><td>首页可用</td></tr>
+      <tr><td>W4</td><td>审批页（通过/驳回/记录）联调</td><td>移动审批闭环</td></tr>
+      <tr><td>W5</td><td>权限一致性联调、越权用例验证、安全（水印/禁截屏）</td><td>安全验收通过</td></tr>
+      <tr><td>W6</td><td>试点部门真实任务验收 + MVP 复盘</td><td>MVP 交付</td></tr>
+    </tbody>
+  </table>
+
+  <h3>17.5 验收标准</h3>
+  <ul>
+    <li>手机端与 PC 端<b>同一账号、同一可见范围</b>（跨部门 / 越级不可见）</li>
+    <li>问答结果与引用来源一致，召回不绕过权限层</li>
+    <li>审批操作留痕、可回溯；敏感导出走审批</li>
+    <li>弱网下核心问答可用（预缓存命中）</li>
+  </ul>
+
+  <h3>17.6 接口字段级定义（给后端直接开发）</h3>
+  <p>以下为移动端 MVP 与 PC 共用后端的核心接口字段定义。所有接口均在<b>网关层注入调用者身份</b>（userId / deptId / role），召回类接口统一走第 18 章的<b>单一过滤点</b>，前端不持有越权数据。基础约定：<code>Base URL = /api/v1</code>；鉴权 <code>Authorization: Bearer &lt;token&gt;</code>；时间字段统一 <code>ISO-8601 (UTC)</code>；分页 <code>page / pageSize</code>。</p>
+
+  <h4>17.6.1 带权召回 / RAG 检索（核心，不可绕过）</h4>
+  <p><code>POST /api/v1/rag/retrieve</code> —— 与 PC 同一召回服务，注入调用者身份后在召回阶段按 scope / owner / dept 过滤。</p>
+  <table>
+    <thead><tr><th>请求字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>query</td><td>string</td><td>是</td><td>用户自然语言问题（经脱敏后入参）</td></tr>
+      <tr><td>kb_scope</td><td>enum</td><td>否</td><td>限定范围：all / department / personal，默认 all（仍受身份约束）</td></tr>
+      <tr><td>top_k</td><td>int</td><td>否</td><td>返回片段数，默认 6，上限 20</td></tr>
+      <tr><td>caller</td><td>object</td><td>是</td><td>网关注入：{userId, deptId, role}（前端不可伪造）</td></tr>
+      <tr><td>tenant_id</td><td>string</td><td>是</td><td>企业租户隔离</td></tr>
+    </tbody>
+  </table>
+  <p><b>响应示例：</b></p>
+  <pre>{
+  "code": 0,
+  "data": {
+    "query": "五一活动话术",
+    "hits": [
+      {
+        "doc_id": "doc_8831",
+        "title": "五一营销活动方案 v3",
+        "snippet": "建议分三档：① 到店礼 ② 满减 ③ 老带新",
+        "scope": "department",          // 命中后回填，前端用于展示可见范围
+        "kb_tier": "department",
+        "score": 0.91,
+        "source": "产品手册 v3",
+        "can_access": true              // 已通过过滤点，必然为 true
+      }
+    ],
+    "filtered_out": 3,                  // 被过滤的越权片段数（审计用，不返回内容）
+    "trace_id": "trace_2026abc"
+  }
+}</pre>
+
+  <h4>17.6.2 SSO / OAuth 登录（对接企业 IM）</h4>
+  <p><code>POST /api/v1/auth/sso/callback</code> —— 接收企微/钉钉/飞书网页授权 code，换取员工身份与部门，并做设备绑定。</p>
+  <table>
+    <thead><tr><th>请求字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>provider</td><td>enum</td><td>是</td><td>wecom / dingtalk / feishu</td></tr>
+      <tr><td>code</td><td>string</td><td>是</td><td>IM 回调授权码（一次性）</td></tr>
+      <tr><td>device_id</td><td>string</td><td>是</td><td>设备指纹，用于绑定与换机二次验证</td></tr>
+      <tr><td>state</td><td>string</td><td>否</td><td>防 CSRF</td></tr>
+    </tbody>
+  </table>
+  <p><b>响应示例：</b></p>
+  <pre>{
+  "code": 0,
+  "data": {
+    "token": "&lt;jwt&gt;",
+    "expires_in": 7200,
+    "user": { "userId": "u_1024", "name": "张三", "deptId": "d_sales", "role": "employee" },
+    "device_bound": true,
+    "need_stepup": false               // 换设备时为 true，需二次验证
+  }
+}</pre>
+
+  <h4>17.6.3 Agent 触发（自然语言映射工作流）</h4>
+  <p><code>POST /api/v1/agent/invoke</code> —— 调用者上下文（caller）随任务下发，Agent 调用的工具同样走带权召回。</p>
+  <table>
+    <thead><tr><th>请求字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>agent_id</td><td>string</td><td>是</td><td>目标 Agent（如 sales_script）</td></tr>
+      <tr><td>input</td><td>string</td><td>是</td><td>用户输入（语音经 ASR 转写后传入）</td></tr>
+      <tr><td>caller</td><td>object</td><td>是</td><td>{userId, deptId, role}，工具调用继承此身份</td></tr>
+      <tr><td>stream</td><td>bool</td><td>否</td><td>是否 SSE 流式，默认 true</td></tr>
+    </tbody>
+  </table>
+  <p><b>响应示例（SSE 末帧）：</b></p>
+  <pre>{
+  "code": 0,
+  "data": {
+    "answer": "建议分三档执行五一活动：到店礼、满减、老带新……",
+    "citations": [ { "doc_id": "doc_8831", "title": "五一营销活动方案 v3", "scope": "department" } ],
+    "tool_calls": [ { "tool": "rag_retrieve", "authorized": true } ]
+  }
+}</pre>
+
+  <h4>17.6.4 审批 API（入驻 / 共享 / 导出）</h4>
+  <p><code>POST /api/v1/approval/{approval_id}/decide</code> —— 仅平台管理员 / 部门管理员 / 授权人可审批，记录操作人。</p>
+  <table>
+    <thead><tr><th>请求字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>decision</td><td>enum</td><td>是</td><td>approve / reject</td></tr>
+      <tr><td>comment</td><td>string</td><td>否</td><td>审批意见</td></tr>
+      <tr><td>operator</td><td>object</td><td>是</td><td>网关注入审批人身份，校验其审批资格</td></tr>
+    </tbody>
+  </table>
+  <p><b>响应示例：</b></p>
+  <pre>{
+  "code": 0,
+  "data": {
+    "approval_id": "ap_5502",
+    "status": "approved",
+    "decided_by": "u_admin_01",
+    "decided_at": "2026-05-01T09:12:00Z",
+    "audit_id": "audit_77"
+  }
+}</pre>
+
+  <h4>17.6.5 知识读写（个人 / 部门）</h4>
+  <p><code>POST /api/v1/kb/documents</code> —— 受 RBAC 与 scope 约束；写入时强制回填 owner_id / dept_id / scope 元数据。</p>
+  <table>
+    <thead><tr><th>请求字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>title</td><td>string</td><td>是</td><td>文档标题</td></tr>
+      <tr><td>content</td><td>text</td><td>是</td><td>正文（入库自动向量化）</td></tr>
+      <tr><td>scope</td><td>enum</td><td>是</td><td>personal / department / global（global 仅平台管理员）</td></tr>
+      <tr><td>dept_id</td><td>string</td><td>条件</td><td>scope=department 时必填，强制等于 caller.deptId（不可越权写入他部）</td></tr>
+      <tr><td>caller</td><td>object</td><td>是</td><td>网关注入，服务端校验写权限</td></tr>
+    </tbody>
+  </table>
+  <p><b>响应示例：</b></p>
+  <pre>{
+  "code": 0,
+  "data": {
+    "doc_id": "doc_9001",
+    "scope": "department",
+    "owner_id": "u_1024",
+    "dept_id": "d_sales",
+    "indexed": true
+  }
+}</pre>
+  <p class="note">注：所有写接口的 scope / dept_id 以服务端 caller 为准，前端传入仅作展示，防止越权写库。</p>
+
+  <h2>18. PC 与移动端权限一致性</h2>
+  <p>平台无论通过 PC Web 还是手机 H5/App 访问，<b>权限判定只用同一套逻辑、同一份数据</b>，绝不因入口不同而放宽或收紧。这是避免"手机端泄密""两端看到的不一样"等问题的根本保障。</p>
+
+  <h3>18.1 共用同一召回过滤层</h3>
+  <p>PC 与移动端都调用<b>同一个 RAG 召回服务</b>：请求携带调用者身份（userId / deptId / role），服务在<b>召回阶段</b>即按 <code>scope / owner / dept</code> 过滤，越权片段根本不进入大模型上下文。两端没有任何"旁路"——手机端不是只读镜像，而是同一服务的不同前端。</p>
+  <ul>
+    <li><b>同一过滤代码</b>：过滤逻辑只在召回服务实现一次，PC/移动共用</li>
+    <li><b>同一元数据</b>：每条知识带 (owner_id, dept_id, scope)，两端一致</li>
+    <li><b>同一 RBAC</b>：角色与策略在服务端校验，前端仅做展示</li>
+  </ul>
+
+  <h3>18.2 一致性检查清单</h3>
+  <table>
+    <thead><tr><th>检查项</th><th>PC 端</th><th>移动端</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>可见部门空间</td><td>仅所属部门</td><td>仅所属部门</td><td>应一致</td></tr>
+      <tr><td>可见知识范围</td><td>全域+部门+个人</td><td>全域+部门+个人</td><td>应一致</td></tr>
+      <tr><td>越权访问测试</td><td>不可见对方部门</td><td>不可见对方部门</td><td>应一致</td></tr>
+      <tr><td>审批资格</td><td>按角色</td><td>按角色</td><td>应一致</td></tr>
+      <tr><td>审计留痕</td><td>全量记录</td><td>全量记录</td><td>应一致</td></tr>
+      <tr><td>导出审批</td><td>敏感走审批</td><td>敏感走审批</td><td>应一致</td></tr>
+    </tbody>
+  </table>
+
+  <h3>18.3 风险与纠偏</h3>
+  <ul>
+    <li><b>风险</b>：移动端为赶进度"临时放宽"过滤，或前端缓存越权内容</li>
+    <li><b>纠偏</b>：过滤器只在服务端，前端不持有越权数据；缓存仅存脱敏摘要</li>
+    <li><b>测试</b>：两端共用同一套越权测试用例，CI 中强制回归</li>
+    <li><b>审计</b>：两端操作统一进入同一审计流，出现差异可追溯到具体入口</li>
+  </ul>
+
+  <h3>18.4 数据流对照图：PC 与移动端共用召回过滤（单一过滤点）</h3>
+  <p>下图强调：PC Web 与手机 H5/App 是<b>同一个召回服务的两个前端</b>，不存在"移动端只读镜像"或"旁路"。所有权限判定集中在<b>唯一过滤点</b>（scope / owner / dept），越权片段在召回阶段即被剔除，根本不进入大模型上下文。</p>
+  <svg class="arch" viewBox="0 0 680 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PC与移动端共用召回过滤数据流对照图">
+    <defs>
+      <marker id="mf2" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+      <marker id="mf3" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#2e7d32"/></marker>
+    </defs>
+
+    <!-- 入口：两个前端 -->
+    <rect x="70" y="28" width="200" height="42" rx="8" fill="#0a2540"/>
+    <text x="170" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">PC Web 前端</text>
+    <rect x="410" y="28" width="200" height="42" rx="8" fill="#0a2540"/>
+    <text x="510" y="54" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">手机 H5 / App 前端</text>
+    <text x="340" y="102" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">同一服务 · 无旁路 · 不另起炉灶</text>
+
+    <!-- 统一召回服务（单一过滤点） -->
+    <rect x="150" y="116" width="380" height="102" rx="10" fill="#eef4fb" stroke="#1565c0" stroke-width="2"/>
+    <text x="340" y="139" text-anchor="middle" font-size="14" font-weight="700" fill="#0a2540">统一召回服务（带权 RAG 检索）</text>
+    <text x="340" y="157" text-anchor="middle" font-size="10" fill="#5b7185">网关注入调用者身份 userId / deptId / role</text>
+    <rect x="195" y="168" width="290" height="34" rx="8" fill="#2e7d32"/>
+    <text x="340" y="190" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">单一过滤点：scope / owner / dept（唯一实现处）</text>
+
+    <!-- 箭头：入口 → 服务 -->
+    <line x1="170" y1="70" x2="252" y2="116" stroke="#1565c0" stroke-width="2" marker-end="url(#mf2)"/>
+    <line x1="510" y1="70" x2="428" y2="116" stroke="#1565c0" stroke-width="2" marker-end="url(#mf2)"/>
+
+    <!-- 数据层 -->
+    <rect x="60" y="290" width="250" height="74" rx="8" fill="#fff" stroke="#d7e0ea" stroke-width="1.5"/>
+    <text x="185" y="313" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2540">知识元数据 (PostgreSQL)</text>
+    <text x="185" y="333" text-anchor="middle" font-size="10" fill="#5b7185">owner_id · dept_id · scope</text>
+    <text x="185" y="351" text-anchor="middle" font-size="9" fill="#5b7185">（同一条元数据，两端一致）</text>
+
+    <rect x="370" y="290" width="250" height="74" rx="8" fill="#fff" stroke="#d7e0ea" stroke-width="1.5"/>
+    <text x="495" y="313" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2540">向量库 Qdrant</text>
+    <text x="495" y="333" text-anchor="middle" font-size="10" fill="#5b7185">语义检索 top_k 片段</text>
+    <text x="495" y="351" text-anchor="middle" font-size="9" fill="#2e7d32">（仅返回授权片段）</text>
+
+    <!-- 箭头：服务 → 数据层 -->
+    <line x1="300" y1="218" x2="190" y2="290" stroke="#2e7d32" stroke-width="2" marker-end="url(#mf3)"/>
+    <line x1="380" y1="218" x2="490" y2="290" stroke="#2e7d32" stroke-width="2" marker-end="url(#mf3)"/>
+    <text x="225" y="262" text-anchor="middle" font-size="9" fill="#5b7185">③ 按元数据过滤</text>
+    <text x="455" y="262" text-anchor="middle" font-size="9" fill="#5b7185">④ 语义召回</text>
+
+    <!-- 结果流向大模型 -->
+    <text x="340" y="392" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1f2d3d">越权片段在召回阶段即被剔除，不进入大模型上下文</text>
+    <text x="340" y="406" text-anchor="middle" font-size="9.5" fill="#5b7185">PC 与移动端共用同一过滤代码 / 同一元数据 / 同一 RBAC</text>
+  </svg>
+
+  <h2>19. 启动期智能体与工具配置清单 <span class="tagp p0">P0</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>启动期按"教学 → 构建 → 编排"三层递进配置。L1 预置"示范智能体"帮员工上手；L2 提供"业务转智能体"工具让员工把部门业务变成智能体；L3 提供"多智能体工作流"工具把多个智能体串成自动化流程。L2 是承上启下的关键，L3 复用 L1/L2 产物并闭环沉淀回模板库。
+  </div>
+
+  <h3>19.1 L1 教学层：预置示范智能体（帮员工学习使用）</h3>
+  <p>由平台管理员在启动期预置，员工首次进入即可"有向导、有教练、有模板可抄"。</p>
+  <table>
+    <thead><tr><th>预置智能体</th><th>主要作用</th><th>基于平台能力</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>平台向导 Agent</b></td><td>回答"怎么用平台"、导航到正确智能体、解释权限（我能看什么、为什么看不到）</td><td>知识库问答 RAG + 路由</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>业务梳理教练 Agent</b></td><td>交互式引导员工拆解业务流程，输出"智能体草图"（步骤/所需知识/工具/权限）</td><td>多轮对话 + 表单采集 + 提示词模板</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>部门模板中心</b></td><td>3–5 个开箱即用部门模板（HR/销售/客服…），一键克隆再改</td><td>模板市场 + 权限配置器</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td>安全合规哨兵 Agent</td><td>提示数据边界、拦截越权操作、做合规问答</td><td>权限校验 + RAG</td><td><span class="tagp p1">P1</span></td></tr>
+      <tr><td>最佳实践推荐 Agent</td><td>给任务推荐现成智能体/模板，避免重复造</td><td>检索 + 推荐</td><td><span class="tagp p1">P1</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>19.2 L2 构建层：业务转智能体工具（让员工把公司业务整理成智能体）</h3>
+  <p>核心是"四件套 + 权限配置"，员工零代码即可完成。业务梳理画布直接对接 L1 教练产出的草图。</p>
+  <table>
+    <thead><tr><th>工具</th><th>作用</th><th>对应平台能力</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>可视化 Agent 编排器</b></td><td>零代码搭智能体：设人设、挂知识、绑工具、配变量</td><td>Dify Agent / Studio</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>业务梳理画布</b></td><td>把业务拆成步骤/任务，每步映射为节点或子智能体，导出编排草稿</td><td>画布 + 模板</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>知识接入连接器</b></td><td>上传文档 / 连数据库 / 文件夹同步，自动切片向量化打权限标签</td><td>连接器 + Qdrant + PG</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>工具 / 插件注册中心</b></td><td>把内部 API、函数注册成智能体可调用的工具（含鉴权、限流）</td><td>Tool Registry / One API</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>角色与可见范围配置器</b></td><td>设 owner / dept / scope，绑定 RBAC，确保不越权</td><td>权限元数据 + 召回过滤</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td>提示词模板与变量库</td><td>可复用提示块 + 变量，降低写提示门槛</td><td>Prompt 模板</td><td><span class="tagp p1">P1</span></td></tr>
+      <tr><td>试运行与评估台</td><td>发布前测试、对比效果、留痕</td><td>Sandbox / Eval</td><td><span class="tagp p1">P1</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>19.3 L3 编排层：多智能体工作流工具（把各智能体组成工作流程）</h3>
+  <p>单个智能体解决单点任务，工作流把它们串成端到端业务。核心是"编排器 + 节点库 + A2A 调用 + 人工审核"。</p>
+  <table>
+    <thead><tr><th>工具</th><th>作用</th><th>对应平台能力</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>工作流编排器</b></td><td>拖拽节点把多个智能体 / 工具串成有向流程，可视化调试</td><td>Dify Workflow / LangGraph</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>节点类型库</b></td><td>触发器 / 条件分支 / 循环 / 并行 / LLM / 代码 / 知识检索 / HTTP 等开箱节点</td><td>节点引擎</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>Agent-to-Agent 调用</b></td><td>一个智能体作为节点调用另一个，实现分工协作</td><td>A2A 协议</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td><b>人工审核节点</b></td><td>敏感步骤加审批闸口（HITL），如越级共享、外部导出</td><td>审批 API</td><td><span class="tagp p0">P0</span></td></tr>
+      <tr><td>事件 / 消息总线</td><td>解耦智能体、异步交接，支持长流程</td><td>消息总线</td><td><span class="tagp p1">P1</span></td></tr>
+      <tr><td>定时调度器</td><td>按 cron 周期跑工作流（日报、巡检、对账）</td><td>Scheduler</td><td><span class="tagp p1">P1</span></td></tr>
+      <tr><td>执行监控与回放</td><td>看链路、调试、回溯每一步输入输出</td><td>Trace / 观测</td><td><span class="tagp p1">P1</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>19.4 启动期 4 周落地路线图</h3>
+  <table>
+    <thead><tr><th>周次</th><th>主题</th><th>关键动作</th></tr></thead>
+    <tbody>
+      <tr><td><b>W1</b></td><td>底座</td><td>私有化部署 Dify+Qdrant+PG+MinIO+One API，配置三级知识库与 RBAC，打通 SSO</td></tr>
+      <tr><td><b>W2</b></td><td>教学层</td><td>预置 L1 三个 P0 智能体（向导 / 教练 / 模板中心），写好平台手册知识库</td></tr>
+      <tr><td><b>W3</b></td><td>构建层</td><td>开放 L2 工具，选 1 个试点部门（建议行政部）做出 2–3 个业务智能体</td></tr>
+      <tr><td><b>W4</b></td><td>编排层</td><td>用 L3 把试点部门智能体编成 1 条端到端工作流，复盘后沉淀为模板推广</td></tr>
+    </tbody>
+  </table>
+
+  <h3>19.5 与既有蓝图章节对应关系</h3>
+  <table>
+    <thead><tr><th>本清单内容</th><th>蓝图对应章节</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>三级知识库、权限范围</td><td>第 5 章</td><td>构建层"知识接入 / 权限配置器"直接落到这里</td></tr>
+      <tr><td>RBAC 三角色、可见范围</td><td>第 13 章</td><td>员工建智能体时绑定这套角色</td></tr>
+      <tr><td>单一过滤点、PC / 移动一致</td><td>第 16–18 章</td><td>所有智能体 / 工作流共用召回过滤</td></tr>
+      <tr><td>接口契约</td><td>openapi.yaml</td><td>工具注册中心、A2A 调用基于这些接口</td></tr>
+    </tbody>
+  </table>
+
+  <h2>20. 平台自动演化与自我进步机制 <span class="tagp p1">P1</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>平台不应"上线即定型"，而应内置<b>观测 → 评估 → 提议 → 审批 → 应用</b>的自动演化闭环，让智能体、知识库、工作流随真实使用持续变好。关键约束：<b>一切演化都不绕过第 18 章的"单一过滤点"</b>，自动产出的知识 / 智能体仍受权限元数据约束，且所有自动建议必须经"人在环审批"后才生效、可灰度、可回滚。
+  </div>
+
+  <h3>20.1 演化闭环总图</h3>
+  <p>每一次问答、每一次纠错、每一条使用数据，都回流到演化引擎；引擎评估后产出改进建议，经管理员审批、灰度发布后生效，再回到观测——形成自我进步的飞轮。</p>
+  <svg class="arch" viewBox="0 0 680 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="平台自动演化闭环总图">
+    <defs>
+      <marker id="me1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+      <marker id="me2" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#ef6c00"/></marker>
+    </defs>
+    <rect x="20" y="30" width="100" height="56" rx="8" fill="#0a2540"/>
+    <text x="70" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">① 观测采集</text>
+    <text x="70" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">埋点 + 用户反馈</text>
+    <rect x="152" y="30" width="100" height="56" rx="8" fill="#0a2540"/>
+    <text x="202" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">② 评估</text>
+    <text x="202" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">质量/覆盖/漂移</text>
+    <rect x="284" y="30" width="100" height="56" rx="8" fill="#0a2540"/>
+    <text x="334" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">③ 提议</text>
+    <text x="334" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">自动改进建议</text>
+    <rect x="416" y="30" width="100" height="56" rx="8" fill="#0a2540"/>
+    <text x="466" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">④ 审批</text>
+    <text x="466" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">人在环确认</text>
+    <rect x="548" y="30" width="100" height="56" rx="8" fill="#0a2540"/>
+    <text x="598" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">⑤ 应用</text>
+    <text x="598" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">灰度 + 生效</text>
+    <line x1="120" y1="58" x2="150" y2="58" stroke="#1565c0" stroke-width="2" marker-end="url(#me1)"/>
+    <line x1="252" y1="58" x2="282" y2="58" stroke="#1565c0" stroke-width="2" marker-end="url(#me1)"/>
+    <line x1="384" y1="58" x2="414" y2="58" stroke="#1565c0" stroke-width="2" marker-end="url(#me1)"/>
+    <line x1="516" y1="58" x2="546" y2="58" stroke="#1565c0" stroke-width="2" marker-end="url(#me1)"/>
+    <line x1="598" y1="86" x2="598" y2="150" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4"/>
+    <line x1="598" y1="150" x2="72" y2="150" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4"/>
+    <line x1="72" y1="150" x2="72" y2="88" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#me2)"/>
+    <text x="340" y="138" text-anchor="middle" font-size="10" font-weight="700" fill="#ef6c00">持续闭环：应用后回流观测，进入下一轮自动评估</text>
+  </svg>
+
+  <h3>20.2 六大自演化机制</h3>
+  <h4>20.2.1 全链路埋点与反馈采集</h4>
+  <p>每个智能体调用都记录：输入、输出、引用来源、耗时、是否命中过滤、用户评分（赞 / 踩）与自由文本纠错（"答错了 / 答不全 / 应引用某文档"）。这是演化的数据底座。</p>
+  <h4>20.2.2 知识缺口探测与自生长</h4>
+  <ul>
+    <li>当某类问题频繁"未找到 / 低置信"，自动标记<b>知识缺口</b>并建议补充文档</li>
+    <li>对已接入来源（文件夹 / 数据库）按计划<b>重新抓取</b>，刷新过期向量，避免知识 stale</li>
+    <li>新增文档自动继承来源 owner / dept / scope，<b>不破坏分级权限</b></li>
+  </ul>
+  <h4>20.2.3 智能体效果评估与自优化</h4>
+  <ul>
+    <li>按智能体统计：一次解决率、幻觉率、兜底率、被纠错率</li>
+    <li>对提示词做<b>自动 A/B</b>：候选变体小流量对比，胜出者进提议队列</li>
+    <li>长期低分的智能体自动打标"待优化"，推给负责人</li>
+  </ul>
+  <h4>20.2.4 工作流瓶颈与自演化</h4>
+  <ul>
+    <li>识别耗时异常 / 失败率高的节点，建议加<strong>人工审核</strong>或<strong>并行</strong></li>
+    <li>某节点失败时可建议<strong>降级 / 旁路</strong>策略（保留人工兜底）</li>
+    <li>高频固定流程可建议固化为模板，反哺 L1 模板中心</li>
+  </ul>
+  <h4>20.2.5 演化建议台与人在环审批</h4>
+  <div class="note">安全底线：<b>任何自动提议默认不直灌生产</b>。所有改进（改提示、加知识、调工作流）先进入"演化建议台"，由平台管理员 / 部门管理员确认后才生效——既享受自动演化的红利，又守住合规与可控。</div>
+  <h4>20.2.6 版本化、灰度与回滚</h4>
+  <ul>
+    <li>每一次生效的改动都<b>版本化</b>，一键回滚到上一版</li>
+    <li>新版本先对<b>单个部门灰度</b>，无异常再全量</li>
+    <li>演化动作本身进入统一审计流，可追溯到"谁审批、何时生效"</li>
+  </ul>
+
+  <h3>20.3 演化仪表盘（核心指标）</h3>
+  <table>
+    <thead><tr><th>指标</th><th>含义</th><th>演化动作示例</th></tr></thead>
+    <tbody>
+      <tr><td>回答一次解决率</td><td>无需追问 / 纠错的占比</td><td>低于阈值 → 触发提示词 A/B</td></tr>
+      <tr><td>知识覆盖率</td><td>问题可命中权威知识的比例</td><td>低 → 建议补文档 / 接新来源</td></tr>
+      <tr><td>越权拦截率</td><td>过滤点拦下的越权尝试</td><td>异常升高 → 排查配置 / 攻击</td></tr>
+      <tr><td>智能体健康分</td><td>各智能体综合评分</td><td>低分 → 标"待优化"推负责人</td></tr>
+      <tr><td>待审建议数</td><td>演化建议台积压</td><td>积压 → 提醒管理员处理</td></tr>
+    </tbody>
+  </table>
+
+  <h3>20.4 权限守恒：演化不绕过单一过滤点</h3>
+  <p>自动演化产出的任何知识、智能体、工作流，在读取与生成时仍走<b>第 18 章的同一召回过滤</b>；新增知识自动继承 scope / owner / dept；"自动写库"接口（见 openapi.yaml 的 /kb/documents）由服务端强制回填权限元数据，前端 / 演化引擎均不可伪造。权限模型不会因"系统自动"而放松。</p>
+
+  <h3>20.5 落地优先级与里程碑</h3>
+  <table>
+    <thead><tr><th>阶段</th><th>范围</th><th>产出</th></tr></thead>
+    <tbody>
+      <tr><td><b>P0</b></td><td>埋点 + 反馈 + 建议台 + 审批</td><td>演化数据底座与"人在环"闸门，先让改进可见、可控</td></tr>
+      <tr><td><b>P1</b></td><td>知识缺口探测 + 智能体评估</td><td>自动发现该补的知识、该优化的智能体</td></tr>
+      <tr><td><b>P2</b></td><td>提示词 A/B + 工作流自演化 + 灰度回滚</td><td>半自动优化闭环，规模化自我进步</td></tr>
+    </tbody>
+  </table>
+
+  <h2>21. 自助部门创建与业务梳理引导 <span class="tagp p0">P0</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>很多公司存在平台管理员“事先不知道”的特殊部门（合规审计、研究院、区域合资公司、临时项目组）。
+    平台必须支持<b>部门自助创建</b>与<b>对话式业务梳理引导</b>，让任何部门自己把业务“长”成智能体与知识库，
+    且创建时<b>自动套用第 5/13/18 章的权限模型</b>（scope 隔离、RBAC、可见范围继承），不依赖管理员逐个手工配置。
+  </div>
+
+  <h3>21.1 为什么要自助建部门</h3>
+  <ul>
+    <li><b>特殊部门普遍</b>：合规审计部、博士后工作站、事业部下的专项组、区域合资公司、临时攻坚项目组——组织结构无法被平台预置穷尽。</li>
+    <li><b>避免瓶颈</b>：若每个新部门都要等平台管理员配置，平台推广会被卡在“配置产能”上，先期试点难以放大。</li>
+    <li><b>业务主导</b>：最懂本部门流程的是业务人自己，自助创建 + 引导式梳理比“管理员代填”更准确。</li>
+  </ul>
+
+  <h3>21.2 部门自助创建向导（分步）</h3>
+  <div class="step"><div class="h">Step 1 · 填写部门信息</div>部门名称、上级部门（决定可见范围继承）、业务域标签、一句话描述。提交即进入待审。</div>
+  <div class="step"><div class="h">Step 2 · 选择起点</div>从“部门模板库”克隆一个相近模板（自带知识库/权限/示例智能体），或选“空白部门”从零搭建。</div>
+  <div class="step"><div class="h">Step 3 · 系统自动初始化</div>自动生成知识库 <code>scope = department:{deptId}</code>，初始化该部门默认 RBAC 三角色（员工/部门管理员/继承平台管理员），并建立与上级的可见范围继承关系。</div>
+  <div class="step"><div class="h">Step 4 · 绑定可见范围</div>确认本部门能看全域/本部门/个人的边界，敏感域可申请“受限共享”，需被共享方审批。</div>
+  <div class="step"><div class="h">Step 5 · 提交审核生效</div>部门管理员（或平台管理员）一键审核，通过后该部门即出现在导航与权限矩阵中，全员可基于它建智能体。</div>
+
+  <h3>21.3 业务流程梳理引导（对话式 + 画布）</h3>
+  <p>把第 19 章的“业务梳理教练 Agent”升级为<b>引导式画布</b>：用多轮提问把隐性流程显性化，再自动产出可一键转构建器的草图。</p>
+  <ul>
+    <li><b>引导提问</b>：这个业务的目标是什么？参与者/岗位？输入输出物？关键步骤有哪些？用到哪些系统/文件？有没有合规红线？</li>
+    <li><b>自动产出</b>：步骤清单 → 每步推荐节点类型（LLM 问答 / 知识检索 / 调用工具 / 人工审核）→ 生成“智能体草图草稿”。</li>
+    <li><b>一键转化</b>：草稿直接推送到第 19 章 L2 可视化编排器，员工补人设/知识/工具后即可发布，形成闭环。</li>
+  </ul>
+
+  <h3>21.4 部门模板库</h3>
+  <div class="deptgrid">
+    <div class="deptcard"><div class="dn">综合管理类</div><div class="dp">行政 / 人事 / 财务 / 法务</div><p>含制度问答、审批、合同初稿等示例智能体</p></div>
+    <div class="deptcard"><div class="dn">业务类</div><div class="dp">销售 / 客服 / 跟单 / 推广</div><p>含话术、工单、客户洞察等示例智能体</p></div>
+    <div class="deptcard"><div class="dn">产研类</div><div class="dp">研发 / 设计 / 工程</div><p>含图纸问答、素材规范、技术检索等示例</p></div>
+    <div class="deptcard"><div class="dn">制造类</div><div class="dp">工艺 / 质量 / 设备</div><p>含 SOP 问答、缺陷归因等示例</p></div>
+    <div class="deptcard"><div class="dn">特殊类</div><div class="dp">合规 / 审计 / 项目组</div><p>含风险点提示、敏感域受限共享模板</p></div>
+    <div class="deptcard"><div class="dn">空白类</div><div class="dp">从零开始</div><p>不预置任何智能体，完全自定义</p></div>
+  </div>
+
+  <h3>21.5 权限自动初始化（与既有模型联动）</h3>
+  <table>
+    <tr><th>创建动作</th><th>自动套用</th><th>依据</th></tr>
+    <tr><td>新建部门</td><td>生成 <code>scope=department:{id}</code>，本部门知识默认隔离</td><td>第 5 章三级知识库</td></tr>
+    <tr><td>建部门管理员</td><td>默认 RBAC 三角色 + 可见范围继承上级</td><td>第 13 章权限矩阵</td></tr>
+    <tr><td>克隆模板</td><td>模板内智能体/知识继承新部门 scope，不串部门</td><td>第 18 章单一过滤点</td></tr>
+  </table>
+
+  <h3>21.6 自助建部门 + 业务梳理引导总流程图</h3>
+  <svg class="arch" viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="自助建部门与业务梳理引导流程">
+    <defs>
+      <marker id="mw1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <rect x="14" y="18" width="118" height="50" rx="8" fill="#0a2540"/>
+    <text x="73" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">发起建部门</text>
+    <text x="73" y="56" text-anchor="middle" font-size="9" fill="#cfe3f7">任意员工/主管</text>
+    <rect x="158" y="18" width="118" height="50" rx="8" fill="#1565c0"/>
+    <text x="217" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">填信息+选模板</text>
+    <text x="217" y="56" text-anchor="middle" font-size="9" fill="#e3f0ff">Step1-2</text>
+    <rect x="302" y="18" width="118" height="50" rx="8" fill="#1565c0"/>
+    <text x="361" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">自动初始化</text>
+    <text x="361" y="56" text-anchor="middle" font-size="9" fill="#e3f0ff">scope/RBAC</text>
+    <rect x="446" y="18" width="118" height="50" rx="8" fill="#1565c0"/>
+    <text x="505" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">绑可见范围</text>
+    <text x="505" y="56" text-anchor="middle" font-size="9" fill="#e3f0ff">Step4</text>
+    <rect x="590" y="18" width="78" height="50" rx="8" fill="#2e7d32"/>
+    <text x="629" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">审核生效</text>
+    <text x="629" y="56" text-anchor="middle" font-size="9" fill="#d7f0d7">Step5</text>
+    <line x1="132" y1="43" x2="156" y2="43" stroke="#1565c0" stroke-width="2" marker-end="url(#mw1)"/>
+    <line x1="276" y1="43" x2="300" y2="43" stroke="#1565c0" stroke-width="2" marker-end="url(#mw1)"/>
+    <line x1="420" y1="43" x2="444" y2="43" stroke="#1565c0" stroke-width="2" marker-end="url(#mw1)"/>
+    <line x1="564" y1="43" x2="588" y2="43" stroke="#1565c0" stroke-width="2" marker-end="url(#mw1)"/>
+    <line x1="361" y1="68" x2="361" y2="120" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="258" y="120" width="206" height="56" rx="8" fill="#0a2540"/>
+    <text x="361" y="142" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">业务梳理引导（对话+画布）</text>
+    <text x="361" y="160" text-anchor="middle" font-size="9" fill="#cfe3f7">引导提问→步骤→节点→智能体草图</text>
+    <line x1="361" y1="176" x2="361" y2="210" stroke="#1565c0" stroke-width="2" marker-end="url(#mw1)"/>
+    <rect x="230" y="210" width="262" height="32" rx="8" fill="#2196f3"/>
+    <text x="361" y="231" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">一键推送到 L2 编排器 → 发布为部门智能体</text>
+  </svg>
+
+  <h2>22. 外部专业工具对接（PS / CAD 等） <span class="tagp p0">P0</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>员工的真业务常落在专业桌面软件里。平台通过<b>工具注册中心</b>统一纳管三类对接方式
+    （API / CLI / 桌面桥），把 PS、CAD、ERP、企业网盘等变成智能体“可调用的工具”，
+    且所有调用<b>不绕过第 18 章单一过滤点</b>、走沙箱与审计。
+  </div>
+
+  <h3>22.1 对接原则</h3>
+  <ul>
+    <li><b>协议无关</b>：工具注册中心屏蔽差异，智能体只认“工具名 + 入参 + 出参”。</li>
+    <li><b>安全隔离</b>：本地执行走沙箱，远程调用走网关，敏感操作人工审核。</li>
+    <li><b>权限一致</b>：工具产出/读取的文件同样受 scope/owner/dept 约束。</li>
+  </ul>
+
+  <h3>22.2 三类对接方式</h3>
+  <table>
+    <tr><th>方式</th><th>适用</th><th>机制</th></tr>
+    <tr><td>API 对接</td><td>有接口的 SaaS/系统（CRM/ERP/工单/邮件）</td><td>注册 OpenAPI，网关鉴权后调用</td></tr>
+    <tr><td>CLI 命令行</td><td>本机安装、可用命令行驱动的专业软件（PS 批处理、ffmpeg、pandoc）</td><td>在沙箱内拼命令、取 stdout/文件产物</td></tr>
+    <tr><td>桌面桥</td><td>无命令行、需进程级交互的软件（CAD 插件、PS 脚本宿主）</td><td>轻量桌面客户端做本地进程桥，传参/取结果</td></tr>
+  </table>
+
+  <h3>22.3 设计类工具（Photoshop 等）对接场景</h3>
+  <ul>
+    <li><b>批量处理</b>：智能体生成动作/脚本，调 PS 批处理图片、导出多规格（电商图、社媒图）。</li>
+    <li><b>素材与图层读取</b>：读取 PSD 结构、提取图层与命名，按品牌 VI 规范自动校验尺寸/色彩/字体。</li>
+    <li><b>出图合规</b>：依据 VI 手册核查成品是否越界，输出“不合规点清单”供设计师修正。</li>
+  </ul>
+
+  <h3>22.4 工程类工具（CAD 等）对接场景</h3>
+  <ul>
+    <li><b>图纸读取</b>：解析 DWG/DXF，提取图元、尺寸、属性块，结构化入库。</li>
+    <li><b>参数问答</b>：图纸向量化 + 结构化抽取后做问答（“这个部件螺栓规格？”“净空是否满足？”）。</li>
+    <li><b>变更比对</b>：两版图纸 diff，生成变更清单（新增/删除/修改的构件与参数）。</li>
+  </ul>
+
+  <h3>22.5 工具对接架构图</h3>
+  <svg class="arch" viewBox="0 0 680 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="外部工具对接架构">
+    <defs>
+      <marker id="mt1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <rect x="14" y="20" width="150" height="56" rx="8" fill="#0a2540"/>
+    <text x="89" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">智能体 / 工作流</text>
+    <text x="89" y="60" text-anchor="middle" font-size="9" fill="#cfe3f7">自然语言下达任务</text>
+    <rect x="200" y="20" width="150" height="56" rx="8" fill="#1565c0"/>
+    <text x="275" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">工具注册中心</text>
+    <text x="275" y="60" text-anchor="middle" font-size="9" fill="#e3f0ff">统一纳管 + 鉴权</text>
+    <line x1="164" y1="48" x2="198" y2="48" stroke="#1565c0" stroke-width="2" marker-end="url(#mt1)"/>
+    <line x1="350" y1="40" x2="396" y2="30" stroke="#1565c0" stroke-width="2" marker-end="url(#mt1)"/>
+    <line x1="350" y1="48" x2="396" y2="48" stroke="#1565c0" stroke-width="2" marker-end="url(#mt1)"/>
+    <line x1="350" y1="56" x2="396" y2="66" stroke="#1565c0" stroke-width="2" marker-end="url(#mt1)"/>
+    <rect x="400" y="8" width="120" height="44" rx="8" fill="#2196f3"/>
+    <text x="460" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">API 网关</text>
+    <text x="460" y="42" text-anchor="middle" font-size="8.5" fill="#eaf4ff">CRM/ERP/工单</text>
+    <rect x="400" y="38" width="120" height="44" rx="8" fill="#2196f3"/>
+    <text x="460" y="56" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">CLI 沙箱</text>
+    <text x="460" y="72" text-anchor="middle" font-size="8.5" fill="#eaf4ff">PS批处理/ffmpeg</text>
+    <rect x="400" y="68" width="120" height="44" rx="8" fill="#2196f3"/>
+    <text x="460" y="86" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">桌面桥</text>
+    <text x="460" y="102" text-anchor="middle" font-size="8.5" fill="#eaf4ff">CAD/PS插件</text>
+    <line x1="520" y1="30" x2="556" y2="30" stroke="#2e7d32" stroke-width="2" marker-end="url(#mt1)"/>
+    <line x1="520" y1="60" x2="556" y2="60" stroke="#2e7d32" stroke-width="2" marker-end="url(#mt1)"/>
+    <line x1="520" y1="90" x2="556" y2="90" stroke="#2e7d32" stroke-width="2" marker-end="url(#mt1)"/>
+    <rect x="560" y="8" width="110" height="120" rx="8" fill="#2e7d32"/>
+    <text x="615" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">外部专业工具</text>
+    <text x="615" y="52" text-anchor="middle" font-size="9" fill="#d7f0d7">ERP/CRM</text>
+    <text x="615" y="70" text-anchor="middle" font-size="9" fill="#d7f0d7">Photoshop</text>
+    <text x="615" y="88" text-anchor="middle" font-size="9" fill="#d7f0d7">AutoCAD</text>
+    <text x="615" y="106" text-anchor="middle" font-size="9" fill="#d7f0d7">企业网盘</text>
+  </svg>
+
+  <h3>22.6 安全与隔离</h3>
+  <div class="note">本地执行（CLI/桌面桥）一律在<b>沙箱</b>内进行，仅能访问被授权目录；远程 API 走网关鉴权；
+    凡是读/写/外发敏感资产的工具调用都触发<b>人工审核节点</b>（见第 19 章 L3）。工具产出文件自动继承调用者 scope/owner/dept，不绕过第 18 章过滤点。</div>
+
+  <h2>23. 本地文件与存储调用 <span class="tagp p0">P0</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>员工大量知识沉淀在本地（桌面文档、设计源文件、项目文件夹）。平台通过<b>本地文件网关</b>（轻量桌面客户端）
+    与<b>存储连接器</b>（NAS/SMB/对象存储/企业网盘），让员工“拖进来即用、问即取”，
+    且文件权限<b>映射回第 5/18 章的 scope/owner/dept</b>，敏感操作走审批，不绕过单一过滤点。
+  </div>
+
+  <h3>23.1 为什么必须能调本地文件</h3>
+  <ul>
+    <li>制度、报价、设计稿、项目资料多在本地/NAS，不接入则智能体“看不见”核心知识。</li>
+    <li>员工希望“把这份文件交给 AI 处理”而非先手动搬运到网页，体验落差会劝退使用。</li>
+  </ul>
+
+  <h3>23.2 本地文件网关（桌面客户端 / Agent）</h3>
+  <ul>
+    <li><b>授权目录</b>：用户在电脑装轻量客户端，勾选可授权目录（桌面/项目盘/指定文件夹），未授权不触达。</li>
+    <li><b>受控读写</b>：智能体经授权范围读取/写入，越界一律拒绝；写/删/外发敏感文件触发审批。</li>
+    <li><b>脱敏与留痕</b>：读取内容可脱敏（遮挡密钥/个人信息的片段），所有操作进统一审计流。</li>
+  </ul>
+
+  <h3>23.3 存储连接器</h3>
+  <div class="grid">
+    <div class="card"><b>网络存储</b><br>SMB / NFS / NAS / 企业网盘（群晖、泛微、飞书云盘）</div>
+    <div class="card"><b>对象与云</b><br>MinIO / S3 / OneDrive /  SharePoint</div>
+  </div>
+
+  <h3>23.4 与知识库联动</h3>
+  <ul>
+    <li><b>拖入即切片</b>：文件拖入即自动切片、向量化，并在来源库建档。</li>
+    <li><b>保留出处</b>：回答引用时保留原文路径与片段，可一键打开原文件。</li>
+    <li><b>权限映射</b>：文件 ACL 映射到 <code>scope/owner/dept</code>，继承既有分级权限。</li>
+  </ul>
+
+  <h3>23.5 移动端文件处理（受限）</h3>
+  <p>移动端只做<b>预览 / 申请授权 / 读取已授权目录</b>；写与外发敏感文件一律走审批；默认不向手机推送敏感文件，必要时由用户在 PC 端显式授权。</p>
+
+  <h3>23.6 本地文件网关架构图</h3>
+  <svg class="arch" viewBox="0 0 680 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="本地文件网关与存储连接架构">
+    <defs>
+      <marker id="mf1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <rect x="14" y="20" width="140" height="56" rx="8" fill="#0a2540"/>
+    <text x="84" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">员工电脑</text>
+    <text x="84" y="60" text-anchor="middle" font-size="9" fill="#cfe3f7">桌面客户端</text>
+    <rect x="180" y="20" width="150" height="56" rx="8" fill="#1565c0"/>
+    <text x="255" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">本地文件网关</text>
+    <text x="255" y="60" text-anchor="middle" font-size="9" fill="#e3f0ff">授权目录+沙箱</text>
+    <line x1="154" y1="48" x2="178" y2="48" stroke="#1565c0" stroke-width="2" marker-end="url(#mf1)"/>
+    <line x1="330" y1="48" x2="376" y2="48" stroke="#1565c0" stroke-width="2" marker-end="url(#mf1)"/>
+    <rect x="380" y="20" width="150" height="56" rx="8" fill="#1565c0"/>
+    <text x="455" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">智能体 / 知识库</text>
+    <text x="455" y="60" text-anchor="middle" font-size="9" fill="#e3f0ff">切片/向量化/问答</text>
+    <line x1="530" y1="48" x2="556" y2="48" stroke="#2e7d32" stroke-width="2" marker-end="url(#mf1)"/>
+    <rect x="560" y="20" width="110" height="56" rx="8" fill="#2e7d32"/>
+    <text x="615" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">存储连接器</text>
+    <text x="615" y="60" text-anchor="middle" font-size="9" fill="#d7f0d7">NAS/对象/网盘</text>
+    <line x1="255" y1="76" x2="255" y2="120" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="150" y="120" width="210" height="40" rx="8" fill="#0a2540"/>
+    <text x="255" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">权限映射：ACL→scope/owner/dept</text>
+    <text x="255" y="153" text-anchor="middle" font-size="9" fill="#cfe3f7">复用第5/18章，不绕过过滤点</text>
+    <rect x="400" y="120" width="190" height="40" rx="8" fill="#0a2540"/>
+    <text x="495" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">敏感读写/外发 → 人工审核</text>
+    <text x="495" y="153" text-anchor="middle" font-size="9" fill="#cfe3f7">审批节点(第19章L3)</text>
+  </svg>
+
+  <h2>24. 平台 UI 设计规范（参考 WorkBuddy，PC + 移动） <span class="tagp p1">P1</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>整套平台（PC 桌面端 + 手机端）的视觉、组件、交互<b>统一参考 WorkBuddy</b>：
+    深色侧栏 + 浅色主区的清晰克制风格、信息密度优先、去营销味。PC 与移动<b>共用同一套设计令牌与组件库</b>，
+    仅布局适配，确保两端体验一致。高保真原型见 <code>平台UI原型_参考WorkBuddy.html</code>。
+  </div>
+
+  <h3>24.1 设计原则</h3>
+  <ul>
+    <li><b>清晰克制</b>：以信息密度为先，少用装饰，重可读性（延续 WorkBuddy 工业科技风）。</li>
+    <li><b>深色侧栏 + 浅色主区</b>：导航用深色锚定，内容区保持明亮专注。</li>
+    <li><b>一致反馈</b>：同一操作两端表现相同；权限标签、状态、空态统一。</li>
+  </ul>
+
+  <h3>24.2 设计令牌（参考 WorkBuddy）</h3>
+  <table>
+    <tr><th>令牌</th><th>取值</th><th>用途</th></tr>
+    <tr><td>--wb-navy（主色/侧栏）</td><td>#0a2540</td><td>左侧栏、顶栏、主按钮底</td></tr>
+    <tr><td>--wb-blue（强调）</td><td>#1565c0</td><td>链接、激活态、主操作</td></tr>
+    <tr><td>--wb-accent（渐变高亮）</td><td>#2d7ff9 → #1565c0</td><td>品牌渐变、重要 CTA</td></tr>
+    <tr><td>--wb-bg（主区底）</td><td>#f6f8fb</td><td>内容区背景</td></tr>
+    <tr><td>--wb-card（卡片）</td><td>#ffffff</td><td>卡片/面板</td></tr>
+    <tr><td>圆角 / 间距</td><td>12px / 8–16px 栅格</td><td>统一组件节奏</td></tr>
+    <tr><td>字体</td><td>系统字体（PingFang/雅黑）</td><td>跨端一致</td></tr>
+  </table>
+
+  <h3>24.3 布局规范</h3>
+  <ul>
+    <li><b>PC 桌面端</b>：左图标栏(64px) + 资源/会话面板(260px) + 主区；顶部含模型选择与“新建”入口；底部为输入区。</li>
+    <li><b>手机端</b>：底部 Tab（对话 / 资源 / 工具 / 我的）+ 顶栏；输入固定于底部；向导类用全屏步骤条。</li>
+  </ul>
+
+  <h3>24.4 核心组件</h3>
+  <div class="refcard">
+    <div class="rolecol"><h4>会话气泡</h4><p>用户右/助手左，代码块浅底、引用可点开原文件。</p></div>
+    <div class="rolecol"><h4>输入框</h4><p>支持附件、@智能体、语音；Enter 发送、Shift+Enter 换行。</p></div>
+    <div class="rolecol"><h4>步骤条</h4><p>向导类统一用横向步骤条，明确当前步与可回退。</p></div>
+    <div class="rolecol"><h4>权限标签</h4><p>全域/部门/个人三色标签，两端同义同色。</p></div>
+    <div class="rolecol"><h4>抽屉</h4><p>工具/文件详情用右侧抽屉，不跳页打断流。</p></div>
+    <div class="rolecol"><h4>卡片网格</h4><p>部门/智能体/工具用统一卡片网格，便于浏览。</p></div>
+  </div>
+
+  <h3>24.5 PC 与移动端布局对照图</h3>
+  <svg class="arch" viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PC与移动端布局对照">
+    <defs>
+      <marker id="ml1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <rect x="14" y="20" width="360" height="180" rx="10" fill="#0a2540"/>
+    <text x="194" y="40" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">PC 桌面端（参考 WorkBuddy）</text>
+    <rect x="26" y="52" width="40" height="140" rx="6" fill="#11315a"/>
+    <text x="46" y="120" text-anchor="middle" font-size="8" fill="#9fc0e8">图标栏</text>
+    <rect x="72" y="52" width="120" height="140" rx="6" fill="#0f2a4d"/>
+    <text x="132" y="120" text-anchor="middle" font-size="8" fill="#9fc0e8">会话/资源</text>
+    <rect x="198" y="52" width="164" height="140" rx="6" fill="#f6f8fb"/>
+    <text x="280" y="70" text-anchor="middle" font-size="8" fill="#1f2d3d">主区（对话/向导）</text>
+    <rect x="208" y="168" width="144" height="16" rx="4" fill="#dbe6f2"/>
+    <text x="280" y="180" text-anchor="middle" font-size="7.5" fill="#5b7185">底部输入</text>
+    <rect x="410" y="30" width="120" height="200" rx="16" fill="#0a2540"/>
+    <text x="470" y="50" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">手机端</text>
+    <rect x="424" y="62" width="92" height="150" rx="6" fill="#f6f8fb"/>
+    <text x="470" y="135" text-anchor="middle" font-size="8" fill="#1f2d3d">内容区</text>
+    <rect x="424" y="214" width="92" height="12" rx="3" fill="#11315a"/>
+    <text x="470" y="222" text-anchor="middle" font-size="7.5" fill="#9fc0e8">底部Tab</text>
+    <line x1="374" y1="110" x2="406" y2="110" stroke="#1565c0" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ml1)"/>
+    <text x="390" y="104" text-anchor="middle" font-size="8" fill="#1565c0">共用令牌</text>
+  </svg>
+
+  <h3>24.6 响应式与一致性检查清单</h3>
+  <ul class="check">
+    <li>PC 与移动共用同一套设计令牌（颜色/圆角/字体），仅布局适配</li>
+    <li>同一组件（会话气泡/输入框/权限标签/步骤条）两端同组件库</li>
+    <li>权限表现两端一致：全域/部门/个人同色同义</li>
+    <li>向导在 PC 用侧栏步骤、移动用全屏步骤，但步骤内容一致</li>
+    <li>深色侧栏在移动端收为顶部/底部，主色与激活态不变</li>
+  </ul>
+
+  <h3>24.7 暗色主题对照</h3>
+  <p>原型当前采用"<b>深色侧栏 + 浅色主区</b>"混合模式（信息密度高、专注）。为长时间办公与 OLED 省电，平台额外提供<b>纯暗色主题</b>：PC 用于沉浸工作模式，移动端默认跟随系统并可手动切换。两套主题<b>共用同一套语义令牌</b>，仅取值切换，组件与交互不变。</p>
+  <table>
+    <thead><tr><th>令牌</th><th>浅色取值</th><th>暗色取值</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>--wb-bg（主区底）</td><td>#f6f8fb</td><td>#0d1320</td><td>内容区背景</td></tr>
+      <tr><td>--wb-card（卡片）</td><td>#ffffff</td><td>#16203a</td><td>卡片/面板</td></tr>
+      <tr><td>--wb-text（正文）</td><td>#1f2d3d</td><td>#e6edf6</td><td>主文字</td></tr>
+      <tr><td>--wb-text-muted（次要）</td><td>#5b7185</td><td>#8aa0b8</td><td>辅助说明</td></tr>
+      <tr><td>--wb-border（边框）</td><td>#dbe6f2</td><td>#26344d</td><td>分隔线</td></tr>
+      <tr><td>--wb-navy（主色/侧栏）</td><td>#0a2540</td><td>#0a2540</td><td>深色底锚定（不变）</td></tr>
+      <tr><td>--wb-blue（强调）</td><td>#1565c0</td><td>#2d7ff9</td><td>链接/激活态（暗底提亮）</td></tr>
+      <tr><td>--wb-accent（渐变）</td><td>#2d7ff9 → #1565c0</td><td>#4d9bff → #2d7ff9</td><td>品牌渐变/CTA</td></tr>
+    </tbody>
+  </table>
+  <ul class="check">
+    <li>暗色下避免纯白，用深蓝底 + 提亮强调色，护眼且保持品牌识别</li>
+    <li>同一语义令牌两套取值，组件库不重写，主题切换零成本</li>
+    <li>权限三色标签（全域/部门/个人）两端同义同色，不受主题影响</li>
+    <li>提供"浅 / 暗 / 跟随系统"三档；移动端默认跟随系统，桌面端可锁定暗色</li>
+  </ul>
+
+  <h2>25. 大模型接入与计量计费（可插拔模型 + Token 统计） <span class="tagp p0">P0</span></h2>
+  <div class="concl">
+    <b>核心结论：</b>平台必须回答两个问题——<b>“用哪个大模型”与“花了多少”</b>。
+    前者通过<b>模型网关 + 适配器 + 注册表</b>做成可插拔接口（新增模型=加适配器+一条配置，不改业务代码）；
+    后者通过<b>统一计量埋点 → 用量统计 → 计费/配额</b>形成闭环，按租户/部门/用户/智能体维度核算成本，
+    且不绕过第 18 章单一过滤点（用量数据同样受 scope 约束）。
+  </div>
+
+  <h3>25.1 为什么要把“用哪个模型”做成可插拔</h3>
+  <ul>
+    <li><b>避免锁定</b>：厂商与模型迭代快，业务代码不应写死某家接口，换模型不应改智能体。</li>
+    <li><b>最优性价比</b>：简单问答用便宜小模型、复杂推理用大模型，按任务路由降本。</li>
+    <li><b>混合部署</b>：公有 API 与私有化开源模型并存，敏感数据走本地模型，合规可控。</li>
+  </ul>
+
+  <h3>25.2 模型网关与适配器（复用第 4 章 One API / LiteLLM）</h3>
+  <p>核心模式是<b>适配器（Adapter）+ 注册表（Registry）</b>，在 One API / LiteLLM 之上做一层统一的模型抽象：</p>
+  <table>
+    <tr><th>组成</th><th>职责</th><th>扩展方式</th></tr>
+    <tr><td>统一接口 ModelAdapter</td><td>声明 <code>chat / embed / rerank</code>，及能力（流式、上下文长度、模态、价格）</td><td>接口固定，长期不变</td></tr>
+    <tr><td>具体适配器</td><td>每个模型一个实现（OpenAI 系 / Claude / 通义 / 自部署开源…）</td><td>新增模型只加一个适配器类</td></tr>
+    <tr><td>模型注册表 Registry</td><td>登记可用模型、状态、路由权重、配额</td><td>热插拔：注册/停用不改业务</td></tr>
+    <tr><td>路由策略</td><td>按任务类型 / 成本 / 质量 / 可用性选模型，支持降级</td><td>策略可配置</td></tr>
+  </table>
+
+  <h3>25.3 模型接入流程（5 步）</h3>
+  <div class="step"><div class="h">Step 1 · 申请 / 部署</div>公有模型申请 API Key 或自建额度；私有化模型完成本地部署与压测。</div>
+  <div class="step"><div class="h">Step 2 · 实现 / 选用适配器</div>选现成适配器或实现新的 ModelAdapter（统一 chat/embed/rerank 签名）。</div>
+  <div class="step"><div class="h">Step 3 · 注册到注册表</div>在 Registry 登记模型 ID、能力、单价、状态，平台即“可见可用”。</div>
+  <div class="step"><div class="h">Step 4 · 配置路由与配额</div>设路由策略与部门/智能体配额，高成本模型可单独审批。</div>
+  <div class="step"><div class="h">Step 5 · 灰度上线 + 监控</div>先小流量灰度，盯用量与质量，无异常转全量。</div>
+
+  <h3>25.4 Token 用量统计（统一计量的“统计点”）</h3>
+  <ul>
+    <li><b>统一埋点</b>：所有模型调用必经模型网关，按 <code>tenant / dept / user / agent / session</code> 维度采集 <code>prompt_tokens / completion_tokens / cost</code>。</li>
+    <li><b>与演化共用采集层</b>：复用第 20 章的埋点底座，一次采集同时满足“演化评估”与“用量计费”。</li>
+    <li><b>成本归因</b>：实时计数 + 异步落库，成本可精确归因到部门、智能体、具体任务。</li>
+    <li><b>用量看板</b>：部门/个人排名、智能体消耗 Top、本月成本、剩余额度。</li>
+  </ul>
+
+  <h3>25.5 计费与配额体系（统一管理的“计费点”）</h3>
+  <table>
+    <tr><th>机制</th><th>说明</th></tr>
+    <tr><td>配额</td><td>免费额度 / 部门月度预算 / 按量计费（内部结算或对接外部账单）</td></tr>
+    <tr><td>高成本管控</td><td>昂贵/敏感模型需审批或单独配额，避免滥用</td></tr>
+    <tr><td>超阈告警 + 熔断</td><td>接近预算告警，超限可熔断或自动降级到更便宜模型</td></tr>
+    <tr><td>内部结算报表</td><td>按成本中心出部门账单，支撑 IT 向业务分摊</td></tr>
+  </table>
+
+  <h3>25.6 计量计费架构图</h3>
+  <svg class="arch" viewBox="0 0 680 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="大模型接入与计量计费架构">
+    <defs>
+      <marker id="mm1" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="#1565c0"/></marker>
+    </defs>
+    <rect x="14" y="30" width="140" height="56" rx="8" fill="#0a2540"/>
+    <text x="84" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">调用方</text>
+    <text x="84" y="70" text-anchor="middle" font-size="9" fill="#cfe3f7">智能体/工作流/用户</text>
+    <rect x="200" y="20" width="150" height="76" rx="8" fill="#1565c0"/>
+    <text x="275" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">模型网关</text>
+    <text x="275" y="60" text-anchor="middle" font-size="9" fill="#e3f0ff">适配器+注册表(热插拔)</text>
+    <text x="275" y="76" text-anchor="middle" font-size="9" fill="#e3f0ff">路由/降级</text>
+    <line x1="154" y1="58" x2="198" y2="58" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+    <line x1="350" y1="40" x2="408" y2="32" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+    <line x1="350" y1="72" x2="408" y2="84" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+    <rect x="410" y="10" width="120" height="44" rx="8" fill="#2e7d32"/>
+    <text x="470" y="28" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">公有 API 模型</text>
+    <text x="470" y="44" text-anchor="middle" font-size="8.5" fill="#d7f0d7">GPT/Claude/通义</text>
+    <rect x="410" y="62" width="120" height="44" rx="8" fill="#2e7d32"/>
+    <text x="470" y="80" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">私有化模型</text>
+    <text x="470" y="96" text-anchor="middle" font-size="8.5" fill="#d7f0d7">自部署开源</text>
+    <line x1="275" y1="96" x2="89" y2="168" stroke="#ef6c00" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#mm1)"/>
+    <text x="150" y="140" text-anchor="middle" font-size="9" fill="#ef6c00">统一计量埋点</text>
+    <rect x="14" y="170" width="150" height="44" rx="8" fill="#0a2540"/>
+    <text x="89" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">计量埋点</text>
+    <text x="89" y="204" text-anchor="middle" font-size="8.5" fill="#cfe3f7">token/cost 采集</text>
+    <rect x="200" y="170" width="150" height="44" rx="8" fill="#1565c0"/>
+    <text x="275" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">用量统计</text>
+    <text x="275" y="204" text-anchor="middle" font-size="8.5" fill="#e3f0ff">租户/部门/智能体</text>
+    <rect x="410" y="170" width="120" height="44" rx="8" fill="#1565c0"/>
+    <text x="470" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">计费/配额</text>
+    <text x="470" y="204" text-anchor="middle" font-size="8.5" fill="#e3f0ff">预算/告警/熔断</text>
+    <rect x="560" y="170" width="110" height="44" rx="8" fill="#ef6c00"/>
+    <text x="615" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">看板/告警</text>
+    <text x="615" y="204" text-anchor="middle" font-size="8.5" fill="#ffe6cc">成本中心报表</text>
+    <line x1="164" y1="192" x2="198" y2="192" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+    <line x1="350" y1="192" x2="408" y2="192" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+    <line x1="530" y1="192" x2="558" y2="192" stroke="#1565c0" stroke-width="2" marker-end="url(#mm1)"/>
+  </svg>
+
+  <h3>25.7 与权限 / 安全衔接</h3>
+  <div class="note">用量数据同样受 <b>scope 约束</b>：部门只能看到本部门的消耗，成本属于敏感指标，跨部门汇总仅平台管理员可见；高成本/敏感模型调用仍需第 19 章 L3 的人工审核节点。计量与计费不绕过第 18 章单一过滤点。</div>
+
+  <h2>26. 部署运维与可观测性 <span class="tagp p0">P0</span></h2>
+  <p>第 15 章给出了部署检查清单，但生产环境还需要一套<b>运维与可观测性体系</b>：服务挂了谁知道、慢了查哪里、数据丢了怎么恢复。本章补齐"上线后"的工程底座。</p>
+  <h3>26.1 部署形态与资源规划</h3>
+  <table>
+    <thead><tr><th>规模</th><th>部署形态</th><th>关键组件</th><th>资源建议</th></tr></thead>
+    <tbody>
+      <tr><td>试点 / MVP</td><td>单机 Docker Compose</td><td>Dify + Qdrant + PG + MinIO + 网关</td><td>8C16G 起；向量库盘 ≥ 100G</td></tr>
+      <tr><td>多部门</td><td>多机 Docker Swarm / K8s</td><td>无状态服务多副本；PG 主从；Qdrant 分片</td><td>16C32G×2+；独立 GPU 节点（推理）</td></tr>
+      <tr><td>集团 / 高并发</td><td>K8s + HPA 自动扩缩</td><td>网关限流、向量库集群、对象存储分布式</td><td>按 QPS 弹性；冷备 + 异地</td></tr>
+    </tbody>
+  </table>
+  <h3>26.2 高可用与容灾（RTO / RPO）</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">目标</h3><ul>
+      <li><b>RTO</b>（恢复时间）≤ 30 分钟；<b>RPO</b>（数据丢失）≤ 5 分钟</li>
+      <li>无单点：网关、应用、向量库均多副本</li>
+      <li>数据库主从 + 自动 failover；对象存储多副本</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">容灾</h3><ul>
+      <li>定期快照（PG / 向量库 / MinIO）</li>
+      <li>异地备份保留 ≥ 30 天</li>
+      <li>每季度做一次<b>恢复演练</b>并留存报告</li>
+    </ul></div>
+  </div>
+  <h3>26.3 可观测性三支柱</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">Metrics</h3><p class="mini">Prometheus + Grafana。关键指标：召回延迟 P95、接口 QPS/错误率、模型调用成功率、Token 成本/分钟。</p></div>
+    <div class="card"><h3 style="margin-top:0">Logs</h3><p class="mini">Loki / ELK 聚合全链路日志，按 tenant/dept/user 打标，便于越权排查与审计。</p></div>
+    <div class="card"><h3 style="margin-top:0">Traces</h3><p class="mini">OpenTelemetry 串联"前端→网关→召回→模型→输出"，慢请求一键定位瓶颈。</p></div>
+  </div>
+  <svg viewBox="0 0 680 150" aria-label="s26-obs" style="width:100%;max-width:680px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+    <rect x="10" y="55" width="120" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="70" y="80" font-size="13" text-anchor="middle" fill="#1f2d3d">平台各服务</text>
+    <line x1="130" y1="75" x2="200" y2="75" stroke="#888" stroke-width="1.5"/>
+    <rect x="200" y="55" width="120" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="260" y="80" font-size="13" text-anchor="middle" fill="#1f2d3d">采集代理</text>
+    <line x1="320" y1="75" x2="390" y2="75" stroke="#888" stroke-width="1.5"/>
+    <rect x="390" y="55" width="120" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="450" y="80" font-size="13" text-anchor="middle" fill="#1f2d3d">存储(M/L/T)</text>
+    <line x1="510" y1="75" x2="580" y2="75" stroke="#888" stroke-width="1.5"/>
+    <rect x="580" y="55" width="90" height="40" rx="6" fill="#fff3e0" stroke="#e08e0b"/>
+    <text x="625" y="80" font-size="12" text-anchor="middle" fill="#1f2d3d">看板/告警</text>
+    <text x="340" y="130" font-size="12" text-anchor="middle" fill="#666">指标→日志→链路 三支柱统一关联 tenant/dept/user</text>
+  </svg>
+  <h3>26.4 灰度发布与回滚</h3>
+  <ul>
+    <li>提示词 / 知识库 / 工作流变更走<b>版本化</b>，支持一键回滚</li>
+    <li>新模型或新 Agent 先<b>金丝雀</b>小流量（如 5% 部门），观测指标无异常再全量</li>
+    <li>配置错误 / 质量下降时，<b>回滚优先于修复</b>，止损后再排查</li>
+  </ul>
+  <h3>26.5 告警与值班</h3>
+  <p class="mini">阈值示例：错误率 &gt; 1% 持续 5 分钟、召回 P95 &gt; 3s、模型网关 429 突增、备份任务失败。告警分级（P1/P2/P3）并对接 IM（企微/钉钉）值班群，升级路径明确。</p>
+
+  <h2>27. AI 行为安全 <span class="tagp p0">P0</span></h2>
+  <p>第 6 章覆盖"数据保密"，但企业更常遇到的是 AI <b>生成内容本身</b>的风险：被诱导泄密、说错话、产出违规内容。本章建立"输入—知识—输出"三层防护，与第 18 章权限过滤互为补充。</p>
+  <svg viewBox="0 0 680 150" aria-label="s27-sec" style="width:100%;max-width:680px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+    <rect x="10" y="30" width="190" height="40" rx="6" fill="#fde8e8" stroke="#d63b3b"/>
+    <text x="105" y="55" font-size="13" text-anchor="middle" fill="#1f2d3d">①输入层：提示注入/越狱拦截</text>
+    <rect x="245" y="30" width="190" height="40" rx="6" fill="#fff3e0" stroke="#e08e0b"/>
+    <text x="340" y="55" font-size="13" text-anchor="middle" fill="#1f2d3d">②知识层：入库审核/防投毒</text>
+    <rect x="480" y="30" width="190" height="40" rx="6" fill="#e6f7ec" stroke="#2aa46b"/>
+    <text x="575" y="55" font-size="13" text-anchor="middle" fill="#1f2d3d">③输出层：合规/幻觉/泄密过滤</text>
+    <line x1="105" y1="70" x2="105" y2="100" stroke="#888"/>
+    <line x1="340" y1="70" x2="340" y2="100" stroke="#888"/>
+    <line x1="575" y1="70" x2="575" y2="100" stroke="#888"/>
+    <line x1="105" y1="100" x2="575" y2="100" stroke="#888" stroke-width="1.5"/>
+    <rect x="245" y="110" width="190" height="32" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="340" y="131" font-size="13" text-anchor="middle" fill="#1f2d3d">安全护栏贯穿全链路</text>
+  </svg>
+  <h3>27.1 输入侧防护</h3>
+  <ul>
+    <li><b>提示注入检测</b>：识别"忽略以上指令/扮演越权角色"等越狱模式，命中即拦截或降级</li>
+    <li><b>敏感指令拦截</b>：禁止借对话套取他人部门数据、密码、密钥</li>
+    <li><b>输入清洗</b>：超长截断、恶意脚本/路径遍历过滤</li>
+  </ul>
+  <h3>27.2 知识侧防护（防投毒）</h3>
+  <ul>
+    <li>入库内容<b>来源可信度</b>校验（白名单域名 / 内部系统签名）</li>
+    <li>敏感文档入库前<b>内容审核</b>，避免把机密误标为全域可读</li>
+    <li>知识更新留痕，发现投毒可<b>溯源到提交人并回滚</b></li>
+  </ul>
+  <h3>27.3 输出侧防护</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">内容安全</h3><ul>
+      <li>违规词 / 歧视 / 违法内容过滤</li>
+      <li>泄密模式检测：输出不含他人部门/个人数据片段</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">幻觉缓解</h3><ul>
+      <li>强制<b>引用溯源</b>：无依据则答"无法确认"</li>
+      <li>低置信度拒答或转人工</li>
+      <li>关键数字 / 条款必附原文位置</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">越权二次防线</h3><ul>
+      <li>即使召回漏过滤，输出层再校验 scope</li>
+      <li>输出不含未授权可见范围内容</li>
+    </ul></div>
+  </div>
+  <h3>27.4 人工兜底与责任</h3>
+  <p class="mini">高风险操作（删除/导出/对外发送）必人工确认；AI 输出不作为最终决策唯一依据，关键业务由人把关。与第 23 章本地文件、第 22 章外部工具的安全闸口一致。</p>
+
+  <h2>28. 测试与评测体系 <span class="tagp p0">P0</span></h2>
+  <p>没有评测，第 20 章的"自动演化"就无从判断变好还是变坏。本章建立分层测试与量化评测基线，作为平台质量的"尺子"。</p>
+  <h3>28.1 分层测试</h3>
+  <table>
+    <thead><tr><th>层</th><th>对象</th><th>方法</th><th>门禁</th></tr></thead>
+    <tbody>
+      <tr><td>单元</td><td>工具/函数/适配器</td><td>断言输入输出</td><td>覆盖率 ≥ 70%</td></tr>
+      <tr><td>集成</td><td>工作流 / 多 Agent</td><td>端到端跑真实任务</td><td>关键路径全通</td></tr>
+      <tr><td>评测</td><td>问答/生成质量</td><td>golden set + LLM-as-judge</td><td>不劣于基线</td></tr>
+    </tbody>
+  </table>
+  <h3>28.2 RAG 评测集（Golden Set）</h3>
+  <ul>
+    <li>每部门维护 <b>问题 + 标准答案 + 标准引用</b> 的基准集（≥ 50 条）</li>
+    <li>指标：<b>召回准确率</b>、<b>答案忠实度</b>（不编造）、<b>引用完整度</b></li>
+    <li>每次知识库/提示词变更后自动回归，结果入看板</li>
+  </ul>
+  <h3>28.3 智能体评测（LLM-as-Judge）</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">评分卡</h3><ul>
+      <li>相关性、合规性、引用完整、无害性</li>
+      <li>0–5 分，批量跑、均值对比</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">人工抽检</h3><ul>
+      <li>高风险部门（财务/合规）必人工抽检</li>
+      <li>争议样本进训练集反哺</li>
+    </ul></div>
+  </div>
+  <h3>28.4 提示词回归与上线验收</h3>
+  <ul>
+    <li>提示词<b>版本基线</b>对比，质量不降才允许发布（回归门禁）</li>
+    <li>上线验收阈值示例：准确率 ≥ 85%、可引用率 ≥ 90%、越权拦截率 100%</li>
+  </ul>
+  <svg viewBox="0 0 680 140" aria-label="s28-eval" style="width:100%;max-width:680px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+    <rect x="10" y="50" width="130" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="75" y="75" font-size="13" text-anchor="middle" fill="#1f2d3d">测试集/Golden</text>
+    <line x1="140" y1="70" x2="200" y2="70" stroke="#888" stroke-width="1.5"/>
+    <rect x="200" y="50" width="130" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="265" y="75" font-size="13" text-anchor="middle" fill="#1f2d3d">自动评测</text>
+    <line x1="330" y1="70" x2="390" y2="70" stroke="#888" stroke-width="1.5"/>
+    <rect x="390" y="50" width="130" height="40" rx="6" fill="#e8f1fb" stroke="#2f6fed"/>
+    <text x="455" y="75" font-size="13" text-anchor="middle" fill="#1f2d3d">对比基线</text>
+    <line x1="520" y1="70" x2="580" y2="70" stroke="#888" stroke-width="1.5"/>
+    <rect x="580" y="50" width="90" height="40" rx="6" fill="#fff3e0" stroke="#e08e0b"/>
+    <text x="625" y="75" font-size="12" text-anchor="middle" fill="#1f2d3d">门禁/演化</text>
+    <text x="340" y="125" font-size="12" text-anchor="middle" fill="#666">评测是自动演化(ch20)的效果度量尺</text>
+  </svg>
+
+  <h2>29. 审计与合规留存 <span class="tagp p1">P1</span></h2>
+  <p>第 6 章提到"全量审计日志"，本章把它规范为可验收、可合规的体系，满足政企客户的硬指标。</p>
+  <h3>29.1 审计字段规范</h3>
+  <table>
+    <thead><tr><th>字段</th><th>含义</th><th>示例</th></tr></thead>
+    <tbody>
+      <tr><td>who</td><td>操作人 + 角色</td><td>张三 / 部门管理员</td></tr>
+      <tr><td>what</td><td>动作 + 对象</td><td>查询知识 / 导出文档</td></tr>
+      <tr><td>scope</td><td>可见范围上下文</td><td>dept=研发部</td></tr>
+      <tr><td>when</td><td>时间戳</td><td>ISO8601 + 时区</td></tr>
+      <tr><td>result</td><td>成功/拒绝 + 原因</td><td>拒绝：越权</td></tr>
+    </tbody>
+  </table>
+  <h3>29.2 留存、合规框架与数据主体权利</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">留存与存储</h3><ul>
+      <li>操作日志留存 ≥ 180 天；安全事件 ≥ 1 年</li>
+      <li>审计库独立、只读、加密</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">合规映射</h3><ul>
+      <li>等保 2.0 三级（身份/审计/数据）</li>
+      <li>ISO 27001、数据安全法、个人信息保护</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">数据主体权利</h3><ul>
+      <li>员工可<b>导出/更正/删除</b>本人数据</li>
+      <li>删除请求级联清理向量与索引</li>
+    </ul></div>
+  </div>
+
+  <h2>30. 运营推广与价值度量 <span class="tagp p1">P1</span></h2>
+  <p>工具再好没人用等于失败。本章把"建好"推进到"用好"，并让管理层看到价值。</p>
+  <h3>30.1 推广三阶段</h3>
+  <ul>
+    <li><b>试点</b>：1–2 个高意愿部门跑通样板场景（呼应第 19 章试点选择）</li>
+    <li><b>放大</b>：沉淀模板中心（第 19 章），跨部门复制</li>
+    <li><b>常态化</b>：纳入考核/日报，成为工作流一环</li>
+  </ul>
+  <h3>30.2 培训体系与度量</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">培训</h3><ul>
+      <li>管理员：权限/知识库/编排</li>
+      <li>种子用户：业务转智能体</li>
+      <li>全员：怎么问、看什么范围</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">活跃度</h3><ul>
+      <li>DAU/WAU、采纳率、任务完成率</li>
+      <li>部门渗透率看板</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">价值 ROI</h3><ul>
+      <li>节省工时、响应提速、质量提升</li>
+      <li>结合第 25 章成本算净收益</li>
+    </ul></div>
+  </div>
+  <p class="note">反馈闭环接入第 20 章自动演化：用户点赞/纠错 → 知识缺口 → 自生长 → 评测（第 28 章）验证 → 灰度发布。</p>
+
+  <h2>31. 统一身份与集成架构 <span class="tagp p1">P1</span></h2>
+  <p>平台若不嵌入现有办公系统，就会成信息孤岛。本章定义身份与集成的统一架构。</p>
+  <h3>31.1 统一身份（SSO 深化）</h3>
+  <ul>
+    <li>协议：OIDC / SAML / LDAP，目录（AD / 企微通讯录）定时同步</li>
+    <li>账号生命周期：入/转/离自动开通与回收，权限随岗位变更</li>
+    <li>与第 18 章权限一致性共用同一身份源，PC/移动/API 同源</li>
+  </ul>
+  <h3>31.2 IM 与业务系统集成</h3>
+  <table>
+    <thead><tr><th>集成对象</th><th>方式</th><th>场景</th></tr></thead>
+    <tbody>
+      <tr><td>企微/钉钉/飞书</td><td>机器人 + 侧边栏 + 消息推送</td><td>对话入口、任务通知、审批</td></tr>
+      <tr><td>OA / 审批</td><td>OpenAPI / Webhook</td><td>流程联动、单据生成</td></tr>
+      <tr><td>ERP / CRM</td><td>连接器 + 数据回流</td><td>客户/订单查询、报表</td></tr>
+    </tbody>
+  </table>
+  <h3>31.3 事件总线与集成安全</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">事件/Webhook</h3><ul>
+      <li>知识入库、审批通过等事件异步触发工作流</li>
+      <li>支持定时与外部系统回调</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">集成安全</h3><ul>
+      <li>令牌加密存储、最小权限、定期轮换</li>
+      <li>集成调用同样走第 18 章过滤点</li>
+    </ul></div>
+  </div>
+  <p class="concl">小结：第 26–31 章把平台从"设计态"补到"生产态 + 运营态"——运维可观测、AI 行为安全、评测基线三块是上生产的硬门槛；审计合规、运营推广、集成架构三块决定能否被政企验收并真正用起来。所有新增能力仍复用第 5/13/18 章的权限与过滤模型，不另起炉灶。</p>
+
+  <h2>32. 多租户与集团化隔离 <span class="tagp p2">P2</span></h2>
+  <p>当前蓝图以"单公司 + 部门"为主。若客户是<b>集团、多子公司或多品牌</b>，需在部门之上增加"租户（tenant）"一层隔离。本章定义可扩展的租户模型。</p>
+  <h3>32.1 租户模型</h3>
+  <ul>
+    <li>层级：<b>租户 (tenant) &gt; 部门 (dept) &gt; 个人 (personal)</b>，权限元数据增加 <code>tenant_id</code></li>
+    <li>隔离粒度：默认<b>逻辑隔离</b>（同库不同 tenant_id，召回过滤加 tenant 条件）；高敏客户可选<b>物理隔离</b>（独立库 / 独立部署）</li>
+    <li>集团级策略统一下发，子公司可继承并局部覆盖</li>
+  </ul>
+  <h3>32.2 集团级管控</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">统一管控</h3><ul>
+      <li>集团视角审计、配额、计费汇总</li>
+      <li>跨租户协作走白名单授权，不破隔离</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">资源与计费</h3><ul>
+      <li>按租户配额与限流，防止挤占</li>
+      <li>成本按 tenant 分摊（衔接第 25 章）</li>
+    </ul></div>
+  </div>
+
+  <h2>33. 法律与责任界定 <span class="tagp p2">P2</span></h2>
+  <p>AI 平台上线前，需由法务与业务明确"谁拥有产出、谁承担责任、员工怎么用"，规避法律与声誉风险。</p>
+  <h3>33.1 知识产权与责任</h3>
+  <table>
+    <thead><tr><th>事项</th><th>建议约定</th></tr></thead>
+    <tbody>
+      <tr><td>AI 生成内容归属</td><td>职务作品归企业；员工对最终采用负责</td></tr>
+      <tr><td>责任边界</td><td>AI 输出不替代专业判断；关键决策人机共签</td></tr>
+      <tr><td>免责声明</td><td>对外内容标注"AI 辅助生成，请核实"</td></tr>
+    </tbody>
+  </table>
+  <h3>33.2 员工使用规范与数据合规</h3>
+  <ul>
+    <li><b>使用守则</b>：禁止把机密 / 个人信息输入公网模型；内部平台按 scope 使用</li>
+    <li><b>数据合规</b>：遵守个人信息保护法；使用境外模型需评估数据出境合规</li>
+    <li><b>违规处理</b>：越权抓取、泄露机密纳入内部处罚</li>
+  </ul>
+
+  <h2>34. 性能与成本优化 <span class="tagp p2">P2</span></h2>
+  <p>规模上来后，延迟与成本会同时成为瓶颈。本章给出可落地的优化手段，并与第 25 章计量计费联动。</p>
+  <h3>34.1 缓存与并发</h3>
+  <div class="grid">
+    <div class="card"><h3 style="margin-top:0">缓存</h3><ul>
+      <li>召回结果缓存（相同问题命中）</li>
+      <li>热点知识 / 模型响应缓存（Redis）</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">并发与限流</h3><ul>
+      <li>网关节流、请求队列削峰</li>
+      <li>模型并发受配额约束，超限排队</li>
+    </ul></div>
+  </div>
+  <h3>34.2 模型路由降本与向量库优化</h3>
+  <ul>
+    <li><b>按难度路由</b>：简单任务（分类/摘要）走小模型，复杂任务才用大模型，混合推理显著降本</li>
+    <li><b>向量库优化</b>：索引选型（HNSW）、分片、冷热分离（高频知识常驻内存）</li>
+    <li>所有优化效果在<b>成本看板（第 25 章）</b>可观测，形成"优化 → 计量 → 再优化"闭环</li>
+  </ul>
+  <p class="concl">小结（v1.13 完整版图）：第 1–25 章完成"设计态"功能规划；第 26–28 章补齐上生产的硬门槛（运维可观测 / AI 行为安全 / 测试评测）；第 29–31 章决定能否被政企验收并真正用起来（审计合规 / 运营推广 / 集成架构）；第 32–34 章为规模化和合规兜底（多租户 / 法律 / 性能成本）。全平台始终复用第 5/13/18 章的权限与单一过滤模型，能力越多、边界越稳。</p>
+
+
+
+  <h2>35. 模型选型决策框架（何时用 LLM / 传统 ML / 规则） <span class="tagp p0">P0</span></h2>
+  <div class="note"><b>缺陷回顾（来自 AI 工程评审）：</b>当前设计把"AI"等同于"大模型 + RAG"，缺少模型选型框架。用 LLM 做确定性、结构化、可批量的任务，会导致成本高出"几个数量级"、结果不可复现、不可解释，且引入幻觉。</div>
+  <h3>35.1 外部依据</h3>
+  <ul>
+    <li>IBM 与企业实践共识：<b>输入是表格/数值 → 传统 ML（XGBoost / LR）；输入是文本/多模态 → LLM</b>。</li>
+    <li>用 LLM 跑批量分类/回归，成本较传统 ML 高<b>数倍至数十倍</b>，且非确定性、不可解释、难审计。</li>
+  </ul>
+  <h3>35.2 选型决策树（实施核心）</h3>
+  <svg viewBox="0 0 680 250" aria-label="模型选型决策树" style="width:100%;max-width:680px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+    <rect x="8" y="14" width="180" height="40" rx="8" fill="#0a2540"/><text x="98" y="39" fill="#fff" font-size="13" text-anchor="middle">任务输入类型？</text>
+    <line x1="98" y1="54" x2="98" y2="86" stroke="#334"/>
+    <rect x="8" y="86" width="170" height="34" rx="8" fill="#e8f1fb"/><text x="93" y="108" fill="#0a2540" font-size="12" text-anchor="middle">表格/数值/确定性</text>
+    <line x1="188" y1="103" x2="262" y2="103" stroke="#334"/>
+    <rect x="262" y="86" width="170" height="34" rx="8" fill="#e8f1fb"/><text x="347" y="108" fill="#0a2540" font-size="12" text-anchor="middle">文本/图像/模糊语义</text>
+    <line x1="93" y1="120" x2="93" y2="152" stroke="#334"/>
+    <line x1="347" y1="120" x2="347" y2="152" stroke="#334"/>
+    <rect x="8" y="152" width="170" height="34" rx="8" fill="#16a34a"/><text x="93" y="174" fill="#fff" font-size="12" text-anchor="middle">规则 / 传统 ML</text>
+    <rect x="262" y="152" width="170" height="34" rx="8" fill="#2563eb"/><text x="347" y="174" fill="#fff" font-size="12" text-anchor="middle">LLM（必要时微调）</text>
+    <line x1="177" y1="169" x2="262" y2="169" stroke="#334"/>
+    <text x="220" y="163" fill="#666" font-size="10" text-anchor="middle">需可解释/可批量/低成本→左</text>
+  </svg>
+  <h3>35.3 落地步骤</h3>
+  <div class="step"><b>① 建立选型决策树：</b>按"输入类型 → 任务确定性 → 可解释性要求 → 延迟/成本预算"四问定模型类别，写入平台"新建智能体"向导，强制选型说明。</div>
+  <div class="step"><b>② 扩展模型网关适配器：</b>在第 25 章注册表中新增 <code>adapter_type ∈ {llm, ml_serving, rule}</code>，传统 ML 与规则引擎也走同一网关，统一 caller 注入与计量。</div>
+  <div class="step"><b>③ 默认策略与红线：</b>凡"确定性、结构化、可批量"的任务默认非 LLM；仅"模糊语义、生成、推理"用 LLM；关键决策引入 LLM 须人机共签（见第 33 章）。</div>
+  <div class="step"><b>④ 成本/质量对比看板：</b>对同一任务并行跑 LLM 与传统 ML，记录准确率、成本、延迟，沉淀为选型知识库。</div>
+  <h3>35.4 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>选型决策树</td><td>已上线并嵌入"新建智能体"向导，强制填写</td></tr>
+  <tr><td>非 LLM 接入</td><td>≥ 3 个传统 ML / 规则模型接入第 25 章网关</td></tr>
+  <tr><td>选型评审</td><td>每个新需求上线前过选型评审，留存记录</td></tr></table>
+  <div class="note"><b>衔接：</b>第 25 章（模型网关，扩展 adapter）· 第 34 章（成本优化）· 第 33 章（责任边界）。</div>
+
+  <h2>36. RAG 质量工程（检索质量门禁） <span class="tagp p0">P0</span></h2>
+  <div class="note"><b>缺陷回顾：</b>当前 RAG 只做权限过滤，缺检索质量工程。纯向量检索会漏掉 30–50% 相关文档，导致答案错误/幻觉；权限过滤正确 ≠ 检索质量过关。</div>
+  <h3>36.1 外部依据</h3>
+  <ul>
+    <li>2025–2026 工程共识：<b>混合检索（稀疏 + 稠密）+ 重排（cross-encoder）</b>显著优于纯向量。</li>
+    <li>先测 <b>Recall@100 ≥ 0.95</b> 再调重排与生成；检索质量需独立评测集与门禁。</li>
+  </ul>
+  <h3>36.2 检索管线（实施核心）</h3>
+  <svg viewBox="0 0 680 180" aria-label="RAG质量管线" style="width:100%;max-width:680px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+    <rect x="6" y="70" width="120" height="40" rx="8" fill="#0a2540"/><text x="66" y="95" fill="#fff" font-size="12" text-anchor="middle">用户 Query</text>
+    <line x1="126" y1="90" x2="162" y2="90" stroke="#334"/>
+    <rect x="162" y="40" width="130" height="34" rx="8" fill="#2563eb"/><text x="227" y="62" fill="#fff" font-size="12" text-anchor="middle">稀疏检索 BM25</text>
+    <rect x="162" y="96" width="130" height="34" rx="8" fill="#2563eb"/><text x="227" y="118" fill="#fff" font-size="12" text-anchor="middle">稠密向量检索</text>
+    <line x1="292" y1="57" x2="330" y2="80" stroke="#334"/><line x1="292" y1="113" x2="330" y2="95" stroke="#334"/>
+    <rect x="330" y="70" width="130" height="40" rx="8" fill="#7c3aed"/><text x="395" y="95" fill="#fff" font-size="12" text-anchor="middle">融合 + 重排</text>
+    <line x1="460" y1="90" x2="496" y2="90" stroke="#334"/>
+    <rect x="496" y="70" width="120" height="40" rx="8" fill="#16a34a"/><text x="556" y="95" fill="#fff" font-size="12" text-anchor="middle">质量门禁</text>
+    <text x="556" y="128" fill="#666" font-size="10" text-anchor="middle">Recall@100≥0.95</text>
+    <text x="66" y="140" fill="#666" font-size="10" text-anchor="middle">↑ 评测集回流</text>
+  </svg>
+  <h3>36.3 落地步骤</h3>
+  <div class="step"><b>① 混合检索：</b>Query 同时走 BM25（关键词/专有名词）与向量检索，按 RRF 或学习排序融合。</div>
+  <div class="step"><b>② 重排层：</b>取 Top-100 候选用 cross-encoder 重排至 Top-K，提升精度。</div>
+  <div class="step"><b>③ 切分与元数据：</b>采用语义切分 + 父子文档（子块检索、父块喂给模型），保留来源/章节/权限元数据。</div>
+  <div class="step"><b>④ 评测集与门禁：</b>人工构建 ≥ 200 条 golden queries + 标准相关 doc_id 集合；指标 Recall@K、MRR、nDCG；CI 中跑门禁，<b>Recall@100 < 0.95 阻断上线</b>。</div>
+  <div class="step"><b>⑤ 两层过滤：</b>检索阶段先保证"找得全"（质量层），再在第 18 章单一过滤点做"看不见"（合规层），二者解耦。</div>
+  <h3>36.4 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>混合检索</td><td>BM25 + 向量 + 重排三件套上线</td></tr>
+  <tr><td>评测集</td><td>≥ 200 条 golden queries，指标自动化</td></tr>
+  <tr><td>质量门禁</td><td>Recall@100 ≥ 0.95 才放行，接入 CI</td></tr></table>
+  <div class="note"><b>衔接：</b>第 5 章（知识库切分/元数据）· 第 18 章（合规过滤点，质量层与合规层解耦）· 第 28/37 章（评测）。</div>
+
+  <h2>37. ML 级评测体系（不依赖 LLM-as-judge） <span class="tagp p0">P0</span></h2>
+  <div class="note"><b>缺陷回顾：</b>当前评测依赖 LLM-as-judge。研究显示即便 GPT-4o，人机相关性仅 0.59–0.66，无歧义样本上反而低于人-人相关性，会"一致性地错"——自动演化飞轮若建在这之上，可能把变差的版本推上生产。</div>
+  <h3>37.1 外部依据</h3>
+  <ul>
+    <li>ICLR 2025 与 arXiv 2025/2026：LLM-as-judge 存在系统性偏差，仅宜作辅助。</li>
+    <li>正确做法：<b>客观指标用规则校验 → 黄金集做回归基线 → 多模型交叉 + 人工抽检</b>。</li>
+  </ul>
+  <h3>37.2 分层评测</h3>
+  <div class="step"><b>① 客观指标（规则校验，不靠 LLM）：</b>格式正确性、工具调用参数正确性、检索命中 doc_id 是否在区间、引用是否存在、权限越权拦截率。</div>
+  <div class="step"><b>② 黄金集（golden set）：</b>人工标注 ≥ 500 条多轮对话 + 标准答案/标准动作，作为回归基线，每次改动必跑。</div>
+  <div class="step"><b>③ LLM-as-judge 仅辅助：</b>若用，须多模型交叉并设校准阈值，结果只作参考不单独定生死。</div>
+  <div class="step"><b>④ 人工抽检 + 用户反馈：</b>按置信度抽样人工复核；用户"踩/赞"实时回流第 20 章演化。</div>
+  <div class="step"><b>⑤ 评测驱动演化：</b>第 20 章演化建议必须通过评测门禁（黄金集不退化 + 客观指标达标）才允许灰度上线。</div>
+  <h3>37.3 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>黄金集</td><td>≥ 500 条，覆盖多轮与边界，自动化跑批</td></tr>
+  <tr><td>客观指标</td><td>格式/工具/检索/引用/越权 5 类自动化校验</td></tr>
+  <tr><td>演化门禁</td><td>第 20 章演化建议接评测门禁，不达标不灰度</td></tr></table>
+  <div class="note"><b>衔接：</b>第 20 章（自动演化）· 第 28 章（测试与评测体系）· 第 25 章（模型网关，可切换 judge 模型）。</div>
+
+  <h2>38. 非 LLM 模型的 MLOps（训练/特征/漂移/重训） <span class="tagp p1">P1</span></h2>
+  <div class="note"><b>缺陷回顾：</b>"机器学习模型方案"目前只有推理调用，缺训练流水线、特征管理、模型版本、数据漂移检测与重训机制。</div>
+  <h3>38.1 落地步骤</h3>
+  <div class="step"><b>① 特征存储：</b>离线特征（批）与在线特征（实时）统一管理，保证训练- serving 一致性。</div>
+  <div class="step"><b>② 训练流水线：</b>数据清洗 → 特征 → 训练 → 评估 → 注册的离线流水线，可定时/触发重跑。</div>
+  <div class="step"><b>③ 模型注册表与版本：</b>每个模型带版本、训练数据指纹、指标；与第 25 章网关同一注册表（adapter_type=ml_serving）。</div>
+  <div class="step"><b>④ 漂移检测：</b>监控输入分布（PSI / KS）与效果衰减，超阈告警。</div>
+  <div class="step"><b>⑤ 重训与回滚：</b>漂移或效果下降触发重训，新版本灰度，旧版本可回滚。</div>
+  <h3>38.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>MLOps 闭环</td><td>≥ 1 个传统 ML 模型走完训练→注册→serving→漂移→重训</td></tr>
+  <tr><td>版本回滚</td><td>模型版本可一键回滚</td></tr></table>
+
+  <h2>39. 幻觉抑制与 Grounding 机制 <span class="tagp p1">P1</span></h2>
+  <div class="note"><b>缺陷回顾：</b>第 27 章只列了"幻觉"威胁，未给具体抑制手段。企业最怕 AI"说错话"。</div>
+  <h3>39.1 落地步骤</h3>
+  <div class="step"><b>① 引用强制（citation grounding）：</b>回答每段必须附可点击来源片段；无来源声明不得生成事实断言。</div>
+  <div class="step"><b>② 事实校验：</b>生成后做"声明-证据"比对，证据不在检索集内则标记或拒答。</div>
+  <div class="step"><b>③ 置信校准与拒答：</b>低置信/无检索支撑时走拒答或转人工（见第 42 章）。</div>
+  <div class="step"><b>④ 输出合规校验层：</b>在生成后加一层规则/小模型过滤（敏感词、越权信息、违规内容）。</div>
+  <h3>39.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>引用覆盖</td><td>关键事实回答 100% 附来源</td></tr>
+  <tr><td>幻觉抽检</td><td>人工抽检幻觉率 < 2%</td></tr></table>
+  <div class="note"><b>衔接：</b>第 27 章（AI 行为安全）· 第 36 章（RAG 质量）· 第 42 章（降级转人工）。</div>
+
+  <h2>40. 成本与延迟优化（路由 + 语义缓存） <span class="tagp p1">P1</span></h2>
+  <div class="note"><b>缺陷回顾：</b>第 25 章有计费但无优化手段；无任务复杂度路由、无语义缓存，规模上来后成本与延迟失控。</div>
+  <h3>40.1 落地步骤</h3>
+  <div class="step"><b>① 任务路由器：</b>按复杂度把请求路由到合适模型——简单问答/抽取走小模型，复杂推理走大模型，路由策略可配置。</div>
+  <div class="step"><b>② 语义缓存：</b>对语义相近的 Query 命中缓存结果（embedding 相似度阈值），降低重复调用。</div>
+  <div class="step"><b>③ 模型分层与预算：</b>在第 25 章注册表里标 <code>tier</code> 与单价；高成本模型单独审批；超预算熔断降级。</div>
+  <div class="step"><b>④ 常见请求预计算：</b>高频问答/报表预生成，命中即返回。</div>
+  <h3>40.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>小模型占比</td><td>简单任务小模型承接率 > 40%</td></tr>
+  <tr><td>缓存命中</td><td>语义缓存命中率 > 20%</td></tr></table>
+  <div class="note"><b>衔接：</b>第 25 章（计费/网关）· 第 34 章（性能与成本优化）· 第 35 章（选型）。</div>
+
+  <h2>41. 模型质量可观测性 <span class="tagp p1">P1</span></h2>
+  <div class="note"><b>缺陷回顾：</b>第 25 章只记 token/成本，不记成功率、幻觉率、转人工率——无法判断模型"做得好不好"。</div>
+  <h3>41.1 落地步骤</h3>
+  <div class="step"><b>① 扩展计量埋点：</b>在第 25 章计量层增加质量字段：成功率、幻觉标记率、转人工率、用户满意度、延迟 p95/p99。</div>
+  <div class="step"><b>② 打通可观测性：</b>与第 26 章指标/日志/链路三支柱打通，按 tenant/dept/agent/session 维度下钻。</div>
+  <div class="step"><b>③ 质量告警：</b>幻觉率/转人工率突增自动告警，触发第 20 章演化复盘。</div>
+  <div class="step"><b>④ 看板：</b>模型质量看板（受 scope 约束，成本/质量属敏感仅管理员可见）。</div>
+  <h3>41.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>质量指标</td><td>看板含 ≥ 5 个质量指标，可按部门下钻</td></tr>
+  <tr><td>告警</td><td>幻觉率/转人工率超阈自动告警</td></tr></table>
+  <div class="note"><b>衔接：</b>第 25 章（计量）· 第 26 章（可观测性）· 第 37 章（评测）。</div>
+
+  <h2>42. 优雅降级与人工升级 <span class="tagp p2">P2</span></h2>
+  <div class="note"><b>缺陷回顾：</b>Agent 失败时多为"静默失败"或硬报错，无置信阈值触发的人工升级，体验差且易出错。</div>
+  <h3>42.1 落地步骤</h3>
+  <div class="step"><b>① 置信阈值：</b>每次回答带置信分；低于阈值走降级链（小模型 → 规则 → 转人工）。</div>
+  <div class="step"><b>② 降级链配置：</b>每个智能体可配降级顺序与兜底话术。</div>
+  <div class="step"><b>③ 人工升级：</b>转人工带完整上下文与置信理由，进入工单/审批流（见第 18 章人工审核节点）。</div>
+  <h3>42.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>降级链</td><td>每个智能体配置降级顺序</td></tr>
+  <tr><td>人工升级</td><td>低置信自动转人工且带上下文</td></tr></table>
+  <div class="note"><b>衔接：</b>第 39 章（拒答/转人工）· 第 18 章（人工审核节点）。</div>
+
+  <h2>43. 中文语言特化 <span class="tagp p2">P2</span></h2>
+  <div class="note"><b>缺陷回顾：</b>Embedding 与 LLM 需中文优化，未单列；中文分词、专名、成语、政策术语易出问题。</div>
+  <h3>43.1 落地步骤</h3>
+  <div class="step"><b>① 中文 Embedding：</b>优先选用中文优化模型（如 bge / bce 系列）作为默认向量模型，可在第 25 章注册表切换。</div>
+  <div class="step"><b>② 分词与切分：</b>检索切分考虑中文语义边界，避免按标点粗暴切。</div>
+  <div class="step"><b>③ 中文 Prompt 模板：</b>建立中文少样本/系统提示模板库，规避翻译腔。</div>
+  <div class="step"><b>④ 中文基准：</b>用 C-Eval / CMMLU / 内部中文任务集做回归基准。</div>
+  <h3>43.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>默认向量</td><td>中文优化 embedding 为默认</td></tr>
+  <tr><td>中文基准</td><td>内部中文任务集纳入回归</td></tr></table>
+
+  <h2>44. Agent / 工具层安全闭环 <span class="tagp p2">P2</span></h2>
+  <div class="note"><b>缺陷回顾：</b>第 18 章单一过滤点只在"检索层"；但 Agent 调用工具、访问外部 API 时可能绕过权限外泄数据。</div>
+  <h3>44.1 落地步骤</h3>
+  <div class="step"><b>① 工具调用也过权限：</b>每个工具声明所需 scope/数据域，调用前经同一过滤器校验 caller 是否有权。</div>
+  <div class="step"><b>② 外部 API 沙箱与脱敏：</b>出网请求经网关脱敏（去手机号/身份证/密钥），仅放白名单域名。</div>
+  <div class="step"><b>③ 工具审计：</b>工具入参/出参、调用者、结果进入统一审计流（见第 29 章）。</div>
+  <div class="step"><b>④ 与检索层同过滤器：</b>复用第 18 章单一过滤点代码，工具层不另起炉灶。</div>
+  <h3>44.2 验收清单</h3>
+  <table><tr><th>项</th><th>标准</th></tr>
+  <tr><td>工具鉴权</td><td>100% 工具调用经权限校验</td></tr>
+  <tr><td>出网脱敏</td><td>外部 API 经脱敏网关，白名单管控</td></tr></table>
+  <div class="note"><b>衔接：</b>第 18 章（单一过滤点）· 第 22 章（工具对接）· 第 29 章（审计）。</div>
+
+
+  <footer>企业 AI 智能体中台 · 蓝图 v1.15 · 通用版 · 内部使用 · 2026-11-01</footer>
+
+</div>
+</body>
+</html>

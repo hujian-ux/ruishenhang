@@ -1,0 +1,865 @@
+openapi: 3.0.3
+info:
+  title: 企业 AI 智能体中台 · 后端接口契约
+  version: 1.0.0
+  description: >
+    移动端 MVP（企微/钉钉/飞书 H5 嵌入）与 PC 共用后端的核心接口定义。
+    所有接口在网关层校验 Bearer Token，并由网关从 Token 解析调用者身份注入
+    X-Caller-Context 头（前端不可伪造）。召回类接口统一走单一过滤点
+    （scope / owner / dept），越权内容在召回阶段即被剔除，不进入大模型上下文。
+  contact:
+    name: 平台管理员
+servers:
+  - url: /api/v1
+    description: 统一 API 网关前缀
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+    description: 身份认证（对接企业 IM）
+  - name: rag
+    description: 带权召回 / RAG 检索（核心，不可绕过）
+  - name: agent
+    description: Agent 触发（自然语言映射工作流）
+  - name: approval
+    description: 审批（入驻 / 共享 / 导出）
+  - name: kb
+    description: 知识库读写（个人 / 部门）
+  - name: models
+    description: 模型注册表（可插拔大模型接入，热插拔）
+  - name: usage
+    description: Token 用量统计与计费（按租户/部门/用户/智能体）
+paths:
+  /auth/sso/callback:
+    post:
+      tags: [auth]
+      operationId: ssoCallback
+      summary: SSO / OAuth 登录回调（企微/钉钉/飞书）
+      description: 接收企业 IM 网页授权 code，换取员工身份与部门，并做设备绑定。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsoCallbackRequest'
+            example:
+              provider: wecom
+              code: "im_oauth_code_abc123"
+              device_id: "dev_88f2c1"
+              state: "csrf_token_xyz"
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsoCallbackResponse'
+              example:
+                code: 0
+                data:
+                  token: "<jwt>"
+                  expires_in: 7200
+                  user:
+                    userId: "u_1024"
+                    name: "张三"
+                    deptId: "d_sales"
+                    role: "employee"
+                  device_bound: true
+                  need_stepup: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /rag/retrieve:
+    post:
+      tags: [rag]
+      operationId: ragRetrieve
+      summary: 带权召回 / RAG 检索（核心，不可绕过）
+      description: >
+        与 PC 同一召回服务。网关注入调用者身份后，在召回阶段按 scope / owner / dept
+        过滤，仅返回授权片段。filtered_out 仅返回被过滤的越权片段计数（不返回内容）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrieveRequest'
+            example:
+              query: "五一活动话术"
+              kb_scope: "all"
+              top_k: 6
+              tenant_id: "t_demo"
+      responses:
+        '200':
+          description: 召回成功（结果已按权限过滤）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrieveResponse'
+              example:
+                code: 0
+                data:
+                  query: "五一活动话术"
+                  hits:
+                    - doc_id: "doc_8831"
+                      title: "五一营销活动方案 v3"
+                      snippet: "建议分三档：① 到店礼 ② 满减 ③ 老带新"
+                      scope: "department"
+                      kb_tier: "department"
+                      score: 0.91
+                      source: "产品手册 v3"
+                      can_access: true
+                  filtered_out: 3
+                  trace_id: "trace_2026abc"
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /agent/invoke:
+    post:
+      tags: [agent]
+      operationId: agentInvoke
+      summary: Agent 触发（自然语言映射工作流）
+      description: >
+        调用者上下文随任务下发，Agent 调用的工具（如 rag_retrieve）同样走带权召回。
+        默认 SSE 流式返回，末帧为结构化结果。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentInvokeRequest'
+            example:
+              agent_id: "sales_script"
+              input: "帮我写一版五一活动朋友圈文案"
+              stream: true
+      responses:
+        '200':
+          description: 调用成功（SSE 末帧）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentInvokeResponse'
+              example:
+                code: 0
+                data:
+                  answer: "建议分三档执行五一活动：到店礼、满减、老带新……"
+                  citations:
+                    - doc_id: "doc_8831"
+                      title: "五一营销活动方案 v3"
+                      scope: "department"
+                  tool_calls:
+                    - tool: "rag_retrieve"
+                      authorized: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /agents:
+    post:
+      tags: [agent]
+      operationId: registerAgent
+      summary: 注册新智能体（写入选型结论）
+      description: >
+        新建智能体。adapter_type 来自模型选型向导结论（第 35 章）；knowledge_scope 受 RBAC 与
+        单一过滤点约束（本人 / 负责人 / 部门 / 集团）。服务端以 caller 为准强制回填 owner_id / dept_id，
+        前端传入仅作展示，越权写被过滤点拦截。注册后进入待发布评审（第 35 章红线：缺选型不可发布）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterRequest'
+            example:
+              agent_id: "contract_review"
+              name: "合同合规审查助手"
+              adapter_type: "llm_retrieval"
+              description: "基于企业知识库问答必须 RAG；先做混合检索+重排，Recall@100≥0.95 门禁，再生成。"
+              knowledge_scope: "department"
+              model_id: "qwen-local"
+      responses:
+        '200':
+          description: 注册成功（进入待发布评审）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegisterResponse'
+              example:
+                code: 0
+                data:
+                  agent_id: "contract_review"
+                  status: "pending_review"
+                  adapter_type: "llm_retrieval"
+                  registered_by: "u_1024"
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /approval/{approval_id}/decide:
+    post:
+      tags: [approval]
+      operationId: approvalDecide
+      summary: 审批决策（入驻 / 共享 / 导出）
+      description: 仅平台管理员 / 部门管理员 / 授权人可审批；操作人由网关解析，记录审计。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: approval_id
+          in: path
+          required: true
+          description: 审批单 ID
+          schema:
+            type: string
+            example: "ap_5502"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+            example:
+              decision: "approve"
+              comment: "同意，符合部门共享规范"
+      responses:
+        '200':
+          description: 审批完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalDecisionResponse'
+              example:
+                code: 0
+                data:
+                  approval_id: "ap_5502"
+                  status: "approved"
+                  decided_by: "u_admin_01"
+                  decided_at: "2026-05-01T09:12:00Z"
+                  audit_id: "audit_77"
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /kb/documents:
+    post:
+      tags: [kb]
+      operationId: createKbDocument
+      summary: 知识写入（个人 / 部门）
+      description: >
+        受 RBAC 与 scope 约束。服务端强制以 caller 为准回填 owner_id / dept_id / scope，
+        前端传入仅作展示，防止越权写库（scope=department 时 dept_id 须等于 caller.deptId）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KbDocumentRequest'
+            example:
+              title: "销售部五一活动话术集"
+              content: "到店礼：到店即赠小样……"
+              scope: "department"
+              dept_id: "d_sales"
+      responses:
+        '200':
+          description: 写入并向量化成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KbDocumentResponse'
+              example:
+                code: 0
+                data:
+                  doc_id: "doc_9001"
+                  scope: "department"
+                  owner_id: "u_1024"
+                  dept_id: "d_sales"
+                  indexed: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /models:
+    get:
+      tags: [models]
+      operationId: listModels
+      summary: 列出已注册模型（可插拔模型注册表）
+      description: >
+        返回当前注册表中的所有模型适配器及其能力、状态、单价与配额。
+        新增模型只需实现 ModelAdapter 并登记到 Registry，业务侧无需改动。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, all]
+            default: active
+      responses:
+        '200':
+          description: 模型列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelListResponse'
+              example:
+                code: 0
+                data:
+                  models:
+                    - model_id: "gpt-4o-mini"
+                      vendor: "openai"
+                      capabilities: ["chat", "stream"]
+                      context_window: 128000
+                      status: "active"
+                      price_per_1k_prompt: 0.00015
+                      price_per_1k_completion: 0.0006
+                    - model_id: "qwen-local"
+                      vendor: "private"
+                      capabilities: ["chat", "embed"]
+                      context_window: 32000
+                      status: "active"
+                      price_per_1k_prompt: 0
+                      price_per_1k_completion: 0
+    post:
+      tags: [models]
+      operationId: registerModel
+      summary: 注册 / 启用一个新模型适配器（热插拔）
+      description: >
+        由平台管理员登记新模型。仅登记元数据与适配器标识，业务调用方通过 model_id 透明路由，
+        不感知底层厂商差异。参数仅平台管理员可写。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelRegisterRequest'
+            example:
+              model_id: "claude-sonnet"
+              vendor: "anthropic"
+              adapter: "openai_compatible"
+              capabilities: ["chat", "stream"]
+              context_window: 200000
+              price_per_1k_prompt: 0.003
+              price_per_1k_completion: 0.015
+              default_quota: 1000000
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelRegisterResponse'
+              example:
+                code: 0
+                data:
+                  model_id: "claude-sonnet"
+                  status: "active"
+                  registered_by: "u_admin_01"
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /usage:
+    get:
+      tags: [usage]
+      operationId: queryUsage
+      summary: 查询 Token 用量与计费（按维度聚合）
+      description: >
+        返回指定维度的 token 用量与成本。维度支持 tenant / dept / user / agent / session。
+        用量数据受 scope 约束：部门只能查本部门，跨部门汇总仅平台管理员可见（cost 属敏感指标）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: dimension
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [tenant, dept, user, agent, session]
+            default: dept
+        - name: start
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: 统计起始日（含）
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: 统计结束日（含）
+      responses:
+        '200':
+          description: 用量聚合结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageSummary'
+              example:
+                code: 0
+                data:
+                  dimension: "dept"
+                  period: "2026-10"
+                  rows:
+                    - key: "d_sales"
+                      prompt_tokens: 1820000
+                      completion_tokens: 940000
+                      cost: 312.5
+                      quota: 1000
+                      quota_used_pct: 31.3
+                    - key: "d_design"
+                      prompt_tokens: 640000
+                      completion_tokens: 410000
+                      cost: 188.0
+                      quota: 1000
+                      quota_used_pct: 18.8
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CallerContext:
+      name: X-Caller-Context
+      in: header
+      required: false
+      description: >
+        由网关从 Bearer Token 解析并注入，前端不可伪造。
+        格式：userId,deptId,role 经服务端签名，例 u_1024|d_sales|employee
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: 未认证或 Token 失效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: "unauthorized"
+    Forbidden:
+      description: 无权限（角色/范围不满足，或越权访问被过滤点拦截）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 403
+            message: "forbidden: scope not allowed"
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 403
+        message:
+          type: string
+          example: "forbidden"
+    SsoCallbackRequest:
+      type: object
+      required: [provider, code, device_id]
+      properties:
+        provider:
+          type: string
+          enum: [wecom, dingtalk, feishu]
+        code:
+          type: string
+          description: IM 回调授权码（一次性）
+        device_id:
+          type: string
+          description: 设备指纹，用于绑定与换机二次验证
+        state:
+          type: string
+          description: 防 CSRF
+    SsoCallbackResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+            expires_in:
+              type: integer
+              example: 7200
+            user:
+              $ref: '#/components/schemas/User'
+            device_bound:
+              type: boolean
+            need_stepup:
+              type: boolean
+              description: 换设备时为 true，需二次验证
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+        name:
+          type: string
+        deptId:
+          type: string
+        role:
+          type: string
+          enum: [employee, dept_admin, platform_admin]
+    RetrieveRequest:
+      type: object
+      required: [query, tenant_id]
+      properties:
+        query:
+          type: string
+          description: 用户自然语言问题（经脱敏后入参）
+        kb_scope:
+          type: string
+          enum: [all, department, personal]
+          default: all
+          description: 仍受调用者身份约束
+        top_k:
+          type: integer
+          default: 6
+          maximum: 20
+        tenant_id:
+          type: string
+          description: 企业租户隔离
+    RetrieveHit:
+      type: object
+      properties:
+        doc_id:
+          type: string
+        title:
+          type: string
+        snippet:
+          type: string
+        scope:
+          type: string
+          enum: [global, department, personal]
+        kb_tier:
+          type: string
+        score:
+          type: number
+          format: float
+        source:
+          type: string
+        can_access:
+          type: boolean
+          description: 已通过过滤点，必然为 true
+    RetrieveResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            query:
+              type: string
+            hits:
+              type: array
+              items:
+                $ref: '#/components/schemas/RetrieveHit'
+            filtered_out:
+              type: integer
+              description: 被过滤的越权片段数（审计用，不返回内容）
+            trace_id:
+              type: string
+    AgentInvokeRequest:
+      type: object
+      required: [agent_id, input]
+      properties:
+        agent_id:
+          type: string
+        input:
+          type: string
+          description: 用户输入（语音经 ASR 转写后传入）
+        stream:
+          type: boolean
+          default: true
+    Citation:
+      type: object
+      properties:
+        doc_id:
+          type: string
+        title:
+          type: string
+        scope:
+          type: string
+    AgentInvokeResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            answer:
+              type: string
+            citations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Citation'
+            tool_calls:
+              type: array
+              items:
+                type: object
+                properties:
+                  tool:
+                    type: string
+                  authorized:
+                    type: boolean
+    AgentRegisterRequest:
+      type: object
+      required: [name, adapter_type, description, knowledge_scope]
+      properties:
+        agent_id:
+          type: string
+          description: 业务侧使用的智能体标识（路由键），缺省由 name 生成
+        name:
+          type: string
+          description: 智能体名称
+        adapter_type:
+          type: string
+          enum: [rule, ml_serving, llm, llm_retrieval, ml_llm_retrieval]
+          description: >
+            来自第 35 章选型向导结论。rule=规则引擎/传统ML；ml_serving=传统ML服务；
+            llm=大模型；llm_retrieval=RAG（检索增强）；ml_llm_retrieval=数据分析+RAG 混合
+        description:
+          type: string
+          description: 选型说明（为何选该 adapter）
+        knowledge_scope:
+          type: string
+          enum: [personal, owner, department, global]
+          description: 多人知识库可见范围；服务端强制等于 caller 权限，越权写被过滤点拦截
+        model_id:
+          type: string
+          description: 选用的已注册模型（见 /models），可空由平台默认
+        selection_rationale:
+          type: object
+          description: 选型向导上下文（仅记录，便于审计/评审）
+          properties:
+            recommended:
+              type: string
+            landing_chapters:
+              type: string
+    AgentRegisterResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            agent_id:
+              type: string
+            status:
+              type: string
+              enum: [pending_review, active, rejected]
+            adapter_type:
+              type: string
+            registered_by:
+              type: string
+    ApprovalDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        comment:
+          type: string
+    ApprovalDecisionResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            approval_id:
+              type: string
+            status:
+              type: string
+              enum: [approved, rejected]
+            decided_by:
+              type: string
+            decided_at:
+              type: string
+              format: date-time
+            audit_id:
+              type: string
+    KbDocumentRequest:
+      type: object
+      required: [title, content, scope]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+          description: 正文（入库自动向量化）
+        scope:
+          type: string
+          enum: [personal, department, global]
+          description: global 仅平台管理员
+        dept_id:
+          type: string
+          description: scope=department 时必填，强制等于 caller.deptId
+    KbDocumentResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            doc_id:
+              type: string
+            scope:
+              type: string
+            owner_id:
+              type: string
+            dept_id:
+              type: string
+            indexed:
+              type: boolean
+    ModelInfo:
+      type: object
+      properties:
+        model_id:
+          type: string
+          description: 业务侧使用的模型标识（路由键）
+        vendor:
+          type: string
+          description: 厂商或部署方，private 表示私有化
+        adapter:
+          type: string
+          description: 适配器类型，如 openai_compatible
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [chat, embed, rerank, stream]
+        context_window:
+          type: integer
+          description: 上下文长度（token）
+        status:
+          type: string
+          enum: [active, inactive]
+        price_per_1k_prompt:
+          type: number
+          format: float
+        price_per_1k_completion:
+          type: number
+          format: float
+    ModelListResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            models:
+              type: array
+              items:
+                $ref: '#/components/schemas/ModelInfo'
+    ModelRegisterRequest:
+      type: object
+      required: [model_id, vendor, adapter, capabilities, context_window]
+      properties:
+        model_id:
+          type: string
+        vendor:
+          type: string
+        adapter:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [chat, embed, rerank, stream]
+        context_window:
+          type: integer
+        price_per_1k_prompt:
+          type: number
+          format: float
+        price_per_1k_completion:
+          type: number
+          format: float
+        default_quota:
+          type: integer
+          description: 默认部门/智能体月度配额（token）
+    ModelRegisterResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            model_id:
+              type: string
+            status:
+              type: string
+              enum: [active, inactive]
+            registered_by:
+              type: string
+    UsageRow:
+      type: object
+      properties:
+        key:
+          type: string
+          description: 维度值（部门ID/用户ID/智能体ID等）
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        cost:
+          type: number
+          format: float
+          description: 折算成本（内部结算货币）
+        quota:
+          type: number
+          description: 周期内配额
+        quota_used_pct:
+          type: number
+          format: float
+          description: 配额已用百分比
+    UsageSummary:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            dimension:
+              type: string
+              enum: [tenant, dept, user, agent, session]
+            period:
+              type: string
+              description: 统计周期，如 2026-10
+            rows:
+              type: array
+              items:
+                $ref: '#/components/schemas/UsageRow'

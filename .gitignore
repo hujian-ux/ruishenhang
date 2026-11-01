@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# Env
+.env
+
+# 构建/分发产物（非源码，勿入仓库）
+*.zip
+dist/
+build/
+
+# Editor
+.idea/
+.vscode/
+.DS_Store

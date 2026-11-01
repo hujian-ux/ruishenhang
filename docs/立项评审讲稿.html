@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 立项评审讲稿</title>
+<style>
+  :root{
+    --wb-navy:#0a2540; --wb-blue:#1565c0; --wb-accent:#2d7ff9;
+    --wb-bg:#f6f8fb; --wb-card:#fff; --wb-line:#dbe6f2; --wb-ink:#1f2d3d; --wb-muted:#5b7185;
+    --wb-green:#2e7d32; --wb-orange:#ef6c00; --wb-red:#c62828;
+    --radius:12px; --shadow:0 8px 30px rgba(10,37,64,.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--wb-bg);color:var(--wb-ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6;}
+  .top{background:linear-gradient(135deg,var(--wb-navy),var(--wb-blue));color:#fff;padding:30px 24px 24px;}
+  .top .wrap{max-width:1040px;margin:0 auto;}
+  .top h1{margin:0 0 6px;font-size:23px;letter-spacing:.5px;}
+  .top .sub{color:#bcd8ff;font-size:14px;}
+  .top .meta{margin-top:12px;font-size:12.5px;color:#cfe0f5;}
+  .top .meta b{color:#fff;}
+  .body{max-width:1040px;margin:0 auto;padding:24px 24px 60px;}
+  .overview{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:var(--radius);padding:16px 20px;margin:18px 0;display:flex;gap:18px;flex-wrap:wrap;}
+  .overview .item{flex:1;min-width:200px;}
+  .overview .k{font-size:11.5px;color:var(--wb-muted);}
+  .overview .v{font-size:14px;font-weight:600;margin-top:2px;}
+  .seg{background:var(--wb-card);border:1px solid var(--wb-line);border-left:4px solid var(--wb-blue);
+    border-radius:10px;padding:14px 18px;margin:13px 0;}
+  .seg .hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .seg .no{background:var(--wb-blue);color:#fff;font-weight:800;font-size:13px;border-radius:7px;padding:2px 9px;flex:none;}
+  .seg .tt{font-size:15.5px;font-weight:700;color:var(--wb-navy);}
+  .seg .tm{font-size:12px;color:var(--wb-orange);font-weight:700;margin-left:auto;}
+  .seg .say{font-size:13px;margin:8px 0 0;}
+  .seg .row{display:flex;gap:10px;margin-top:7px;font-size:12.5px;flex-wrap:wrap;}
+  .seg .tag{font-weight:800;padding:1px 8px;border-radius:6px;font-size:11.5px;flex:none;}
+  .t-page{background:#e8f0fe;color:var(--wb-blue);}
+  .t-demo{background:#e6f4ea;color:var(--wb-green);}
+  .t-key{background:#fff3e0;color:var(--wb-orange);}
+  .seg .ct{min-width:0;}
+  .decision{background:#0a2540;color:#e8f0fe;border-radius:var(--radius);padding:18px 22px;margin-top:22px;}
+  .decision h3{margin:0 0 10px;font-size:15px;color:#fff;}
+  .decision ul{margin:0;padding-left:20px;font-size:13px;}
+  .decision li{margin:7px 0;}
+  .decision .chk{display:inline-block;width:15px;height:15px;border:1.5px solid #6ea8fe;border-radius:4px;margin-right:8px;vertical-align:-2px;}
+  .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--wb-muted);}
+  .note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:14px;}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="wrap">
+      <h1>企业 AI 智能体中台 · 立项评审讲稿</h1>
+      <div class="sub">平台工程 + 模型工程双闭环 · 与「立项评审包 v1.15」同源</div>
+      <div class="meta">建议时长 <b>12 分钟</b> · 共 <b>8 个环节</b> · 现场演示 <b>1 段</b> · 末环节形成 <b>立项决议</b></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="overview">
+      <div class="item"><div class="k">今天目标</div><div class="v">确认平台立项 · 锁定第一迭代范围（P0 三章）</div></div>
+      <div class="item"><div class="k">受众</div><div class="v">决策层 + 技术负责人</div></div>
+      <div class="item"><div class="k">配合材料</div><div class="v">立项评审包首页（按 ①–⑧ 顺序翻页 / 演示）</div></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">①</span><span class="tt">开场与定位</span><span class="tm">1.5'</span></div>
+      <div class="say">讲：为什么做——把 AI 能力沉淀为可复用中台，而非一次性项目；说明「平台工程 + 模型工程」双闭环分别解决什么问题（前者解决能用、可控、可治理；后者解决用得对、测得准、不退化）。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">主蓝图 第 1–2 章（为什么做 / 总体架构）</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">确认战略定位与价值假设是否成立</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">②</span><span class="tt">蓝图全貌</span><span class="tm">2'</span></div>
+      <div class="say">讲：44 章 = 基础平台(1–18) + 启动扩展(19–25) + 生产化运营(26–34) + 模型工程(35–44)；按 P0/P1/P2 分级，P0 先行。强调这是「平台 + 模型」双闭环，不是只做聊天机器人。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">主蓝图目录 / 评审包「章节地图」</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">认可范围划分与优先级框架</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">③</span><span class="tt">AI 工程缺陷基线</span><span class="tm">1.5'</span></div>
+      <div class="say">讲：请外部 AI 工程师评审后指出 10 项缺陷——P0×3（选型 / RAG / 评测）、P1×4、P2×3。这直接驱动了第 35–44 章的补强，是本次立项最关键的「为什么现在做」。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">AI工程评审_缺陷分析.html</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">认可「先补模型工程短板」的必要性</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">④</span><span class="tt">接口契约</span><span class="tm">1.5'</span></div>
+      <div class="say">讲：OpenAPI 共 8 paths / 22 schemas；重点说明新增的 POST /agents（智能体注册契约，含 adapter_type / knowledge_scope），以及所有召回接口统一走第 18 章单一过滤点，前端不持有越权数据。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">接口契约SwaggerUI.html / openapi.yaml</span></div>
+      <div class="row"><span class="tag t-demo">演示</span><span class="ct">Swagger UI → Try-It-Out 调 POST /agents（看请求体字段）</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">确认后端契约可作为开发基线冻结</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">⑤</span><span class="tt">高保真原型走查</span><span class="tm">3'</span></div>
+      <div class="say">讲 + 演示：完整走一遍用户闭环——选「选型」向导答决策树 → 得到推荐（如 RAG）→ 点「按此推荐新建智能体」→ 选多人知识库范围，实时看到可见数据预览 → 导出选型结论 JSON，字段直接对照刚才的 /agents 契约。PC 与手机版都演示。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">平台UI原型_参考WorkBuddy.html</span></div>
+      <div class="row"><span class="tag t-demo">演示</span><span class="ct">选型向导 → 新建智能体 → 知识库可见性 → 导出 JSON（PC + 手机各一遍）</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">确认 UX 方向可走通、概念闭环成立</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">⑥</span><span class="tt">立项 Sprint 任务卡</span><span class="tm">1.5'</span></div>
+      <div class="say">讲：P0 三章（35 选型 / 36 RAG / 37 评测）已拆成 3 个 Epic、12 个 Task，可一键导入 Jira 或飞书多维表，直接进第一迭代排期；RAG 章按 W1–W4 给出质量门禁（Recall@100≥0.95）。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">Sprint任务卡_Jira导入.csv / 飞书多维表.csv / P0三章_Sprint任务卡_A4.pdf</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">确认第一迭代任务颗粒度可执行</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">⑦</span><span class="tt">附册与移动端（按需）</span><span class="tm">1'</span></div>
+      <div class="say">讲：配套 15 份附册（模型工程 / 生产化 / 平台扩展 / 移动端权限等）与移动端 MVP 设计规范，评审后按需查阅，不占用主汇报时间。</div>
+      <div class="row"><span class="tag t-page">翻页</span><span class="ct">评审包「模型工程 / 平台能力 / 移动端与权限」各卡片</span></div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">认可配套文档完备度</span></div>
+    </div>
+
+    <div class="seg">
+      <div class="hd"><span class="no">⑧</span><span class="tt">决议与下一步</span><span class="tm">1'</span></div>
+      <div class="say">讲：汇总拟决议项、第一迭代范围、资源与里程碑，现场讨论确认。</div>
+      <div class="row"><span class="tag t-key">评审要点</span><span class="ct">形成立项决议（见下方清单）</span></div>
+    </div>
+
+    <div class="decision">
+      <h3>立项决议清单（现场勾选）</h3>
+      <ul>
+        <li><span class="chk"></span>立项通过，进入第一迭代</li>
+        <li><span class="chk"></span>第一迭代范围 = 第 35 / 36 / 37 章（P0 三章：选型 / RAG 质量 / ML 评测）</li>
+        <li><span class="chk"></span>资源：算法 1 + 后端 1 + 前端 1，周期 4 周（RAG 按 W1–W4 门禁）</li>
+        <li><span class="chk"></span>评审包 v1.15 作为需求 / 契约基线冻结，后续变更走版本号</li>
+        <li><span class="chk"></span>下次评审：第一迭代 Demo + 评测基线达成（Recall@100≥0.95、客观指标门禁通过）</li>
+      </ul>
+    </div>
+
+    <div class="note">提示：本讲稿与「立项评审包.html」同源。建议按 ①→⑧ 顺序在主评审包页面点开对应卡片，第 ④⑤ 环节现场演示；本地服务器已起 http://127.0.0.1:8000/立项评审包.html 。</div>
+  </div>
+
+  <div class="foot">企业 AI 智能体中台 · 立项评审讲稿 · 内部使用 · 配套评审包 v1.15</div>
+</body>
+</html>

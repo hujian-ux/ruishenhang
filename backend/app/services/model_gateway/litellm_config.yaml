@@ -1,0 +1,18 @@
+# LiteLLM 模型网关配置（第25章）
+# 业务侧通过 model_id 透明路由；新增厂商只需在此登记，平台代码不动。
+model_list:
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: qwen-local
+    litellm_params:
+      model: openai/qwen-local   # 指向本地/私有 OpenAI 兼容端点
+      api_base: http://host.docker.internal:8001/v1
+  - model_name: bge-m3
+    litellm_params:
+      model: openai/bge-m3
+      api_base: http://host.docker.internal:8002/v1   # 本地嵌入服务（中文 bge）
+
+litellm_settings:
+  drop_params: true

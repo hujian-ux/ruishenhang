@@ -1,0 +1,252 @@
+{"query": "五一营销活动方案 v3", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销活动方案 v3 中的五一营销", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销怎么处理", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "活动方案", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销活动方案 v3 中的活动方案", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "活动方案怎么处理", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "建议分三", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销活动方案 v3 中的建议分三", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "建议分三怎么处理", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "到店礼", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "五一营销活动方案 v3 中的到店礼", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "到店礼怎么处理", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "满减", "expected_doc_id": "doc_8831", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话术集", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话术集 中的销售部话", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话怎么处理", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "术集到店", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话术集 中的术集到店", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "术集到店怎么处理", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "到店即赠", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话术集 中的到店即赠", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "到店即赠怎么处理", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "小样", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售部话术集 中的小样", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "小样怎么处理", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "引导加企", "expected_doc_id": "doc_9001", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品牌规范", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品牌规范 中的设计部品", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品怎么处理", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "牌规范品", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品牌规范 中的牌规范品", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "牌规范品怎么处理", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "牌主色使", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品牌规范 中的牌主色使", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "牌主色使怎么处理", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "用规范", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计部品牌规范 中的用规范", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "用规范怎么处理", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "主色为科", "expected_doc_id": "doc_7002", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤制度", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤制度 中的全员考勤", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤怎么处理", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "制度弹性", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤制度 中的制度弹性", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "制度弹性怎么处理", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "工作制说", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤制度 中的工作制说", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "工作制说怎么处理", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "核心工时", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "全员考勤制度 中的核心工时", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "核心工时怎么处理", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "须在岗", "expected_doc_id": "doc_5005", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "张三的私人笔记", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私人笔记 中的张三的私", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私怎么处理", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "人笔记我", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私人笔记 中的人笔记我", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "人笔记我怎么处理", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "的客户跟", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私人笔记 中的的客户跟", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "的客户跟怎么处理", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "客户倾向", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "张三的私人笔记 中的客户倾向", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "客户倾向怎么处理", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "赠品方案", "expected_doc_id": "doc_6006", "viewer": {"userId": "u_1024", "deptId": "d_sales", "role": "employee", "tenantId": "t_demo"}}
+{"query": "友商租户文档", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户文档 中的友商租户", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户怎么处理", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "文档竞品", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户文档 中的文档竞品", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "文档竞品怎么处理", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "定价策略", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户文档 中的定价策略", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "定价策略怎么处理", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "与渠道分", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "友商租户文档 中的与渠道分", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "与渠道分怎么处理", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "属于外部", "expected_doc_id": "doc_8008", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_other"}}
+{"query": "财务报销流程", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销流程 中的财务报销", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销怎么处理", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "流程报销", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销流程 中的流程报销", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "流程报销怎么处理", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "需在系统", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销流程 中的需在系统", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "需在系统怎么处理", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "中提交发", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "财务报销流程 中的中提交发", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "中提交发怎么处理", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "票与事由", "expected_doc_id": "doc_9102", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "销售目标拆解方法", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标拆解方法 中的销售目标", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标怎么处理", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "拆解方法", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标拆解方法 中的拆解方法", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "拆解方法怎么处理", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "季度目标", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标拆解方法 中的季度目标", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "季度目标怎么处理", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "按区域与", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "销售目标拆解方法 中的按区域与", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "按区域与怎么处理", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "产品线拆", "expected_doc_id": "doc_9203", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交付标准", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交付标准 中的设计稿交", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交怎么处理", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "付标准交", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交付标准 中的付标准交", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "付标准交怎么处理", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "付需包含", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交付标准 中的付需包含", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "付需包含怎么处理", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "源文件与", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计稿交付标准 中的源文件与", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "源文件与怎么处理", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "切图", "expected_doc_id": "doc_9304", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试指引", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试指引 中的招聘面试", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试怎么处理", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "指引面试", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试指引 中的指引面试", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "指引面试怎么处理", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "分三轮", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试指引 中的分三轮", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "分三轮怎么处理", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "业务", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "招聘面试指引 中的业务", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "业务怎么处理", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "主管", "expected_doc_id": "doc_9405", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "客户分级管理规则", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级管理规则 中的客户分级", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级怎么处理", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "管理规则", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级管理规则 中的管理规则", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "管理规则怎么处理", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户按贡", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级管理规则 中的客户按贡", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户按贡怎么处理", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "献分", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "客户分级管理规则 中的献分", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "献分怎么处理", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "三级", "expected_doc_id": "doc_9506", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "合同审批权限表", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批权限表 中的合同审批", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批怎么处理", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "权限表合", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批权限表 中的权限表合", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "权限表合怎么处理", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "同金额分", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批权限表 中的同金额分", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "同金额分怎么处理", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "级审批", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "合同审批权限表 中的级审批", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "级审批怎么处理", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "万以下主", "expected_doc_id": "doc_9607", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "私域运营规范", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营规范 中的私域运营", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营怎么处理", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "规范企微", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营规范 中的规范企微", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "规范企微怎么处理", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "社群每日", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营规范 中的社群每日", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "社群每日怎么处理", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "推送不超", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "私域运营规范 中的推送不超", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "推送不超怎么处理", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "禁止硬广", "expected_doc_id": "doc_9708", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材库使用说明", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材库使用说明 中的视觉素材", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材怎么处理", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "库使用说", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材库使用说明 中的库使用说", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "库使用说怎么处理", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "明素材库", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材库使用说明 中的明素材库", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "明素材库怎么处理", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "按主题分", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "视觉素材库使用说明 中的按主题分", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "按主题分怎么处理", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "商用需授", "expected_doc_id": "doc_9809", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "信息安全红线", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全红线 中的信息安全", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全怎么处理", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "红线禁止", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全红线 中的红线禁止", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "红线禁止怎么处理", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "外发客户", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全红线 中的外发客户", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "外发客户怎么处理", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "数据", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "信息安全红线 中的数据", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "数据怎么处理", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "密码定期", "expected_doc_id": "doc_9900", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "市场费用预算模板", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用预算模板 中的市场费用", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用怎么处理", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "预算模板", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用预算模板 中的预算模板", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "预算模板怎么处理", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "预算按渠", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用预算模板 中的预算按渠", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "预算按渠怎么处理", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "道拆分", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "市场费用预算模板 中的道拆分", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "道拆分怎么处理", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "投流", "expected_doc_id": "doc_9101", "viewer": {"userId": "u_admin_01", "deptId": "d_sales", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审 checklist", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审 checklist 中的设计评审", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审怎么处理", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "评审关注", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审 checklist 中的评审关注", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "评审关注怎么处理", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "对比度", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审 checklist 中的对比度", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "对比度怎么处理", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "可达性", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "设计评审 checklist 中的可达性", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "可达性怎么处理", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "品牌一致", "expected_doc_id": "doc_9202", "viewer": {"userId": "u_admin_01", "deptId": "d_design", "role": "dept_admin", "tenantId": "t_demo"}}
+{"query": "新人入职指引", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职指引 中的新人入职", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职怎么处理", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "指引入职", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职指引 中的指引入职", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "指引入职怎么处理", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "首日领设", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职指引 中的首日领设", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "首日领设怎么处理", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "备与账号", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "新人入职指引 中的备与账号", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "备与账号怎么处理", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}
+{"query": "一周内完", "expected_doc_id": "doc_9303", "viewer": {"userId": "u_admin_01", "deptId": "d_hr", "role": "platform_admin", "tenantId": "t_demo"}}

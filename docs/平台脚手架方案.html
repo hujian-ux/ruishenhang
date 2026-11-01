@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 平台脚手架方案</title>
+<style>
+  :root{
+    --wb-navy:#0a2540; --wb-blue:#1565c0; --wb-accent:#2d7ff9;
+    --wb-bg:#f6f8fb; --wb-card:#fff; --wb-line:#dbe6f2; --wb-ink:#1f2d3d; --wb-muted:#5b7185;
+    --wb-green:#2e7d32; --wb-orange:#ef6c00; --wb-red:#c62828;
+    --radius:12px; --shadow:0 8px 30px rgba(10,37,64,.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--wb-bg);color:var(--wb-ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6;}
+  .top{background:linear-gradient(135deg,var(--wb-navy),var(--wb-blue));color:#fff;padding:30px 24px 24px;}
+  .top .wrap{max-width:1080px;margin:0 auto;}
+  .top h1{margin:0 0 6px;font-size:23px;letter-spacing:.5px;}
+  .top .sub{color:#bcd8ff;font-size:14px;}
+  .top .meta{margin-top:12px;font-size:12.5px;color:#cfe0f5;}
+  .top .meta b{color:#fff;}
+  .body{max-width:1080px;margin:0 auto;padding:24px 24px 60px;}
+  .ov{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:var(--radius);padding:16px 20px;margin:18px 0;display:flex;gap:16px;flex-wrap:wrap;}
+  .ov .it{flex:1;min-width:200px;}
+  .ov .k{font-size:11.5px;color:var(--wb-muted);}
+  .ov .v{font-size:14px;font-weight:600;margin-top:2px;}
+  .sec{margin:26px 0 6px;}
+  .sec h2{font-size:17px;color:var(--wb-navy);margin:0 0 10px;padding-left:11px;border-left:4px solid var(--wb-blue);}
+  .sec .desc{font-size:12.5px;color:var(--wb-muted);margin:0 0 12px;}
+  .card{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:var(--radius);padding:14px 18px;margin:12px 0;}
+  .card h3{margin:0 0 8px;font-size:14.5px;color:var(--wb-blue);}
+  pre{background:#0a2540;color:#dbeafe;border-radius:10px;padding:14px 16px;overflow:auto;font-size:12px;line-height:1.5;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+  pre .c{color:#7fb0e6;} pre .k{color:#ffd28a;} pre .s{color:#9ae6b4;}
+  table{width:100%;border-collapse:collapse;background:var(--wb-card);border:1px solid var(--wb-line);border-radius:10px;overflow:hidden;font-size:12.5px;margin:10px 0;}
+  th,td{border-bottom:1px solid var(--wb-line);padding:9px 11px;text-align:left;vertical-align:top;}
+  th{background:#eef4fc;color:var(--wb-navy);font-weight:700;}
+  tr:last-child td{border-bottom:none;}
+  .tag{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;color:#fff;}
+  .b-p0{background:var(--wb-red);} .b-p1{background:var(--wb-orange);} .b-p2{background:var(--wb-muted);} .b-ok{background:var(--wb-green);}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:14px;}
+  .risk{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:12px;}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="wrap">
+      <h1>企业 AI 智能体中台 · 平台脚手架方案</h1>
+      <div class="sub">工程化落地第一步 · 搭骨架，不写业务 · 与蓝图 v1.15 / 评审包同源</div>
+      <div class="meta">对应章节 <b>第 4 / 18 / 25 / 35 / 36 / 37 章</b> · 范围 <b>最小可运行底座</b> · 目标 <b>端到端最小闭环</b></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="ov">
+      <div class="it"><div class="k">一句话结论</div><div class="v">设计态已完成，下一步搭技术底座（脚手架），再跑 P0 三章第一迭代</div></div>
+      <div class="it"><div class="k">本方案范围</div><div class="v">骨架：基础设施 / 仓库结构 / 网关·知识库·契约 stub / CI 门禁</div></div>
+      <div class="it"><div class="k">不在本方案</div><div class="v">完整业务功能、全 44 章实现、完整前端</div></div>
+    </div>
+
+    <div class="sec">
+      <h2>1. 总体架构与数据流</h2>
+      <div class="desc">四层：客户端 → API 网关（注入身份 + 第 18 章单一过滤点）→ 服务层 → 存储层。所有读/写/外发均经网关过滤，不绕过。</div>
+      <div class="card">
+        <svg viewBox="0 0 680 470" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei, sans-serif">
+          <defs>
+            <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 Z" fill="#1565c0"></path>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="680" height="470" fill="#ffffff"></rect>
+          <!-- 层标签 -->
+          <text x="14" y="48" font-size="12" fill="#5b7185" font-weight="bold">客户端</text>
+          <text x="14" y="148" font-size="12" fill="#5b7185" font-weight="bold">网关</text>
+          <text x="14" y="248" font-size="12" fill="#5b7185" font-weight="bold">服务层</text>
+          <text x="14" y="358" font-size="12" fill="#5b7185" font-weight="bold">存储层</text>
+
+          <!-- 客户端 -->
+          <rect x="120" y="22" width="220" height="46" rx="8" fill="#e8f0fe" stroke="#1565c0"></rect>
+          <text x="230" y="50" font-size="13" fill="#0a2540" text-anchor="middle" font-weight="bold">Web（参考 WorkBuddy）</text>
+          <rect x="360" y="22" width="200" height="46" rx="8" fill="#e8f0fe" stroke="#1565c0"></rect>
+          <text x="460" y="50" font-size="13" fill="#0a2540" text-anchor="middle" font-weight="bold">移动端（底部 Tab）</text>
+
+          <!-- 网关 -->
+          <rect x="120" y="118" width="440" height="58" rx="9" fill="#0a2540" stroke="#0a2540"></rect>
+          <text x="340" y="142" font-size="13.5" fill="#ffffff" text-anchor="middle" font-weight="bold">API 网关 · 注入 X-Caller-Context</text>
+          <text x="340" y="162" font-size="11.5" fill="#bcd8ff" text-anchor="middle">单一过滤点（第 18 章）· 不绕过 · 可灰度</text>
+
+          <!-- 服务层 -->
+          <rect x="118" y="208" width="444" height="78" rx="9" fill="#f3f7fd" stroke="#dbe6f2"></rect>
+          <rect x="132" y="222" width="96" height="50" rx="7" fill="#fff" stroke="#2d7ff9"></rect>
+          <text x="180" y="244" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">agent-runtime</text>
+          <text x="180" y="261" font-size="10" fill="#5b7185" text-anchor="middle">LangGraph/Dify</text>
+          <rect x="240" y="222" width="100" height="50" rx="7" fill="#fff" stroke="#2d7ff9"></rect>
+          <text x="290" y="244" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">knowledge-svc</text>
+          <text x="290" y="261" font-size="10" fill="#5b7185" text-anchor="middle">切分/检索/过滤</text>
+          <rect x="352" y="222" width="100" height="50" rx="7" fill="#fff" stroke="#2d7ff9"></rect>
+          <text x="402" y="244" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">model-gateway</text>
+          <text x="402" y="261" font-size="10" fill="#5b7185" text-anchor="middle">LiteLLM/One API</text>
+          <rect x="464" y="222" width="88" height="50" rx="7" fill="#fff" stroke="#2d7ff9"></rect>
+          <text x="508" y="244" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">eval-svc</text>
+          <text x="508" y="261" font-size="10" fill="#5b7185" text-anchor="middle">第37章评测</text>
+
+          <!-- 存储层 -->
+          <rect x="118" y="330" width="444" height="78" rx="9" fill="#f3f7fd" stroke="#dbe6f2"></rect>
+          <rect x="132" y="344" width="134" height="50" rx="7" fill="#fff" stroke="#5b7185"></rect>
+          <text x="199" y="366" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">PostgreSQL</text>
+          <text x="199" y="383" font-size="10" fill="#5b7185" text-anchor="middle">权限元数据/业务</text>
+          <rect x="278" y="344" width="134" height="50" rx="7" fill="#fff" stroke="#5b7185"></rect>
+          <text x="345" y="366" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">Qdrant</text>
+          <text x="345" y="383" font-size="10" fill="#5b7185" text-anchor="middle">向量检索</text>
+          <rect x="424" y="344" width="128" height="50" rx="7" fill="#fff" stroke="#5b7185"></rect>
+          <text x="488" y="366" font-size="11.5" fill="#0a2540" text-anchor="middle" font-weight="bold">MinIO</text>
+          <text x="488" y="383" font-size="10" fill="#5b7185" text-anchor="middle">文件/附件</text>
+
+          <!-- 连线 -->
+          <line x1="340" y1="68" x2="340" y2="118" stroke="#1565c0" stroke-width="2" marker-end="url(#ar)"></line>
+          <line x1="340" y1="176" x2="340" y2="208" stroke="#1565c0" stroke-width="2" marker-end="url(#ar)"></line>
+          <line x1="340" y1="286" x2="340" y2="330" stroke="#1565c0" stroke-width="2" marker-end="url(#ar)"></line>
+          <!-- 服务到存储 -->
+          <line x1="290" y1="272" x2="199" y2="344" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <line x1="290" y1="272" x2="345" y2="344" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <line x1="290" y1="272" x2="488" y2="344" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <line x1="508" y1="272" x2="199" y2="344" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <!-- agent-runtime 到 knowledge/model -->
+          <line x1="228" y1="247" x2="240" y2="247" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <line x1="228" y1="262" x2="352" y2="262" stroke="#7fa8d6" stroke-width="1.5" marker-end="url(#ar)"></line>
+          <!-- 外部 LiteLLM 标注 -->
+          <text x="588" y="234" font-size="10" fill="#ef6c00" font-weight="bold">↳ 外部模型</text>
+          <text x="588" y="248" font-size="9.5" fill="#5b7185">OpenAI/通义/</text>
+          <text x="588" y="262" font-size="9.5" fill="#5b7185">本地部署</text>
+        </svg>
+      </div>
+      <div class="note">关键约束落点：① 单一过滤点只在网关一处实现，下游服务信任 caller 上下文，不再各自判权；② 知识库三元存储（PG 元数据 + Qdrant 向量 + MinIO 文件），三者由 knowledge-svc 统一编排；③ eval-svc 独立，评测结果反哺第 20 章演化与 CI 门禁。</div>
+    </div>
+
+    <div class="sec">
+      <h2>2. 仓库目录结构（monorepo）</h2>
+      <div class="desc">按服务划分，共享契约与 schema；先单体可运行，后续按需拆容器。</div>
+      <div class="card"><pre><span class="c"># 平台脚手架目录骨架</span>
+ai-platform/
+├─ docker-compose.yml          <span class="c"># 基础设施即代码</span>
+├─ packages/
+│  ├─ shared/                  <span class="c"># 公共：openapi 类型、权限模型、日志</span>
+│  │   ├─ schemas/             <span class="c"># 由 openapi.yaml 生成</span>
+│  │   └─ auth/                <span class="c"># X-Caller-Context 解析</span>
+├─ services/
+│  ├─ api-gateway/             <span class="c"># 第18章单一过滤点 + 身份注入</span>
+│  ├─ knowledge-svc/           <span class="c"># 切分/检索/过滤（第5/18/36章）</span>
+│  ├─ agent-runtime/           <span class="c"># LangGraph/Dify 编排</span>
+│  ├─ model-gateway/           <span class="c"># LiteLLM/One API（第25章）</span>
+│  └─ eval-svc/                <span class="c"># 第37章客观评测</span>
+├─ web/                        <span class="c"># 前端（参考 WorkBuddy 原型）</span>
+├─ infra/                      <span class="c"># PG/Qdrant/MinIO 初始化脚本</span>
+├─ ci/                         <span class="c"># 质量门禁（评测+召回）</span>
+└─ scripts/                    <span class="c"># 本地一键起停</span></pre></div>
+    </div>
+
+    <div class="sec">
+      <h2>3. 基础设施即代码（docker-compose 清单）</h2>
+      <div class="desc">先起底座，端口与卷固定，便于本地与评审演示一致。</div>
+      <table>
+        <tr><th>服务</th><th>镜像</th><th>端口</th><th>用途</th><th>卷 / 持久化</th></tr>
+        <tr><td>postgres</td><td>postgres:16</td><td>5432</td><td>权限元数据、业务表、评测集</td><td>pgdata</td></tr>
+        <tr><td>qdrant</td><td>qdrant/qdrant:latest</td><td>6333/6334</td><td>向量检索（第 36 章）</td><td>qdrant_storage</td></tr>
+        <tr><td>minio</td><td>minio/minio</td><td>9000/9001</td><td>文件/附件（第 23 章）</td><td>minio_data</td></tr>
+        <tr><td>redis</td><td>redis:7</td><td>6379</td><td>会话/语义缓存（第 40 章）</td><td>redis_data</td></tr>
+        <tr><td>gateway</td><td>自构建</td><td>8080</td><td>API 网关 + 单一过滤点</td><td>挂载 services/api-gateway</td></tr>
+        <tr><td>litellm</td><td>litellm/litellm</td><td>4000</td><td>模型网关（第 25 章）</td><td>挂载 config.yaml</td></tr>
+      </table>
+      <div class="card"><h3>docker-compose 片段（节选）</h3><pre><span class="k">services:</span>
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_DB: aiplat, POSTGRES_USER: app, POSTGRES_PASSWORD: dev }
+    ports: [<span class="s">"5432:5432"</span>]
+    volumes: [<span class="s">"pgdata:/var/lib/postgresql/data"</span>]
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: [<span class="s">"6333:6333"</span>, <span class="s">"6334:6334"</span>]
+    volumes: [<span class="s">"qdrant_storage:/qdrant/storage"</span>]
+  gateway:
+    build: ./services/api-gateway
+    ports: [<span class="s">"8080:8080"</span>]
+    depends_on: [postgres, qdrant, minio, litellm]
+  litellm:
+    image: litellm/litellm:latest
+    ports: [<span class="s">"4000:4000"</span>]
+    volumes: [<span class="s">"./services/model-gateway/config.yaml:/app/config.yaml"</span>]
+<span class="k">volumes:</span> { pgdata: {}, qdrant_storage: {}, minio_data: {}, redis_data: {} }</pre></div>
+    </div>
+
+    <div class="sec">
+      <h2>4. 关键骨架 stub（先透传，后接业务逻辑）</h2>
+      <div class="desc">只搭接口与契约边界，标注对应蓝图章节；业务实现留到 P0 迭代。</div>
+      <div class="grid2">
+        <div class="card"><h3>① 网关：X-Caller-Context + 单一过滤点</h3><pre><span class="c"># services/api-gateway/app.py (FastAPI stub)</span>
+<span class="k">from</span> fastapi <span class="k">import</span> Request, FastAPI
+app = FastAPI()
+
+<span class="k">async def</span> inject_caller(req: Request):
+    <span class="c"># 第18章：由 token 解出 userId/deptId/role</span>
+    ctx = decode_token(req.headers.get(<span class="s">"Authorization"</span>))
+    req.state.caller = ctx          <span class="c"># 下游信任此上下文</span>
+
+<span class="k">async def</span> single_filter(point, caller, data):
+    <span class="c"># 单一过滤点：按 scope/owner/dept 裁切可见性</span>
+    <span class="k">return</span> [d <span class="k">for</span> d <span class="k">in</span> data
+            <span class="k">if</span> visible(d.meta, caller)]   <span class="c"># 不绕过</span>
+
+<span class="c"># 路由均经此中间件；知识/工具/外发统一过滤</span></pre></div>
+        <div class="card"><h3>② 知识库：权限元数据 schema</h3><pre><span class="c">-- infra/init/01_acl.sql (节选)</span>
+<span class="k">CREATE TABLE</span> kb_documents (
+  id          UUID PRIMARY KEY,
+  tenant_id   TEXT,
+  scope       TEXT,        <span class="c">-- personal/owner/department/global</span>
+  owner       TEXT,        <span class="c">-- 负责人（多人知识库）</span>
+  dept        TEXT,        <span class="c">-- 部门</span>
+  visible_to  JSONB,       <span class="c">-- 第18章过滤点派生</span>
+  qdrant_id   UUID,        <span class="c">-- 向量侧 id</span>
+  minio_key   TEXT         <span class="c">-- 文件侧 key</span>
+);
+<span class="c">-- 写入由服务端强制回填，前端/演化不可伪造</span></pre></div>
+        <div class="card"><h3>③ 契约路由：openapi → 服务映射</h3><pre><span class="c"># 由 openapi.yaml 生成 stub 路由</span>
+POST /auth/login            -> api-gateway
+POST /rag/query            -> knowledge-svc   <span class="c"># 第36章</span>
+POST /kb/documents         -> knowledge-svc   <span class="c"># 自动写库回填权限</span>
+POST /agents               -> agent-runtime  <span class="c"># 第35章</span>
+GET  /models               -> model-gateway  <span class="c"># 第25章</span>
+GET  /usage                -> model-gateway  <span class="c"># 计量计费</span>
+POST /approval/{id}/decide -> api-gateway     <span class="c"># 人工审核</span></pre></div>
+        <div class="card"><h3>④ CI 门禁：第 36/37 章质量闸</h3><pre><span class="c"># ci/quality-gate.yml (节选)</span>
+<span class="k">jobs:</span>
+  rag-recall:
+    run: python eval/recall.py --k 100
+    <span class="c"># 断言 Recall@100 >= 0.95 否则失败</span>
+  ml-eval:
+    run: python eval/objective.py
+    <span class="c"># 第37章：客观指标，不依赖 LLM-as-judge</span>
+    <span class="c"># 门禁不通过则阻断合并/灰度</span></pre></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>5. 本地起停</h2>
+      <div class="card"><pre><span class="c"># scripts/dev.sh</span>
+docker compose up -d            <span class="c"># 起底座</span>
+./scripts/init_db.sh            <span class="c"># 执行 infra/init SQL</span>
+cd services/api-gateway &amp;&amp; uvicorn app:app --port 8080
+<span class="c"># 验收：curl 调用 /rag/query 返回「过滤后空结果」（骨架阶段）</span></pre></div>
+    </div>
+
+    <div class="sec">
+      <h2>6. 里程碑（脚手架 → P0 三章 → 最小闭环）</h2>
+      <div class="desc">先底座，再按 P0 优先级填业务；每阶段有明确产出与验收。</div>
+      <table>
+        <tr><th>阶段</th><th>工期</th><th>产出</th><th>验收（门禁）</th></tr>
+        <tr><td><b>M0 脚手架</b></td><td>2 周</td><td>docker-compose + monorepo + 网关 stub + 知识库 schema + CI</td><td>本地一键起；调用 /rag 返回过滤后空结果；CI 门禁可跑</td></tr>
+        <tr><td><b>M1 第35章 选型</b> <span class="tag b-p0">P0</span></td><td>1 周</td><td>模型网关 adapter 注册（llm / ml_serving / rule）</td><td>三类模型可注册并计量；缺选型不可发布（红线）</td></tr>
+        <tr><td><b>M2 第36章 RAG</b> <span class="tag b-p0">P0</span></td><td>4 周</td><td>混合检索 + 父子切分 + 重排 + 评测集（≥200 条）</td><td>Recall@100 ≥ 0.95；质量层与第18章合规层解耦</td></tr>
+        <tr><td><b>M3 第37章 评测</b> <span class="tag b-p0">P0</span></td><td>2 周</td><td>客观指标评测 + CI 门禁接入演化</td><td>门禁阻断生效；黄金集不退化才允许灰度</td></tr>
+        <tr><td><b>最小闭环验收</b></td><td>—</td><td>选型 → 建智能体 → 提问 → 过滤 → 评测 端到端跑通</td><td>原型演示路径在真实底座复现</td></tr>
+      </table>
+    </div>
+
+    <div class="sec">
+      <h2>7. 待确认的技术决策点</h2>
+      <div class="desc">蓝图已定选型范围，以下需在搭脚手架前拍板，避免返工。</div>
+      <table>
+        <tr><th>决策项</th><th>候选 / 说明</th><th>影响</th></tr>
+        <tr><td>agent-runtime 主框架</td><td>Dify 编排 vs 自研 LangGraph（蓝图建议结合，需定主次）</td><td>决定脚手架服务内部结构</td></tr>
+        <tr><td>前端框架</td><td>React vs Vue（原型参考 WorkBuddy，需定）</td><td>web/ 目录与组件规范</td></tr>
+        <tr><td>部署形态</td><td>先单体服务后拆容器 vs 直接微服务</td><td>初期复杂度与迭代速度</td></tr>
+        <tr><td>中文 Embedding</td><td>bge / bce 系列（第 43 章）</td><td>Qdrant 集合维度与模型网关注册</td></tr>
+      </table>
+    </div>
+
+    <div class="risk">
+      <b>风险提示：</b>① Dify 二次开发定制成本可能高于预期，若选 Dify 为主需提前验证私有部署与 API 边界；② 单一过滤点在高并发下的性能需压测（第 34 章）；③ 评测集（≥200 条 golden queries）构建是 M2 的关键路径，应提前启动。
+    </div>
+
+    <div class="note">本方案与「立项评审包 v1.15」同源：评审包已冻结需求/契约基线，本脚手架方案是其工程化落地的第一步。下一步可在评审通过后，按 M0→M3 推进，并复用 Sprint 任务卡（Jira / 飞书多维表）排期。</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,53 @@
+# 企业 AI 智能体中台 · CI 质量门禁
+# 对应：第36章 RAG 召回门禁(Recall@100≥0.95) + 第37章 客观评测(不依赖 LLM-as-judge)
+# 门禁不通过则非零退出 → 阻断合并/灰度（第20章演化联动）。
+name: quality-gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install
+        run: cd backend && pip install -e ".[dev]"
+      - name: Lint
+        run: cd backend && ruff check app || true
+      - name: Smoke test
+        run: cd backend && pytest -q
+
+  rag-recall-gate:
+    runs-on: ubuntu-latest
+    needs: backend-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install
+        run: cd backend && pip install -e ".[dev]"
+      - name: Build golden dataset（第36章 W3, ≥200）
+        run: cd backend && python gen_golden.py
+      - name: RAG 召回门禁（Recall@100≥0.95）
+        run: cd backend && python -m app.services.eval recall --k 100
+        # 不达标 → 非零退出 → 阻断流水线（第20章演化联动）
+
+  ml-objective-gate:
+    runs-on: ubuntu-latest
+    needs: backend-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install
+        run: cd backend && pip install -e ".[dev]"
+      - name: Build golden dataset（第36章 W3, ≥200）
+        run: cd backend && python gen_golden.py
+      - name: 客观指标评测（第37章，不依赖 LLM-as-judge）
+        run: cd backend && python -m app.services.eval objective
+        # 客观指标（recall@100 / mrr@10 / ndcg@10 / filter_accuracy）不达标 → 非零退出阻断

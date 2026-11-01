@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>平台启动期智能体与工具配置清单 v1.0</title>
+<style>
+  :root{ --blue:#185FA5; --blue-l:#E6F1FB; --teal:#0F6E56; --teal-l:#E1F5EE; --purple:#534AB7; --purple-l:#EEEDFE; --ink:#1a1a1a; --mut:#5f5e5a; --line:#d3d1c7; }
+  *{box-sizing:border-box;}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:var(--ink); max-width:1000px; margin:24px auto; padding:0 20px; line-height:1.65;}
+  h1{font-size:22px; color:var(--blue); border-bottom:3px solid var(--blue); padding-bottom:8px;}
+  h2{font-size:17px; color:var(--blue); margin-top:32px; padding-left:10px; border-left:4px solid var(--blue);}
+  h3{font-size:14px; color:#0C447C; margin:18px 0 8px;}
+  p{font-size:13.5px; color:#2c2c2a;}
+  .lead{background:var(--blue-l); border:1px solid #B5D4F4; border-radius:10px; padding:14px 16px; font-size:14px;}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:12.5px;}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top;}
+  th{background:#f1efe8; color:#0C447C; font-weight:600;}
+  tr:nth-child(even) td{background:#fafafa;}
+  .p0{display:inline-block; background:#FCEBEB; color:#A32D2D; border:1px solid #F09595; border-radius:6px; padding:1px 8px; font-size:11px; font-weight:600;}
+  .p1{display:inline-block; background:#FAEEDA; color:#854F0B; border:1px solid #FAC775; border-radius:6px; padding:1px 8px; font-size:11px; font-weight:600;}
+  .layer{background:#fafbfc; border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:14px 0;}
+  .layer.blue{border-left:5px solid var(--blue);}
+  .layer.teal{border-left:5px solid var(--teal);}
+  .layer.purple{border-left:5px solid var(--purple);}
+  .road{display:flex; gap:10px; flex-wrap:wrap; margin:12px 0;}
+  .road div{flex:1; min-width:200px; background:#f7f8fa; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:12.5px;}
+  .road b{color:var(--blue);}
+  footer{margin-top:36px; color:var(--mut); font-size:11px; border-top:1px solid var(--line); padding-top:10px;}
+</style>
+</head>
+<body>
+
+<h1>平台启动期智能体与工具配置清单 v1.0</h1>
+
+<div class="lead">
+<b>核心结论：</b>启动期分三层递进配置——<b>L1 教学层</b>预置"示范智能体"帮员工上手、<b>L2 构建层</b>提供"业务转智能体"工具让员工把部门业务变成智能体、<b>L3 编排层</b>提供"多智能体工作流"工具让他们把多个智能体串成自动化流程。L2 是承上启下的关键，L3 复用 L1/L2 的产物并闭环沉淀回模板库。
+</div>
+
+<p>本清单与既有蓝图一致：知识库沿用<b>全域/部门/个人三级分级</b>（第 5 章），权限沿用 <b>RBAC 三角色 + 召回单一过滤点</b>（第 13、18 章），移动端复用同一过滤（第 16–18 章）。下方三类工具均构建在 Dify + LangGraph + Qdrant + PostgreSQL + MinIO + One API 私有化底座之上。</p>
+
+<h2>一、L1 教学层：预置"示范智能体"（帮员工学习使用）</h2>
+<div class="layer blue">
+<p>目的：员工第一次进来不空手——有向导教操作、有教练帮拆解、有模板可一键克隆。这部分由平台管理员在启动期<b>预置好</b>，不是员工自己建。</p>
+<table>
+  <tr><th style="width:22%">预置智能体</th><th>主要作用</th><th style="width:24%">基于平台能力</th><th style="width:8%">优先级</th></tr>
+  <tr><td><b>平台向导 Agent</b><br>（HelpDesk）</td><td>回答"怎么用平台"、把用户导航到正确智能体、解释权限模型（我能看什么、为什么看不到）</td><td>知识库问答 RAG + 路由</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>业务梳理教练 Agent</b></td><td>交互式引导员工拆解自己的业务流程，逐步输出一份"智能体草图"（步骤/所需知识/所需工具/权限范围）</td><td>多轮对话 + 表单采集 + 提示词模板</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>部门模板中心</b><br>（Agent 模板库）</td><td>提供 3–5 个开箱即用模板（HR 入职助手 / 销售知识问答 / 客服话术库…），员工一键克隆再改</td><td>模板市场 + 权限配置器</td><td><span class="p0">P0</span></td></tr>
+  <tr><td>安全合规哨兵 Agent</td><td>提示数据边界、拦截越权操作、做合规问答（什么能写库、什么要审批）</td><td>权限校验 + RAG</td><td><span class="p1">P1</span></td></tr>
+  <tr><td>最佳实践推荐 Agent</td><td>给一个任务，推荐现成智能体/模板，避免重复造轮子</td><td>检索 + 推荐</td><td><span class="p1">P1</span></td></tr>
+</table>
+</div>
+
+<h2>二、L2 构建层：业务转智能体的工具（让员工把公司业务整理成智能体）</h2>
+<div class="layer teal">
+<p>目的：把"业务"变成"智能体"。核心是<b>零代码编排器 + 知识接入 + 工具注册 + 权限配置</b>四件套，员工不需要写代码即可完成。其中"业务梳理画布"直接对接 L1 的教练 Agent 产出的草图。</p>
+<table>
+  <tr><th style="width:22%">工具</th><th>作用</th><th style="width:24%">对应平台能力</th><th style="width:8%">优先级</th></tr>
+  <tr><td><b>可视化 Agent 编排器</b></td><td>零代码搭智能体：设人设、挂知识、绑工具、配变量、设开场白</td><td>Dify Agent / Studio</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>业务梳理画布</b></td><td>把业务拆成步骤/任务，每步映射为节点或子智能体，导出为编排草稿</td><td>画布 + 模板</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>知识接入连接器</b></td><td>上传文档 / 连数据库 / 文件夹同步，自动切片、向量化、打权限标签</td><td>连接器 + Qdrant + PG</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>工具 / 插件注册中心</b></td><td>把内部 API、函数注册成智能体可调用的工具（含鉴权、限流）</td><td>Tool Registry / One API</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>角色与可见范围配置器</b></td><td>设 owner / dept / scope，绑定 RBAC，确保建出的智能体不越权</td><td>权限元数据 + 召回过滤</td><td><span class="p0">P0</span></td></tr>
+  <tr><td>提示词模板与变量库</td><td>可复用提示块 + {{变量}}，降低写提示门槛</td><td>Prompt 模板</td><td><span class="p1">P1</span></td></tr>
+  <tr><td>试运行与评估台</td><td>发布前测试、对比效果、留痕，避免直接上线翻车</td><td>Sandbox / Eval</td><td><span class="p1">P1</span></td></tr>
+</table>
+</div>
+
+<h2>三、L3 编排层：多智能体工作流工具（把各智能体组成工作流程）</h2>
+<div class="layer purple">
+<p>目的：单个智能体解决单点任务，<b>工作流</b>把它们串成端到端业务。核心是"编排器 + 节点库 + A2A 调用 + 人工审核"，让员工用拖拽而非写代码实现跨智能体协作。</p>
+<table>
+  <tr><th style="width:22%">工具</th><th>作用</th><th style="width:24%">对应平台能力</th><th style="width:8%">优先级</th></tr>
+  <tr><td><b>工作流编排器</b></td><td>拖拽节点把多个智能体/工具串成有向流程，可视化调试</td><td>Dify Workflow / LangGraph</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>节点类型库</b></td><td>触发器 / 条件分支 / 循环 / 并行 / LLM / 代码 / 知识检索 / HTTP 等开箱节点</td><td>节点引擎</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>Agent-to-Agent 调用</b></td><td>一个智能体作为节点调用另一个智能体，实现分工协作</td><td>A2A 协议</td><td><span class="p0">P0</span></td></tr>
+  <tr><td><b>人工审核节点</b></td><td>敏感步骤加审批闸口（HITL），如越级共享、外部导出</td><td>审批 API</td><td><span class="p0">P0</span></td></tr>
+  <tr><td>事件 / 消息总线</td><td>解耦智能体、异步交接，支持长流程</td><td>消息总线</td><td><span class="p1">P1</span></td></tr>
+  <tr><td>定时调度器</td><td>按 cron 周期跑工作流（日报、巡检、对账）</td><td>Scheduler</td><td><span class="p1">P1</span></td></tr>
+  <tr><td>执行监控与回放</td><td>看链路、调试、回溯每一步输入输出</td><td>Trace / 观测</td><td><span class="p1">P1</span></td></tr>
+</table>
+</div>
+
+<h2>四、启动期落地路线图（4 周）</h2>
+<div class="road">
+  <div><b>W1 底座</b><br>私有化部署 Dify+Qdrant+PG+MinIO+One API，配置三级知识库与 RBAC，打通 SSO。</div>
+  <div><b>W2 教学层</b><br>预置 L1 三个 P0 智能体（向导 / 教练 / 模板中心），写好平台手册知识库。</div>
+  <div><b>W3 构建层</b><br>开放 L2 工具，选 1 个试点部门（建议行政部）做出 2–3 个业务智能体。</div>
+  <div><b>W4 编排层</b><br>用 L3 把试点部门智能体编成 1 条端到端工作流，复盘后沉淀为模板推广。</div>
+</div>
+
+<h2>五、与既有蓝图章节的对应关系</h2>
+<table>
+  <tr><th style="width:30%">本清单内容</th><th>蓝图对应章节</th><th>说明</th></tr>
+  <tr><td>三级知识库、权限范围</td><td>第 5 章 知识库分级权限模型</td><td>构建层"知识接入 / 权限配置器"直接落到这里</td></tr>
+  <tr><td>RBAC 三角色、可见范围</td><td>第 13 章 权限矩阵</td><td>员工建智能体时绑定的就是这套角色</td></tr>
+  <tr><td>单一过滤点、PC/移动一致</td><td>第 16–18 章 移动端与权限一致性</td><td>所有智能体/工作流共用召回过滤，移动端不另起炉灶</td></tr>
+  <tr><td>接口契约</td><td>openapi.yaml / 接口契约参考.html</td><td>工具注册中心、A2A 调用即基于这些接口</td></tr>
+</table>
+
+<footer>企业 AI 智能体中台 · 启动期配置清单 v1.0 · 通用版 · 内部使用 · 2026-10-31</footer>
+</body>
+</html>

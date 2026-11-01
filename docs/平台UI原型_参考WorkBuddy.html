@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · UI 原型（参考 WorkBuddy）</title>
+<style>
+  :root{
+    --wb-navy:#0a2540; --wb-navy2:#0f2a4d; --wb-rail:#0b1f3a;
+    --wb-blue:#1565c0; --wb-accent:#2d7ff9;
+    --wb-bg:#f6f8fb; --wb-card:#ffffff; --wb-line:#dbe6f2;
+    --wb-ink:#1f2d3d; --wb-muted:#5b7185;
+    --wb-green:#2e7d32; --wb-orange:#ef6c00; --wb-red:#c62828;
+    --radius:12px; --shadow:0 8px 30px rgba(10,37,64,.12);
+  }
+
+  /* ---------- dark theme (覆盖表层令牌) ---------- */
+  [data-theme="dark"]{
+    --wb-page:#0a1322; --wb-bg:#0f1a2e; --wb-card:#15233d; --wb-line:#26374f;
+    --wb-ink:#e6edf5; --wb-muted:#9aafc7;
+    --wb-navy:#0a1a30; --wb-rail:#07111f;
+    --wb-blue:#3b82f6; --wb-accent:#4d94ff;
+    --wb-card2:#173357;
+  }
+  [data-theme="dark"] body{background:var(--wb-page);}
+  [data-theme="dark"] .window{border-color:var(--wb-line);}
+  [data-theme="dark"] .side,
+  [data-theme="dark"] .main .mhead,
+  [data-theme="dark"] .bub,
+  [data-theme="dark"] .chip,
+  [data-theme="dark"] .inputbar,
+  [data-theme="dark"] .panel,
+  [data-theme="dark"] .tpl,
+  [data-theme="dark"] .tool,
+  [data-theme="dark"] .tree,
+  [data-theme="dark"] .drop,
+  [data-theme="dark"] .mcard,
+  [data-theme="dark"] .phone .screen{background:var(--wb-card);}
+  [data-theme="dark"] .msg.me .bub,
+  [data-theme="dark"] .main .tabs .tab.on,
+  [data-theme="dark"] .side .nav .item.on,
+  [data-theme="dark"] .tokchip{background:var(--wb-card2);}
+  [data-theme="dark"] .tool .tg{background:var(--wb-card2);color:#bcd8ff;}
+  [data-theme="dark"] .panel h4{color:var(--wb-ink);}
+  [data-theme="dark"] .utab tr:nth-child(even) td{background:#13203a;}
+  [data-theme="dark"] .steps .st .num,
+  [data-theme="dark"] .mstep .n{background:var(--wb-card);color:var(--wb-ink);}
+  [data-theme="dark"] .msg.me .bub{border-color:var(--wb-line);}
+  *{box-sizing:border-box;}
+  body{margin:0;background:#e9eef5;color:var(--wb-ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .topbar{position:sticky;top:0;z-index:20;background:var(--wb-navy);color:#fff;
+    display:flex;align-items:center;gap:16px;padding:12px 22px;box-shadow:0 2px 12px rgba(0,0,0,.2);}
+  .topbar .brand{font-weight:800;font-size:16px;letter-spacing:.5px;}
+  .topbar .brand span{color:#7fb2f0;}
+  .topbar .hint{font-size:12px;color:#9fc0e8;margin-left:4px;}
+  .toggle{margin-left:auto;display:flex;background:#11315a;border-radius:20px;padding:3px;}
+  .toggle button{border:0;background:transparent;color:#cfe3f7;font-size:13px;
+    padding:6px 16px;border-radius:18px;cursor:pointer;font-weight:600;}
+  .toggle button.on{background:var(--wb-accent);color:#fff;}
+  .stage{padding:30px 16px 60px;display:flex;justify-content:center;}
+
+  /* ---------- PC window ---------- */
+  .pc-wrap{display:block;}
+  .window{width:1000px;max-width:100%;height:640px;background:var(--wb-bg);
+    border-radius:14px;box-shadow:var(--shadow);display:flex;overflow:hidden;border:1px solid #c9d7e8;}
+  .rail{width:64px;background:var(--wb-rail);display:flex;flex-direction:column;align-items:center;
+    padding:14px 0;gap:6px;}
+  .rail .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--wb-accent),var(--wb-blue));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;margin-bottom:10px;}
+  .rail .ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    color:#9fc0e8;cursor:pointer;}
+  .rail .ic svg{width:22px;height:22px;}
+  .rail .ic.on{background:#11315a;color:#fff;}
+  .rail .ic:hover{color:#fff;}
+  .rail .sp{margin-top:auto;}
+  .side{width:248px;background:#fff;border-right:1px solid var(--wb-line);display:flex;flex-direction:column;}
+  .side .shead{padding:14px 16px 8px;}
+  .side .search{background:var(--wb-bg);border:1px solid var(--wb-line);border-radius:9px;
+    padding:8px 10px;font-size:13px;color:var(--wb-muted);}
+  .side .nav{padding:6px 10px;}
+  .side .nav .grp{font-size:11px;color:var(--wb-muted);padding:10px 6px 4px;font-weight:700;letter-spacing:.5px;}
+  .side .nav .item{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:8px;
+    font-size:13.5px;cursor:pointer;color:var(--wb-ink);}
+  .side .nav .item .dot{width:8px;height:8px;border-radius:50%;}
+  .side .nav .item:hover{background:var(--wb-bg);}
+  .side .nav .item.on{background:#e8f1fb;color:var(--wb-blue);font-weight:600;}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .main .mhead{padding:12px 18px;border-bottom:1px solid var(--wb-line);background:#fff;
+    display:flex;align-items:center;gap:10px;}
+  .main .mhead .title{font-weight:700;font-size:15px;}
+  .main .mhead .crumb{font-size:12px;color:var(--wb-muted);}
+  .main .tabs{display:flex;gap:6px;margin-left:auto;}
+  .main .tabs .tab{font-size:12.5px;padding:6px 12px;border-radius:18px;cursor:pointer;
+    color:var(--wb-muted);border:1px solid transparent;}
+  .main .tabs .tab.on{background:#e8f1fb;color:var(--wb-blue);font-weight:600;}
+  .main .mhead .ctrl{margin-left:auto;display:flex;gap:8px;align-items:center;}
+  .main .mhead .msel{border:1px solid var(--wb-line);border-radius:9px;padding:7px 10px;font-size:12.5px;background:#fff;color:var(--wb-ink);cursor:pointer;}
+  .main .mhead .tokchip{font-size:11.5px;color:var(--wb-blue);background:#e8f1fb;border:1px solid #cfe0f5;border-radius:18px;padding:5px 11px;white-space:nowrap;}
+  .utab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+  .utab th{background:var(--wb-navy);color:#fff;text-align:left;padding:8px 10px;font-weight:600;}
+  .utab td{padding:7px 10px;border-top:1px solid var(--wb-line);}
+  .utab tr:nth-child(even) td{background:#fafcff;}
+  .ubar{height:8px;border-radius:4px;background:var(--wb-accent);}
+  .main .body{flex:1;overflow:auto;padding:18px;}
+  .screen{display:none;}
+  .screen.on{display:block;}
+
+  /* chat bubbles */
+  .msg{display:flex;gap:10px;margin:12px 0;}
+  .msg .av{width:30px;height:30px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:#fff;}
+  .msg.bot .av{background:var(--wb-blue);}
+  .msg.me .av{background:#7a8aa0;margin-left:auto;}
+  .bub{background:#fff;border:1px solid var(--wb-line);border-radius:12px;padding:10px 14px;font-size:13.5px;max-width:78%;}
+  .msg.me{justify-content:flex-end;}
+  .msg.me .bub{background:#e8f1fb;border-color:#cfe0f5;}
+  .chiprow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .chip{background:#fff;border:1px solid var(--wb-line);border-radius:18px;padding:7px 14px;font-size:12.5px;cursor:pointer;color:var(--wb-ink);}
+  .chip:hover{border-color:var(--wb-blue);color:var(--wb-blue);}
+  .inputbar{margin:8px 18px 16px;background:#fff;border:1px solid var(--wb-line);border-radius:14px;
+    padding:10px 14px;display:flex;align-items:center;gap:10px;}
+  .inputbar .ph{flex:1;color:var(--wb-muted);font-size:13.5px;}
+  .inputbar .send{background:linear-gradient(135deg,var(--wb-accent),var(--wb-blue));color:#fff;border:0;
+    border-radius:10px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:13px;}
+
+  /* wizard steps */
+  .steps{display:flex;gap:0;margin:6px 0 18px;}
+  .steps .st{flex:1;text-align:center;font-size:11.5px;color:var(--wb-muted);position:relative;}
+  .steps .st .num{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--wb-line);
+    display:inline-flex;align-items:center;justify-content:center;font-weight:700;margin-bottom:4px;}
+  .steps .st.on .num{background:var(--wb-blue);color:#fff;border-color:var(--wb-blue);}
+  .steps .st.done .num{background:var(--wb-green);color:#fff;border-color:var(--wb-green);}
+  .steps .st:not(:last-child):after{content:"";position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--wb-line);z-index:-0;}
+  .steps .st.done:after{background:var(--wb-green);}
+  .panel{background:#fff;border:1px solid var(--wb-line);border-radius:12px;padding:18px;margin-bottom:14px;}
+  .panel h4{margin:0 0 12px;font-size:14px;color:var(--wb-navy);}
+  .field{margin:10px 0;}
+  .field label{display:block;font-size:12.5px;color:var(--wb-muted);margin-bottom:5px;}
+  .field input,.field select,.field textarea{width:100%;border:1px solid var(--wb-line);border-radius:9px;
+    padding:9px 11px;font-size:13.5px;background:var(--wb-bg);color:var(--wb-ink);font-family:inherit;}
+  .tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .tpl{border:1px solid var(--wb-line);border-radius:10px;padding:12px;cursor:pointer;background:#fff;}
+  .tpl:hover{border-color:var(--wb-blue);}
+  .tpl .tn{font-weight:700;font-size:13.5px;color:var(--wb-blue);}
+  .tpl .td{font-size:11.5px;color:var(--wb-muted);margin-top:3px;}
+  .btnrow{display:flex;justify-content:space-between;margin-top:6px;}
+  .btn{border:0;border-radius:10px;padding:9px 18px;font-weight:600;font-size:13px;cursor:pointer;}
+  .btn.primary{background:linear-gradient(135deg,var(--wb-accent),var(--wb-blue));color:#fff;}
+  .btn.ghost{background:#fff;border:1px solid var(--wb-line);color:var(--wb-ink);}
+
+  /* tool cards */
+  .tool-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  .tool{background:#fff;border:1px solid var(--wb-line);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:center;}
+  .tool .tg{width:46px;height:46px;border-radius:11px;background:#e8f1fb;color:var(--wb-blue);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none;}
+  .tool .ti{font-weight:700;font-size:14px;}
+  .tool .td{font-size:12px;color:var(--wb-muted);margin:2px 0 8px;}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff;}
+  .badge.g{background:var(--wb-green);} .badge.o{background:var(--wb-orange);} .badge.r{background:var(--wb-red);}
+  .connect{margin-left:auto;border:1px solid var(--wb-blue);color:var(--wb-blue);background:#fff;border-radius:9px;
+    padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;}
+
+  /* file browser */
+  .filebar{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+  .tree{background:#fff;border:1px solid var(--wb-line);border-radius:12px;padding:10px;font-size:13px;}
+  .tree .row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;}
+  .tree .row:hover{background:var(--wb-bg);}
+  .tree .row .ic{color:var(--wb-blue);}
+  .tree .row .sub{margin-left:22px;color:var(--wb-muted);font-size:12px;}
+  .drop{border:2px dashed var(--wb-line);border-radius:12px;padding:26px;text-align:center;color:var(--wb-muted);font-size:13px;background:#fff;margin-top:12px;}
+  .mini{font-size:11.5px;color:var(--wb-muted);}
+
+  /* ---------- Mobile ---------- */
+  .mb-wrap{display:none;justify-content:center;}
+  .phone{width:340px;height:680px;background:var(--wb-navy);border-radius:34px;padding:12px;box-shadow:var(--shadow);}
+  .phone .screen{width:100%;height:100%;background:var(--wb-bg);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;}
+  .phone .ptop{background:var(--wb-navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:8px;}
+  .phone .ptop .pt{font-weight:700;font-size:15px;}
+  .phone .pbody{flex:1;overflow:auto;padding:14px;}
+  .phone .ptabs{display:flex;background:var(--wb-navy);}
+  .phone .ptabs .t{flex:1;text-align:center;color:#9fc0e8;font-size:11px;padding:9px 0 11px;cursor:pointer;}
+  .phone .ptabs .t.on{color:#fff;}
+  .phone .ptabs .t .ic{font-size:17px;display:block;margin-bottom:2px;}
+  .mcard{background:#fff;border:1px solid var(--wb-line);border-radius:12px;padding:14px;margin:10px 0;}
+  .mstep{display:flex;align-items:center;gap:8px;margin:8px 0;}
+  .mstep .n{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--wb-line);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none;}
+  .mstep.on .n{background:var(--wb-blue);color:#fff;border-color:var(--wb-blue);}
+  .mfield{margin:10px 0;}
+  .mfield label{font-size:12px;color:var(--wb-muted);display:block;margin-bottom:4px;}
+  .mfield input,.mfield select{width:100%;border:1px solid var(--wb-line);border-radius:9px;padding:9px;font-size:13px;background:var(--wb-bg);}
+  .mbtn{background:linear-gradient(135deg,var(--wb-accent),var(--wb-blue));color:#fff;border:0;border-radius:11px;
+    padding:12px;width:100%;font-weight:700;font-size:14px;margin-top:8px;cursor:pointer;}
+
+  .legend{max-width:1000px;margin:0 auto 8px;font-size:12px;color:var(--wb-muted);padding:0 4px;}
+
+  /* 模型选型交互向导 */
+  .wiz{max-width:780px;margin:0 auto;}
+  .wstep{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:12px;padding:18px 20px;margin-bottom:14px;}
+  .wstep .q{font-size:15px;font-weight:700;color:var(--wb-navy);margin-bottom:12px;}
+  .wopt{display:block;width:100%;text-align:left;background:var(--wb-bg);border:1px solid var(--wb-line);border-radius:9px;
+    padding:11px 14px;margin-bottom:9px;font-size:13.5px;color:var(--wb-ink);cursor:pointer;transition:.15s;}
+  .wopt:hover{border-color:var(--wb-blue);background:#eef4fb;}
+  .wres{border-radius:12px;padding:16px 18px;margin-top:6px;}
+  .wres.llm{background:#eef2ff;border:1px solid #c7d2fe;}
+  .wres.rag{background:#ecfdf5;border:1px solid #a7f3d0;}
+  .wres.rule{background:#fff7ed;border:1px solid #fed7aa;}
+  .wres.ml{background:#f1f5f9;border:1px solid #cbd5e1;}
+  .wres h3{margin:0 0 6px;font-size:15px;color:var(--wb-navy);}
+  .wres .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--wb-navy);color:#fff;margin-bottom:8px;}
+  .wres .row{font-size:13px;color:var(--wb-ink);line-height:1.6;}
+  .wbtn{margin-top:10px;font-size:12.5px;color:var(--wb-blue);cursor:pointer;text-decoration:underline;}
+  .wiz .mini{font-size:12px;color:var(--wb-muted);margin-top:8px;}
+
+  /* 新建智能体向导（选型结论自动带入） */
+  .mfield textarea{width:100%;border:1px solid var(--wb-line);border-radius:9px;padding:9px 11px;font-size:13px;
+    background:var(--wb-bg);color:var(--wb-ink);font-family:inherit;resize:vertical;}
+  .agok{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.6;
+    background:#ecfdf5;border:1px solid #a7f3d0;color:var(--wb-green);}
+  .agok.err{background:#fff7ed;border-color:#fed7aa;color:var(--wb-orange);}
+  [data-theme="dark"] .agok{background:var(--wb-card);border-color:var(--wb-line);}
+  [data-theme="dark"] .agok.err{background:var(--wb-card);}
+
+  /* 多人知识库可见性实时预览 */
+  .kbprev{margin-top:10px;border:1px dashed var(--wb-line);border-radius:10px;padding:10px 12px;background:var(--wb-bg);}
+  .kbtitle{font-size:12.5px;color:var(--wb-ink);margin-bottom:6px;}
+  .kbtitle b{color:var(--wb-blue);}
+  .kblist{display:flex;flex-direction:column;gap:5px;}
+  .kbrow{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--wb-ink);}
+  .kbt{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;color:#fff;white-space:nowrap;}
+  .kbt-personal{background:var(--wb-muted);}
+  .kbt-owner{background:var(--wb-orange);}
+  .kbt-department{background:var(--wb-blue);}
+  .kbt-global{background:var(--wb-green);}
+
+  /* JSON 导出弹窗 */
+  .modal{position:fixed;inset:0;background:rgba(10,20,40,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modalbox{background:var(--wb-card);border:1px solid var(--wb-line);border-radius:14px;width:580px;max-width:100%;max-height:86vh;
+    display:flex;flex-direction:column;box-shadow:var(--shadow);}
+  .modalhd{padding:14px 18px;border-bottom:1px solid var(--wb-line);font-weight:700;font-size:15px;color:var(--wb-navy);}
+  .jsonpre{margin:0;padding:16px 18px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;
+    color:var(--wb-ink);white-space:pre-wrap;word-break:break-all;flex:1;}
+  .modalft{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--wb-line);}
+  [data-theme="dark"] .modalhd{color:var(--wb-ink);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">企业 AI 智能体中台 <span>· UI 原型</span></div>
+  <div class="hint">参考 WorkBuddy 风格 · PC 与手机共用同一设计令牌</div>
+  <div class="toggle" id="themeToggle" style="margin-left:18px;">
+    <button id="th-light" class="on" onclick="setTheme('light')">浅色</button>
+    <button id="th-dark" onclick="setTheme('dark')">暗色</button>
+    <button id="th-auto" onclick="setTheme('auto')">跟随</button>
+  </div>
+  <div class="toggle">
+    <button id="tPC" class="on" onclick="setDevice('pc')">电脑版</button>
+    <button id="tMB" onclick="setDevice('mb')">手机版</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="legend">说明：以下为平台参考 WorkBuddy 的高保真界面原型，演示第 21–23 章四大新能力（自助建部门 / 业务梳理引导 / 工具对接 / 本地文件）与第 35 章模型选型向导。PC 三栏布局（图标栏+会话资源+主区），手机底部 Tab 布局，两端共用同一套颜色与圆角。选型向导的推荐结论可一键带入「新建智能体」表单（adapter_type / 选型说明 / 落地章节自动预填）。</div>
+
+  <!-- ================= PC ================= -->
+  <div class="pc-wrap" id="pcWrap">
+    <div class="window">
+      <div class="rail">
+        <div class="logo">AI</div>
+        <div class="ic on" title="对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.5 8.5 0 1 1 21 11.5z"/></svg></div>
+        <div class="ic" title="专家"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg></div>
+        <div class="ic" title="技能"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="ic" title="连接器"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 7H6a3 3 0 0 0 0 6h3M15 7h3a3 3 0 0 1 0 6h-3"/></svg></div>
+        <div class="ic" title="文件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <div class="sp"></div>
+        <div class="ic" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.6h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></div>
+      </div>
+
+      <div class="side">
+        <div class="shead"><div class="search">搜索对话 / 智能体 / 文件</div></div>
+        <div class="nav">
+          <div class="grp">快速开始</div>
+          <div class="item on"><span class="dot" style="background:var(--wb-blue)"></span>平台向导</div>
+          <div class="item"><span class="dot" style="background:var(--wb-green)"></span>业务梳理教练</div>
+          <div class="grp">我的部门</div>
+          <div class="item"><span class="dot" style="background:var(--wb-navy)"></span>行政部</div>
+          <div class="item"><span class="dot" style="background:var(--wb-navy)"></span>设计中心</div>
+          <div class="item" onclick="show('dept')"><span class="dot" style="background:var(--wb-orange)"></span>+ 新建部门</div>
+          <div class="grp">资源</div>
+          <div class="item" onclick="show('tool')"><span class="dot" style="background:var(--wb-accent)"></span>工具对接</div>
+          <div class="item" onclick="show('file')"><span class="dot" style="background:var(--wb-accent)"></span>本地文件</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="mhead">
+          <div>
+            <div class="title" id="mTitle">平台向导</div>
+            <div class="crumb" id="mCrumb">首页 / 对话</div>
+          </div>
+          <div class="ctrl">
+            <select class="msel" title="选择模型（可插拔：适配器+注册表，热插拔）">
+              <option>gpt-4o-mini · 默认</option>
+              <option>claude-sonnet · 复杂推理</option>
+              <option>qwen-local · 私有化</option>
+            </select>
+            <span class="tokchip" title="本月 Token 用量与剩余配额">本月用量 2.6M · 余 74%</span>
+          </div>
+          <div class="tabs" style="margin-left:8px;">
+            <div class="tab on" onclick="show('home')">首页</div>
+            <div class="tab" onclick="show('dept')">建部门</div>
+            <div class="tab" onclick="show('bp')">业务梳理</div>
+            <div class="tab" onclick="show('tool')">工具</div>
+            <div class="tab" onclick="show('file')">文件</div>
+            <div class="tab" onclick="show('usage')">用量</div>
+            <div class="tab" onclick="show('sel')">选型</div>
+            <div class="tab" onclick="show('agent')">新建智能体</div>
+          </div>
+        </div>
+
+        <div class="body">
+          <!-- home -->
+          <div class="screen on" id="s-home">
+            <div class="msg bot"><div class="av">AI</div><div class="bub">欢迎使用企业 AI 智能体中台。我是平台向导，可以帮你导航到正确智能体、解释权限，或帮你<b>新建一个部门</b>、<b>梳理业务流程</b>。你想先做什么？</div></div>
+            <div class="chiprow">
+              <div class="chip" onclick="show('dept')">+ 新建部门（自助）</div>
+              <div class="chip" onclick="show('bp')">梳理我的业务流程</div>
+              <div class="chip" onclick="show('tool')">连接 PS / CAD 等工具</div>
+              <div class="chip" onclick="show('file')">接入本地文件 / 存储</div>
+            </div>
+            <div class="msg me"><div class="av">我</div><div class="bub">我们刚成立一个“合规审计组”，想自己建部门并把审计流程做成智能体。</div></div>
+            <div class="msg bot"><div class="av">AI</div><div class="bub">好的，我可以引导你完成：①填部门信息并选模板 → ②系统自动生成隔离知识库与角色 → ③用对话式引导梳理审计流程 → ④一键生成智能体。点“新建部门”开始。</div></div>
+          </div>
+
+          <!-- dept wizard -->
+          <div class="screen" id="s-dept">
+            <div class="steps">
+              <div class="st done"><div class="num">✓</div>信息</div>
+              <div class="st on"><div class="num">2</div>模板</div>
+              <div class="st"><div class="num">3</div>初始化</div>
+              <div class="st"><div class="num">4</div>范围</div>
+              <div class="st"><div class="num">5</div>审核</div>
+            </div>
+            <div class="panel">
+              <h4>Step 1 · 部门信息（已填）</h4>
+              <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="field"><label>部门名称</label><input value="合规审计组"></div>
+                <div class="field"><label>上级部门</label><select><option>集团总部（继承可见范围）</option></select></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h4>Step 2 · 选择起点模板</h4>
+              <div class="tpl-grid">
+                <div class="tpl"><div class="tn">特殊类模板</div><div class="td">合规/审计/项目组，含敏感域受限共享</div></div>
+                <div class="tpl"><div class="tn">综合管理类</div><div class="td">行政/人事/财务示例智能体</div></div>
+                <div class="tpl"><div class="tn">空白部门</div><div class="td">完全自定义，从零开始</div></div>
+              </div>
+            </div>
+            <div class="btnrow">
+              <button class="btn ghost">上一步</button>
+              <button class="btn primary" onclick="show('bp')">下一步：梳理业务流程</button>
+            </div>
+          </div>
+
+          <!-- business process -->
+          <div class="screen" id="s-bp">
+            <div class="msg bot"><div class="av">AI</div><div class="bub">我们一步步来。先告诉我：<b>这个审计业务的目标是什么？</b>（例如：对部门费用进行合规抽查并输出风险清单）</div></div>
+            <div class="msg me"><div class="av">我</div><div class="bub">目标是对各部门的采购与报销做合规抽查，输出风险点与整改建议。</div></div>
+            <div class="msg bot"><div class="av">AI</div><div class="bub">收到。接下来我会问：参与者是谁？输入物（报销单/合同）从哪来？用到哪些系统或文件？有没有合规红线？每步我会标注建议的<b>节点类型</b>。</div></div>
+            <div class="panel">
+              <h4>已生成 · 智能体草图（可一键转编排器）</h4>
+              <div class="mini">① 接收任务 → ② 知识检索（制度库·scope=合规审计组）→ ③ 调取报销文件（本地文件网关）→ ④ 规则核对（LLM）→ ⑤ 生成风险清单 → ⑥ 人工审核节点 → 发布</div>
+              <div class="btnrow" style="margin-top:10px;"><button class="btn primary">推送到 L2 编排器</button></div>
+            </div>
+          </div>
+
+          <!-- tools -->
+          <div class="screen" id="s-tool">
+            <div class="tool-grid">
+              <div class="tool"><div class="tg">PS</div><div><div class="ti">Photoshop</div><div class="td">批处理 / 图层读取 / VI 合规校验</div><span class="badge g">已连接 · CLI沙箱</span></div><button class="connect">配置</button></div>
+              <div class="tool"><div class="tg">CAD</div><div><div class="ti">AutoCAD</div><div class="td">图纸解析 / 参数问答 / 变更比对</div><span class="badge o">待连接 · 桌面桥</span></div><button class="connect">连接</button></div>
+              <div class="tool"><div class="tg">ERP</div><div><div class="ti">企业 ERP</div><div class="td">API 网关 · 订单/库存查询</div><span class="badge g">已连接</span></div><button class="connect">配置</button></div>
+              <div class="tool"><div class="tg">盘</div><div><div class="ti">企业网盘</div><div class="td">对象存储 · 知识库联动</div><span class="badge g">已连接</span></div><button class="connect">配置</button></div>
+            </div>
+            <div class="panel" style="margin-top:14px;"><div class="mini">所有工具调用走工具注册中心统一鉴权，本地执行走沙箱，敏感操作触发人工审核，产出文件继承调用者 scope/owner/dept（第 18 章单一过滤点）。</div></div>
+          </div>
+
+          <!-- files -->
+          <div class="screen" id="s-file">
+            <div class="filebar">
+              <div class="search" style="flex:1;background:var(--wb-bg);border:1px solid var(--wb-line);border-radius:9px;padding:8px 11px;font-size:13px;color:var(--wb-muted);">授权目录：桌面 / 项目盘 / 合规审计组</div>
+            </div>
+            <div class="tree">
+              <div class="row"><span class="ic">📁</span> 合规审计组 <span class="badge g" style="margin-left:auto;">scope=department:audit</span></div>
+              <div class="row"><span class="ic">📁</span> 制度库<div class="sub">费用管理办法.pdf · 采购合规手册.docx</div></div>
+              <div class="row"><span class="ic">📁</span> 2026抽查<div class="sub">报销单_研发部.xlsx · 合同扫描件/</div></div>
+              <div class="row"><span class="ic">📄</span> 风险清单模板.docx</div>
+            </div>
+            <div class="drop">把文件拖到这里 → 自动切片、向量化并建档<br><span class="mini">引用时保留原路径与片段，权限映射回 scope/owner/dept</span></div>
+          </div>
+
+          <!-- usage / billing -->
+          <div class="screen" id="s-usage">
+            <div class="panel">
+              <h4>本月 Token 用量与计费（按部门 · 受 scope 约束，仅见本部门）</h4>
+              <div class="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;">
+                <div class="mcard" style="margin:0;"><div class="mini">本月消耗</div><div style="font-size:20px;font-weight:800;color:var(--wb-navy);">2.6M tokens</div></div>
+                <div class="mcard" style="margin:0;"><div class="mini">折算成本</div><div style="font-size:20px;font-weight:800;color:var(--wb-blue);">¥500.5</div></div>
+                <div class="mcard" style="margin:0;"><div class="mini">剩余配额</div><div style="font-size:20px;font-weight:800;color:var(--wb-green);">74%</div></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h4>部门用量排名</h4>
+              <table class="utab">
+                <tr><th>部门</th><th>Prompt</th><th>Completion</th><th>成本</th><th>配额已用</th></tr>
+                <tr><td>销售部</td><td>1.82M</td><td>0.94M</td><td>¥312.5</td><td><div class="ubar" style="width:62%"></div>31%</td></tr>
+                <tr><td>研发部</td><td>1.10M</td><td>0.60M</td><td>¥221.0</td><td><div class="ubar" style="width:44%"></div>22%</td></tr>
+                <tr><td>设计中心</td><td>0.64M</td><td>0.41M</td><td>¥188.0</td><td><div class="ubar" style="width:38%"></div>19%</td></tr>
+                <tr><td>行政部</td><td>0.42M</td><td>0.20M</td><td>¥95.0</td><td><div class="ubar" style="width:18%"></div>9%</td></tr>
+              </table>
+            </div>
+            <div class="panel"><div class="mini">数据来自模型网关统一计量埋点（tenant/dept/user/agent/session）；cost 属敏感指标，跨部门汇总仅平台管理员可见；高成本模型调用需人工审核（第 19 章 L3）。可插拔模型见顶部“模型”选择，新增模型不改业务代码。</div></div>
+          </div>
+
+          <!-- model selection wizard -->
+          <div class="screen" id="s-sel">
+            <div class="wiz" id="wizPc"></div>
+          </div>
+
+          <!-- new agent (selection result auto-filled) -->
+          <div class="screen" id="s-agent">
+            <div class="panel">
+              <h4>新建智能体 · 选型结论自动带入</h4>
+              <div class="mini" style="margin-bottom:10px;">选型结论为必填项——第 35 章规定「缺选型不可发布」，从源头堵住「LLM 万能」误区。下方 adapter_type / 选型说明 / 落地章节由选型向导一键带入。</div>
+              <div class="field"><label>智能体名称</label><input id="agName" placeholder="如：合同合规审查助手"></div>
+              <div class="field"><label>选型结论（adapter_type，来自选型向导）</label><input id="agAdapter" placeholder="选型后自动填入"></div>
+              <div class="field"><label>选型说明</label><textarea id="agWhy" rows="3" placeholder="选型后自动填入"></textarea></div>
+              <div class="field"><label>知识库范围（多人知识库：本人 / 负责人 / 部门 / 集团）</label>
+                <select id="agScope" onchange="renderKbPreview(this.value,'agKbPrev')">
+                  <option value="">— 请选择 —</option>
+                  <option value="personal">本人（personal）</option>
+                  <option value="owner">负责人（owner）</option>
+                  <option value="department">部门（department）</option>
+                  <option value="global">集团（global）</option>
+                </select></div>
+              <div id="agKbPrev" class="kbprev"></div>
+              <div class="field"><label>关联落地章节</label><textarea id="agLink" rows="2" placeholder="选型后自动填入"></textarea></div>
+              <div class="btnrow">
+                <button class="btn ghost" onclick="show('sel')">← 返回选型向导</button>
+                <button class="btn primary" onclick="submitAgent('pc')">创建智能体</button>
+              </div>
+              <div id="agOk" class="agok" style="display:none;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inputbar">
+          <div class="ph">输入消息，或 @ 一个智能体…</div>
+          <button class="send">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Mobile ================= -->
+  <div class="mb-wrap" id="mbWrap">
+      <div class="phone">
+        <div class="screen" id="mbMain">
+          <div class="ptop"><div class="pt">新建部门</div></div>
+        <div class="pbody">
+          <div class="steps" style="margin-bottom:14px;">
+            <div class="st done"><div class="num">✓</div>信息</div>
+            <div class="st on"><div class="num">2</div>模板</div>
+            <div class="st"><div class="num">3</div>初始</div>
+            <div class="st"><div class="num">4</div>范围</div>
+            <div class="st"><div class="num">5</div>审</div>
+          </div>
+          <div class="mcard">
+            <div class="mfield"><label>部门名称</label><input value="合规审计组"></div>
+            <div class="mfield"><label>上级部门</label><select><option>集团总部</option></select></div>
+          </div>
+          <div class="mcard">
+            <div style="font-weight:700;font-size:14px;margin-bottom:8px;">选择起点模板</div>
+            <div class="mstep on"><div class="n">A</div> 特殊类（合规/审计/项目组）</div>
+            <div class="mstep"><div class="n">B</div> 综合管理类</div>
+            <div class="mstep"><div class="n">C</div> 空白部门</div>
+          </div>
+          <button class="mbtn">下一步：梳理业务流程</button>
+        </div>
+        <div class="ptabs">
+          <div class="t on" id="mbTabMain"><span class="ic">💬</span>对话</div>
+          <div class="t"><span class="ic">📁</span>资源</div>
+          <div class="t"><span class="ic">🔌</span>工具</div>
+          <div class="t"><span class="ic">👤</span>我的</div>
+          <div class="t" id="mbTabSel" onclick="mbSwitch('sel')"><span class="ic">🧭</span>选型</div>
+        </div>
+        <div class="screen" id="mbSel" style="display:none">
+          <div class="ptop"><div class="pt" style="cursor:pointer" onclick="mbSwitch('main')">← 返回 · 模型选型</div></div>
+          <div class="pbody"><div class="wiz" id="wizMb"></div></div>
+        </div>
+        <div class="screen" id="mbAgent" style="display:none">
+          <div class="ptop"><div class="pt" style="cursor:pointer" onclick="mbSwitch('sel')">← 返回 · 模型选型</div></div>
+          <div class="pbody">
+            <div class="mcard">
+              <div class="mfield"><label>智能体名称</label><input id="mbAgName" placeholder="如：合同合规审查助手"></div>
+              <div class="mfield"><label>选型结论（adapter_type）</label><input id="mbAgAdapter" placeholder="选型后自动填入"></div>
+              <div class="mfield"><label>选型说明</label><textarea id="mbAgWhy" rows="3" placeholder="选型后自动填入"></textarea></div>
+              <div class="mfield"><label>知识库范围（多人知识库）</label>
+                <select id="mbAgScope" onchange="renderKbPreview(this.value,'mbAgKbPrev')">
+                  <option value="">— 请选择 —</option>
+                  <option value="personal">本人（personal）</option>
+                  <option value="owner">负责人（owner）</option>
+                  <option value="department">部门（department）</option>
+                  <option value="global">集团（global）</option>
+                </select></div>
+              <div id="mbAgKbPrev" class="kbprev"></div>
+              <div class="mfield"><label>关联落地章节</label><textarea id="mbAgLink" rows="2" placeholder="选型后自动填入"></textarea></div>
+              <div id="mbAgOk" class="agok" style="display:none;"></div>
+              <button class="mbtn" onclick="submitAgent('mb')">创建智能体</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setTheme(mode){
+    var t = mode==='auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light')
+      : mode;
+    if(t==='dark') document.documentElement.setAttribute('data-theme','dark');
+    else document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('wb-theme', mode); }catch(e){}
+    ['light','dark','auto'].forEach(function(x){
+      var b=document.getElementById('th-'+x); if(b) b.classList.toggle('on', x===mode);
+    });
+  }
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(){
+      if((localStorage.getItem('wb-theme')||'light')==='auto') setTheme('auto');
+    });
+  }
+  setTheme((localStorage.getItem('wb-theme')||'light'));
+
+  function setDevice(d){
+    document.getElementById('tPC').classList.toggle('on', d==='pc');
+    document.getElementById('tMB').classList.toggle('on', d==='mb');
+    document.getElementById('pcWrap').style.display = d==='pc' ? 'block' : 'none';
+    document.getElementById('mbWrap').style.display = d==='mb' ? 'flex' : 'none';
+  }
+  function show(s){
+    var map={home:['平台向导','首页 / 对话'],dept:['新建部门','部门自助创建向导'],bp:['业务梳理引导','对话式画布'],tool:['工具对接','外部专业工具'],file:['本地文件','文件网关与存储'],usage:['用量与计费','Token 统计 / 配额'],sel:['模型选型向导','决策树交互'],agent:['新建智能体','选型结论带入']};
+    document.querySelectorAll('.screen').forEach(function(e){e.classList.remove('on');});
+    document.getElementById('s-'+s).classList.add('on');
+    document.querySelectorAll('.main .tabs .tab').forEach(function(t){t.classList.remove('on');});
+    var idx={'home':0,dept:1,bp:2,tool:3,file:4,usage:5,sel:6,agent:7}[s];
+    var tabs=document.querySelectorAll('.main .tabs .tab'); if(tabs[idx]) tabs[idx].classList.add('on');
+    document.getElementById('mTitle').textContent=map[s][0];
+    document.getElementById('mCrumb').textContent=map[s][1];
+    setDevice('pc');
+  }
+
+  /* 模型选型交互向导（第 35 章） */
+  var SEL_STEPS={
+    start:{q:"任务输入主要是？",opts:[
+      {t:"表格 / 数值（结构化数据）",next:"struct"},
+      {t:"文本 / 图像 / 语音 / 多模态",next:"text"},
+      {t:"混合（文本 + 数据）",next:"mix"}]},
+    struct:{q:"是否需要可解释、可批量、可复现？",opts:[
+      {t:"是（报表 / 风控 / 预测 / 分类）",res:"rule"},
+      {t:"否，但要高精度分类",res:"ml"},
+      {t:"不确定，先按规则跑",res:"rule"}]},
+    text:{q:"核心需求是？",opts:[
+      {t:"生成 / 推理 / 模糊语义理解",res:"llm"},
+      {t:"分类 / 抽取 / 打标",res:"ml"},
+      {t:"基于知识库的检索问答",res:"rag"}]},
+    mix:{q:"主要价值来自？",opts:[
+      {t:"知识检索 + 生成回答",res:"rag"},
+      {t:"数据分析 + 文字报告",res:"mlrag"}]}
+  };
+  var SEL_RES={
+    rule:{cls:"rule",name:"规则引擎 / 传统机器学习",tag:"adapter = rule / ml_serving",
+      why:"输入结构化、需可解释可批量，用 XGBoost / 逻辑回归 / 规则即可，成本仅为 LLM 数分之一，结果可复现、可审计。",
+      link:"落地：第 35 章选型决策框架 · 第 25 章网关注册 · 第 38 章 MLOps"},
+    ml:{cls:"ml",name:"传统机器学习模型",tag:"adapter = ml_serving",
+      why:"文本分类 / 抽取或结构化预测用微调小模型更准更省，无需大模型通用能力。",
+      link:"落地：第 35 章 · 第 38 章 MLOps · 第 43 章中文特化"},
+    llm:{cls:"llm",name:"大模型（LLM）",tag:"adapter = llm",
+      why:"生成 / 推理 / 模糊语义是 LLM 强项；必要时微调。注意成本与幻觉，关键决策人机共签。",
+      link:"落地：第 35 章 · 第 25 章网关 · 第 39 章 grounding · 第 33 章责任"},
+    rag:{cls:"rag",name:"检索增强生成（RAG）",tag:"adapter = llm + 检索",
+      why:"基于企业知识库问答必须 RAG；先做混合检索 + 重排，Recall@100≥0.95 门禁，再生成。",
+      link:"落地：第 36 章 RAG 质量工程 · 第 18 章合规过滤 · 第 37 章评测"},
+    mlrag:{cls:"rag",name:"数据分析 + RAG 混合",tag:"ml_serving + llm + 检索",
+      why:"先由传统 ML 做数据分析 / 结构化抽取，再交 LLM + RAG 生成报告，兼顾精度与表达。",
+      link:"落地：第 35 / 36 / 38 章组合"}
+  };
+  function renderWizard(elId,key,hist){
+    key=key||'start'; hist=hist||[];
+    var el=document.getElementById(elId); if(!el) return;
+    if(SEL_RES[key]){
+      var r=SEL_RES[key];
+      window.__lastSel=r;
+      el.innerHTML='<div class="wres '+r.cls+'"><span class="tag">'+r.tag+'</span><h3>推荐：'+r.name+'</h3>'+
+        '<div class="row">'+r.why+'</div><div class="row" style="margin-top:8px;color:var(--wb-muted)">'+r.link+'</div>'+
+        '<div class="wbtn" onclick="gotoAgent()">+ 按此推荐新建智能体 →</div>'+
+        '<div class="wbtn" onclick="exportSelectionJSON()">⤓ 导出选型结论 JSON（对照 /agents）</div>'+
+        '<div class="wbtn" onclick="renderWizard(\''+elId+'\')">↺ 重新开始</div></div>';
+      return;
+    }
+    var st=SEL_STEPS[key], h='<div class="wstep"><div class="q">'+(hist.length+1)+'. '+st.q+'</div>';
+    st.opts.forEach(function(o){
+      var nh=JSON.stringify(hist.concat([key]));
+      if(o.next) h+='<div class="wopt" onclick="renderWizard(\''+elId+'\',\''+o.next+'\','+nh+')">'+o.t+'</div>';
+      else h+='<div class="wopt" onclick="renderWizard(\''+elId+'\',\''+o.res+'\',[])">'+o.t+'</div>';
+    });
+    h+='</div>';
+    if(hist.length) h+='<div class="wbtn" onclick="renderWizard(\''+elId+'\')">↺ 重新开始</div>';
+    el.innerHTML=h;
+  }
+  function mbSwitch(v){
+    ['main','sel','agent'].forEach(function(x){
+      var el=document.getElementById('mb'+x.charAt(0).toUpperCase()+x.slice(1));
+      if(el) el.style.display = (v===x)?'block':'none';
+    });
+    document.getElementById('mbTabMain').classList.toggle('on', v==='main');
+    document.getElementById('mbTabSel').classList.toggle('on', v==='sel');
+    if(v==='sel') renderWizard('wizMb');
+  }
+  function gotoAgent(){
+    var r=window.__lastSel;
+    var pc = document.getElementById('pcWrap').style.display!=='none';
+    if(!r){
+      if(pc) show('agent'); else mbSwitch('agent');
+      return;
+    }
+    var adapter=r.tag.replace(/^adapter\s*=\s*/,'');
+    if(pc){
+      document.getElementById('agName').value='';
+      document.getElementById('agAdapter').value=adapter;
+      document.getElementById('agWhy').value=r.why;
+      document.getElementById('agLink').value=r.link;
+      document.getElementById('agOk').style.display='none';
+      show('agent');
+    } else {
+      document.getElementById('mbAgName').value='';
+      document.getElementById('mbAgAdapter').value=adapter;
+      document.getElementById('mbAgWhy').value=r.why;
+      document.getElementById('mbAgLink').value=r.link;
+      document.getElementById('mbAgOk').style.display='none';
+      mbSwitch('agent');
+    }
+  }
+  function submitAgent(dev){
+    var pre = dev==='pc' ? 'ag' : 'mbAg';
+    var name = document.getElementById(pre+'Name').value.trim();
+    var ok = document.getElementById(pre+'Ok');
+    if(!name){
+      ok.className='agok err';
+      ok.innerHTML='⚠ 请先填写智能体名称';
+      ok.style.display='block';
+      return;
+    }
+    var adapter = document.getElementById(pre+'Adapter').value;
+    ok.className='agok';
+    ok.innerHTML='✓ 已创建「'+name+'」 · 选型 = '+adapter+' · 进入待发布评审（第 35 章红线：缺选型不可发布）';
+    ok.style.display='block';
+  }
+
+  /* 多人知识库可见性演示（本人 / 负责人 / 部门 / 集团，单一过滤点） */
+  var KB_SAMPLE=[
+    {id:'doc_p1',t:'我的日报模板',tier:'personal',owner:'me'},
+    {id:'doc_p2',t:'我的私有参会笔记',tier:'personal',owner:'me'},
+    {id:'doc_o1',t:'合同审批 SOP（我负责）',tier:'owner',owner:'me'},
+    {id:'doc_o2',t:'供应商准入清单（李工）',tier:'owner',owner:'other'},
+    {id:'doc_d1',t:'销售部五一话术集',tier:'department',dept:'sales'},
+    {id:'doc_d2',t:'研发部接口规范',tier:'department',dept:'rd'},
+    {id:'doc_g1',t:'集团信息安全管理总则',tier:'global'},
+    {id:'doc_g2',t:'集团品牌 VI 手册',tier:'global'}
+  ];
+  var ME={dept:'sales'};
+  function tierLabel(t){return {personal:'本人',owner:'负责人',department:'部门',global:'集团'}[t]||t;}
+  function visibleDocs(level){
+    return KB_SAMPLE.filter(function(d){
+      if(level==='personal') return d.tier==='personal'&&d.owner==='me';
+      if(level==='owner') return (d.tier==='personal'&&d.owner==='me')||(d.tier==='owner'&&d.owner==='me');
+      if(level==='department') return (d.tier==='personal'&&d.owner==='me')||(d.tier==='owner'&&d.owner==='me')||(d.tier==='department'&&d.dept===ME.dept)||d.tier==='global';
+      if(level==='global') return true;
+      return false;
+    });
+  }
+  function renderKbPreview(level,boxId){
+    var box=document.getElementById(boxId); if(!box) return;
+    if(!level){ box.innerHTML='<span class="mini">选择知识库范围后，实时显示该智能体可检索到的数据（单一过滤点，越权内容直接剔除）。</span>'; return; }
+    var vis=visibleDocs(level), filt=KB_SAMPLE.length-vis.length;
+    var h='<div class="kbtitle">可见数据 <b>'+vis.length+'</b> 条 · 被过滤 <b>'+filt+'</b> 条</div><div class="kblist">';
+    vis.forEach(function(d){ h+='<div class="kbrow"><span class="kbt kbt-'+d.tier+'">'+tierLabel(d.tier)+'</span>'+d.t+'</div>'; });
+    h+='</div>';
+    if(filt>0) h+='<div class="mini" style="margin-top:6px;">被过滤项（其他部门 department 文档、他人 owner 文档）在召回阶段即被剔除，不进入上下文——对应第 18 章单一过滤点。</div>';
+    box.innerHTML=h;
+  }
+
+  /* 导出选型结论 JSON（对照 openapi.yaml 的 POST /agents） */
+  var __expJSON=null;
+  function slug(s){return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+  function val2(idPc,idMb){var e=document.getElementById(idPc)||document.getElementById(idMb);return e?e.value:'';}
+  function exportSelectionJSON(){
+    var r=window.__lastSel;
+    if(!r){ alert('请先在选型向导得出推荐结论'); return; }
+    var adapterMap={rule:'rule',ml:'ml_serving',llm:'llm',rag:'llm_retrieval',mlrag:'ml_llm_retrieval'};
+    var adapter=adapterMap[r.cls]||'llm';
+    var name=val2('agName','mbAgName');
+    var scope=val2('agScope','mbAgScope');
+    var scopeMap={'personal':'personal','owner':'owner','department':'department','global':'global'};
+    var knowledge_scope=scopeMap[scope]||'department';
+    var obj={
+      agent_id: name?slug(name):'agent_'+Date.now(),
+      name: name||'未命名智能体',
+      adapter_type: adapter,
+      description: r.why,
+      knowledge_scope: knowledge_scope,
+      selection: { recommended:r.name, tag:r.tag, landing:r.link, source:'模型选型向导（第35章）' },
+      created_via: 'selection-wizard'
+    };
+    __expJSON=obj;
+    document.getElementById('jsonOut').textContent=JSON.stringify(obj,null,2);
+    document.getElementById('jsonModal').style.display='flex';
+  }
+  function closeJson(){var m=document.getElementById('jsonModal'); if(m) m.style.display='none';}
+  function copyJson(){ if(navigator.clipboard) navigator.clipboard.writeText(JSON.stringify(__expJSON,null,2)); }
+  function downloadJson(){ var b=new Blob([JSON.stringify(__expJSON,null,2)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='agent_selection_'+Date.now()+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href); }
+
+  renderKbPreview('','agKbPrev');
+  renderKbPreview('','mbAgKbPrev');
+  renderWizard('wizPc');
+</script>
+<!-- JSON 导出弹窗（对照 openapi.yaml POST /agents） -->
+<div id="jsonModal" class="modal" style="display:none" onclick="if(event.target===this)closeJson()">
+  <div class="modalbox">
+    <div class="modalhd">选型结论 JSON · 对照 openapi.yaml 的 POST /agents</div>
+    <pre id="jsonOut" class="jsonpre"></pre>
+    <div class="modalft">
+      <button class="btn ghost" onclick="copyJson()">复制</button>
+      <button class="btn primary" onclick="downloadJson()">下载 .json</button>
+      <button class="btn ghost" onclick="closeJson()">关闭</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
