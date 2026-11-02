@@ -74,6 +74,7 @@ cd web && npm install && npm run dev
 | M8 试点就绪 | 2 周 | ① 批量语料导入（内容指纹去重/重跑幂等/失败逐条记录/索引只重建一次）② 知识库 PG 载回（重启不清零）③ 基线跑批（外部 golden 用标题反查、JSON+Markdown 报告、漂移历史）④ 成本曲线（逐日补零/月末外推/预算水位）⑤ 试点看板一屏 | ✅ 9 项 M8 测试全过；实测 250 篇导入 5.1 秒、重启仍 250 篇、加语料后 Recall@100 稳定 1.0 |
 | M9 规模化 | 2 周 | ① 向量存 (N,D) numpy 矩阵 + 倒排预筛 BM25（`knowledge.py` 重写）② 增量写入 + tombstone 删除（不再全量重建）③ embedding sqlite 持久缓存 ④ 向量后端可插拔（memory/qdrant，失败静默降级）⑤ `/kb/index` 索引健康屏 + 试点看板卡 ⑥ golden 多目标命中（`accept_titles` 同族等价）⑦ 压测基准脚本 | ✅ 8 项 M9 测试全过（总 72）；2720 篇/33712 子块 检索 p50 **17.71ms**；2720 篇 golden Recall@5/10/100 全 **1.0**、MRR **0.9659** |
 | M10 多租户规模化 | 2 周 | ① 候选阶段按身份预筛（同一份 `visible_fields`，第18章判权不复制）+ BM25 idf 粗排截断 3000 ② 异步导入任务 `/kb/ingest`（≤20000 篇/任务，进度/取消/列表）③ 对象存储 8 路并发写 ④ 索引读写加锁 ⑤ 多租户压测脚本 `bench_multitenant.py` | ✅ 7 项 M10 测试全过（总 79）；2485 篇/3 部门 × 6 身份**泄露 0、空结果 0、Recall@10 全 1.0**；p50 46ms→**19ms**；**1 万篇/122k 子块 p50 31.9ms** |
+| M11 真实模型与真服务 | 1 周 | ① Qdrant Windows 原生二进制起真服务（不依赖 Docker），验 `QDRANT_MODE=http` 全链路 ② 接真实 bge-m3（1024 维，hf-mirror 离线下载）③ 批量编码 + query 走缓存 | ✅ 挖出并修掉 3 个真 bug（含一个让 Recall@100 跌到 0.948 跌破门禁、一个静默丢 97.6% 向量）；真实向量 Recall@5 0.9206→**0.9802**；缓存让检索 244ms→**10.5ms**、重导 303.6s→**4.5s** |
 
 ## M8 试点怎么跑（最快路径）
 
@@ -121,6 +122,11 @@ VECTOR_BACKEND=memory EMBED_CACHE=1 ./.venv/Scripts/python.exe -m uvicorn app.ma
 | `EMBED_CACHE` | `1` | sqlite 单文件缓存（`data/embed_cache.db`），键 = model+dim+text sha1 |
 | `INDEX_MAX_CHILDREN` | `200000` | 子块容量上限（约 1000–2000 篇），超限前 `/kb/index` 的 `capacity_used_pct` 会先告警 |
 | `INDEX_COMPACT_RATIO` | `0.25` | tombstone 占比超此值自动压缩索引（删多写少时回收内存） |
+| `USE_LOCAL_EMBEDDING` | `0` | `1` 启用真实 bge-m3；`0` 走确定性伪向量（测试/离线，毫秒级但语义为假） |
+| `EMBEDDING_MODEL` | `bge-m3` | 可填本地绝对路径，如 `D:/models/bge-m3`，配合 `HF_HUB_OFFLINE=1` 完全离线 |
+| `EMBED_BATCH_SIZE` | `16` | 真实模型编码批大小（CPU 上 16 最稳） |
+| `QDRANT_TIMEOUT_S` | `5.0` | 别调回 1 秒——首次建集合会超时并静默降级 |
+| `QDRANT_ASYNC_UPSERT` | `0` | 默认同步写；改 `1` 后「写完立刻检索」会看不到数据 |
 
 改造前后对比、规模化边界与降级策略见 `docs/M9_规模化报告.md`。
 
@@ -141,6 +147,25 @@ curl http://127.0.0.1:8080/api/v1/kb/ingest/<job_id> -H "Authorization: $TK"    
 ```
 
 要点：**过滤在候选阶段就做了**（`_vis_mask`），`filtered_out` 因此通常是 0——那是兜底计数，不是「过滤没生效」。多租户细节与压测数据见 `docs/M10_多租户规模化报告.md`。
+
+## M11 真实模型怎么开（含一个必须知道的前提）
+
+```bash
+cd D:/enterprise-ai-platform/backend
+
+# 真实 bge-m3：三个开关缺一不可，否则静默退回伪向量（数字全假）
+USE_LOCAL_EMBEDDING=1 EMBEDDING_MODEL=D:/models/bge-m3 \
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 EMBED_CACHE=1 \
+  ./.venv/Scripts/python.exe -m uvicorn app.main:app --port 8080
+
+# Qdrant 真服务（Windows 原生二进制，不需要 Docker）
+cd /d/tools/qdrant && ./qdrant.exe      # 6333 HTTP / 6334 gRPC
+VECTOR_BACKEND=qdrant QDRANT_MODE=http ./.venv/Scripts/python.exe -m pytest -q
+```
+
+**最重要的一条**：M9/M10 报的 `3.35ms`、`19ms` 都**不含 embedding**。真实模型下
+`query 编码（244ms 首次 / 缓存后 <1ms）+ 索引检索` 才是用户感知延迟。
+完整数据与 3 个 bug 的复现过程见 `docs/M11_真实模型与Qdrant验证.md`。
 
 ## 当前骨架已验证
 - `pytest`：**79 项全过**（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + M9×8 + M10×7 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**（`tests/conftest.py` 默认把 PG 指向不可达端口做隔离，`TEST_WITH_PG=1` 跑真 PG）

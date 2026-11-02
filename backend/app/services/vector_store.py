@@ -26,7 +26,8 @@ _backend = "memory"
 _init_done = False
 _init_error = ""
 _collection_ready = False
-_stats = {"upserts": 0, "searches": 0, "errors": 0, "deletes": 0}
+_stats = {"upserts": 0, "searches": 0, "errors": 0, "deletes": 0, "last_error": None}
+_UPSERT_BATCH = 256      # 单批写入点数（见 upsert 说明）
 
 
 def collection_name() -> str:
@@ -78,8 +79,17 @@ def backend() -> str:
 
 
 def available() -> bool:
+    """是否真的在用向量库。
+
+    必须同时看 `_backend`：`_ensure_collection` 失败时会把 `_backend` 置为 memory
+    但 `_client` 仍握在手里（连接本身是好的，只是建集合/写点失败）。若这里只判
+    `_client is not None`，就会出现「声称降级、实际仍走 qdrant」的自相矛盾状态：
+    检索走 Qdrant，而 Qdrant 里只有一部分点（超时/失败的那批没写进去），
+    其余块在向量路彻底消失。实测表现为 Recall@100 从 1.000 掉到 0.948、
+    且掉得「稳定复现」——最难查的那类 bug：两端各自都"正常"。
+    """
     _init()
-    return _client is not None
+    return _client is not None and _backend != "memory"
 
 
 def _ensure_collection() -> bool:
@@ -111,18 +121,28 @@ def upsert(rows: List[Tuple[int, List[float], Dict]]) -> int:
     """写入/覆盖向量。rows: [(row_id, vec, payload)]，point id = row_id + 1。
 
     row_id 与 knowledge._CHILDREN 下标一一对应，检索回来直接映射，无需额外查表。
+
+    必须分批：一次导入 220 篇会产生约 2700 个点，单次 HTTP 批量写入会撞超时
+    （实测 2686 点一次性 upsert 只进去 64 个，异常被降级逻辑吞掉，看起来"导入成功"
+    而检索悄悄少一大半）。按 256 一批切，单批耗时几十毫秒，稳在超时线内。
     """
     if not available() or not _ensure_collection() or not rows:
         return 0
     try:
         from qdrant_client.models import PointStruct  # type: ignore
         points = [PointStruct(id=r + 1, vector=v, payload=p) for r, v, p in rows]
+        ok = 0
+        wait = not settings.QDRANT_ASYNC_UPSERT
         with _lock:
-            _client.upsert(collection_name(), points, wait=False)
-        _stats["upserts"] += len(points)
-        return len(points)
-    except Exception:
+            for i in range(0, len(points), _UPSERT_BATCH):
+                _client.upsert(collection_name(), points[i:i + _UPSERT_BATCH], wait=wait)
+                ok += len(points[i:i + _UPSERT_BATCH])
+        _stats["upserts"] += ok
+        return ok
+    except Exception as e:
         _stats["errors"] += 1
+        # 留痕：降级不阻塞业务可以，但失败原因必须能在 /kb/index 上看到
+        _stats["last_error"] = f"upsert 失败：{type(e).__name__}: {e}"
         return 0
 
 
@@ -190,9 +210,9 @@ def stats() -> Dict[str, object]:
     return {
         "requested": settings.VECTOR_BACKEND,
         "backend": _backend,
-        "available": _client is not None,
+        "available": available(),
         "collection": collection_name(),
-        "points": count() if _client is not None else None,
+        "points": count() if available() else None,
         "mode": settings.QDRANT_MODE,
         "endpoint": (settings.QDRANT_PATH if settings.QDRANT_MODE == "local"
                      else f"{settings.QDRANT_HOST}:{settings.QDRANT_PORT}"),

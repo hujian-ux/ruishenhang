@@ -52,6 +52,8 @@ class Settings:
     USE_LOCAL_EMBEDDING = _env("USE_LOCAL_EMBEDDING", "0") == "1"
     EMBEDDING_MODEL = _env("EMBEDDING_MODEL", "bge-m3")
     EMBEDDING_DIM = int(_env("EMBEDDING_DIM", "1024"))
+    # 真实模型的编码批大小。CPU 上 16 比 8 快约 40%，比 32 稳（内存/缓存友好）。
+    EMBED_BATCH_SIZE = int(_env("EMBED_BATCH_SIZE", "16"))
     # 重排层 cross-encoder（第36章 W2）；未安装时退化为启发式打分
     RERANK_MODEL = _env("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 
@@ -70,7 +72,13 @@ class Settings:
     QDRANT_MODE = _env("QDRANT_MODE", "http")
     QDRANT_PATH = _env("QDRANT_PATH", "data/qdrant")
     QDRANT_COLLECTION = _env("QDRANT_COLLECTION", "kb_chunks")
-    QDRANT_TIMEOUT_S = float(_env("QDRANT_TIMEOUT_S", "1.0"))
+    # 5s 而非 1s：建集合 + 首批批量写入在冷启动（尤其 Windows 落盘）会超过 1 秒，
+    # 1 秒超时会让「第一次建库」直接失败并降级。检索单次仍在几十毫秒量级。
+    QDRANT_TIMEOUT_S = float(_env("QDRANT_TIMEOUT_S", "5.0"))
+    # Qdrant 写入默认同步（wait=True）。异步（wait=False）更快，但「写完立刻检索」
+    # 会看到不完整的集合——实测 Recall@100 从 1.000 掉到 0.948，直接跌破第36章门禁。
+    # 上传后立刻召回是产品主路径，所以默认同步；批量重建索引时才值得关掉。
+    QDRANT_ASYNC_UPSERT = _env("QDRANT_ASYNC_UPSERT", "0") == "1"
 
     # M9 规模化：索引内存上限保护。超过该子块数时检索自动收窄候选
     # （向量全扫仍保留，BM25 只走倒排候选），避免单机被超大语料拖垮。

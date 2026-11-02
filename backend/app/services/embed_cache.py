@@ -87,8 +87,7 @@ def get_many(texts: List[str]) -> Dict[str, bytes]:
                 out[k] = b
     conn = _connect()
     if conn is None:
-        _stats["hits"] += len(out)
-        _stats["misses"] += len(texts) - len(out)
+        _count_hits(keys, out)
         return out
     rest = [k for k in keys if k not in out]
     try:
@@ -104,9 +103,24 @@ def get_many(texts: List[str]) -> Dict[str, bytes]:
         _stats["errors"] += 1
         _stats["misses"] += len(texts)
         return {}
-    _stats["hits"] += len(out)
-    _stats["misses"] += len(texts) - len(out)
+    _count_hits(keys, out)
     return out
+
+
+def _count_hits(keys: List[str], out: Dict[str, bytes]) -> None:
+    """按「文本条数」统计命中，不是按去重后的 key 数。
+
+    `out` 是 dict，重复文本的 key 会塌成一条；若直接用 len(out) 当命中数，
+    模板化语料（大量重复短语块）会把命中率算低得离谱——实测 2686 块里只有 776
+    个不同文本，被算成 28.89%，而实际耗时 0.20s（真编 1910 块要 200s）说明是 100%。
+    这个数字直接出现在 `/kb/index` 上，会误导人以为缓存没生效。
+    """
+    hits = 0
+    for k in keys:
+        if k in out:
+            hits += 1
+    _stats["hits"] += hits
+    _stats["misses"] += len(keys) - hits
 
 
 def put_many(items: List[Tuple[str, bytes]]) -> None:

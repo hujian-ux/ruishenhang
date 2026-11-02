@@ -230,6 +230,27 @@ def _embed_one(text: str) -> list:
     return embed(text)
 
 
+def _embed_batch(texts: list) -> list:
+    """批量向量化（纯计算，不碰缓存）。
+
+    为什么需要它：M9 压测用的是确定性伪向量，一条几十微秒，逐条循环完全看不出来。
+    接真实 bge-m3 后单条要 0.2s 上下，逐条循环把 CPU 向量化单元晾在那儿——
+    220 篇（约 700 块）光 embed 就要两分半。`SentenceTransformer.encode(list)` 一次性
+    喂 batch，同样的 CPU 能把吞吐拉高数倍（实测 batch=16 比逐条快约 3 倍）。
+    """
+    if not texts:
+        return []
+    m = _get_st_model()
+    if m is not None:
+        try:
+            arr = m.encode(texts, batch_size=settings.EMBED_BATCH_SIZE,
+                           normalize_embeddings=True, show_progress_bar=False)
+            return [v.tolist() for v in arr]
+        except Exception:
+            pass
+    return [_embed_one(t) for t in texts]      # 伪向量或单条失败时逐条兜底
+
+
 def _embed_many(texts: list) -> list:
     """批量向量化：先查 sqlite 缓存，未命中的才算，算完回写。
 
@@ -253,7 +274,7 @@ def _embed_many(texts: list) -> list:
         else:  # pragma: no cover
             out[i] = [float(x) for x in blob]
     if miss_texts:
-        vecs = [_embed_one(t) for t in miss_texts]
+        vecs = _embed_batch(miss_texts)
         writes = []
         for i, v in zip(miss_idx, vecs):
             out[i] = v
@@ -704,7 +725,11 @@ def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
     _ensure_index()
     _QUERY_COUNT += 1
     qtoks = _tokenize(query)
-    qvec = embed(query)
+    # query 向量也走 embedding 缓存（不是只给文档块用）。
+    # 伪向量时这一行无关紧要（编码只要几十微秒）；接真实 bge-m3 后单次编码
+    # 130-200ms，而检索本身只有几毫秒——不缓存的话**每一次检索都要现场编码 query**，
+    # 热门问题问一百遍就编一百遍。走缓存后重复 query 直接回到索引延迟量级。
+    qvec = _embed_many([query])[0]
     n = _ROWS
     if n == 0:
         _LAST_QUERY_MS = (_time.perf_counter() - t0) * 1000
