@@ -1,8 +1,6 @@
 # 企业 AI 智能体中台 · 基础设施即代码（仅底座）
 # 决策：先单体后拆容器 —— 后端应用(backend) 本地直接运行，本 compose 只编排外部依赖。
 # 上线阶段可把 backend 也加为 service（见 backend/Dockerfile，已就绪但默认不启用）。
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
@@ -54,7 +52,8 @@ services:
       - redis_data:/data
 
   litellm:
-    image: litellm/litellm:latest
+    # 官方镜像（Docker Hub 的 litellm/litellm 标签常拉不到；若 ghcr 拉取慢，见 M6_VALIDATION.md 常见坑）
+    image: ghcr.io/berriai/litellm:main-latest
     command: ["--config", "/app/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
     ports:
       - "4000:4000"

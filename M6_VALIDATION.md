@@ -14,6 +14,14 @@ docker compose version
 ```
 两条都正常输出即 OK。没有就去装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，装完**重启一次**让 WSL2/守护进程就绪。
 
+**安装要点（Windows）**
+1. 下载 Docker Desktop 安装包，双击安装，保持勾选 "Use WSL 2 instead of Hyper-V"。
+2. 若提示缺少 WSL2，按提示装 WSL2 更新包（`wsl --update` 或微软商店），再重启。
+3. 启动 Docker Desktop，等左下角鲸鱼图标变绿、显示 "Engine running"。
+4. **新开一个 PowerShell 窗口**（旧窗口 PATH 不会刷新），再执行上面的 `docker --version`。
+
+> 安装需要管理员权限；如果公司电脑受限装不了，就走 B 路线（pip litellm），或者换一台能装的机器。
+
 > **若提示 `docker : 无法将"docker"项识别为 cmdlet...`**：说明本机没装 Docker（或装了但没加进 PATH）。
 > Docker 是跑 PG/MinIO/LiteLLM 三底座的前提。两条路：
 > - **A（推荐，完整验证）**：装 Docker Desktop，重启后重开 PowerShell 再试；
@@ -29,14 +37,11 @@ docker compose version
 ```powershell
 cd D:\enterprise-ai-platform
 
-# 可选：填写密钥（想跑出"真实 LLM 生成"才需要，见第 3 节）
-# 在仓库根目录新建 .env（compose 会自动读取），内容示例：
-#   DASHSCOPE_API_KEY=sk-你的通义千问密钥
-#   OPENAI_API_KEY=
-#   PG_PASSWORD=dev
-#   MINIO_USER=minioadmin
-#   MINIO_PASSWORD=minioadmin
+# 1) 从模板生成 .env（.env 已被 git 忽略，密钥不会进仓库）
+Copy-Item .env.m6.example .env
+notepad .env          # 填 DASHSCOPE_API_KEY=sk-xxx（有 OpenAI 的也可一并填）
 
+# 2) 起三底座
 docker compose up -d
 docker compose ps          # 看 STATUS 是否 healthy/running
 ```
@@ -150,6 +155,14 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
 ## 6. 常见坑
 
 - **`docker` 命令不存在**：没装 Docker Desktop（或未加入 PATH）。见第 0 节 A/B 两条路。
+- **镜像拉取超时/失败（国内常见）**：给 Docker Desktop 配镜像加速——
+  Settings → Docker Engine，在 JSON 里加：
+  ```json
+  { "registry-mirrors": ["https://docker.m.daocloud.io", "https://dockerproxy.com"] }
+  ```
+  点 Apply & restart。镜像地址会变，一个失效就换另一个。
+- **litellm 镜像拉不到**：compose 默认用 `ghcr.io/berriai/litellm:main-latest`；
+  若 ghcr 不通，可临时改成 `litellm/litellm:latest`（Docker Hub），或走第 3.1 节 pip 方式。
 - **`..\.venv\Scripts\python.exe` 报"无法识别"**：venv 在 `backend\.venv`，在 `backend` 目录下要用 **`.\.venv\Scripts\python.exe`**（单点不是双点）。
 - **端口被占用**：5432/9000/9001/4000/6379 被本机其他服务占了 → 改 `docker-compose.yml` 左侧端口映射。
 - **litellm 起不来**：`:latest` 偶发不兼容，可在 compose 里把 `litellm/litellm:latest` 固定到某个版本标签。
