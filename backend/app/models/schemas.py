@@ -48,6 +48,7 @@ class AgentInvokeRequest(BaseModel):
     agent_id: str
     input: str
     stream: bool = True
+    session_id: Optional[str] = None  # M4 会话记忆：传入则续聊，缺省新建会话
 
 class Citation(BaseModel):
     doc_id: str
