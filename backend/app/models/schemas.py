@@ -99,6 +99,18 @@ class KbDocumentResponse(BaseModel):
     code: int = 0
     data: dict = Field(default_factory=dict)
 
+# ── kb 异步导入（M10）──
+class KbIngestDocument(BaseModel):
+    content: str
+    title: Optional[str] = None
+    filename: Optional[str] = None
+
+class KbIngestRequest(BaseModel):
+    documents: list[KbIngestDocument]
+    scope: str = "department"
+    dept_id: Optional[str] = None
+    source: str = "async_ingest"
+
 # ── models (第25章) ──
 class ModelInfo(BaseModel):
     model_id: str

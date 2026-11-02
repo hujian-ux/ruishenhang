@@ -29,14 +29,18 @@ def test_models_list():
 
 
 def test_rag_filter_demonstrates_scope():
-    # 张三(销售部) 查「活动方案」：应可见本部门+global，被过滤掉设计部/其他租户
+    # 张三(销售部) 查「活动方案」：应可见本部门+global，看不到设计部/其他租户
     r = client.post("/api/v1/rag/retrieve",
                     json={"query": "五一活动方案", "kb_scope": "all", "top_k": 6, "tenant_id": "t_demo"},
                     headers=AUTH)
     body = r.json()["data"]
     scopes = {h["scope"] for h in body["hits"]}
     assert "department" in scopes or "global" in scopes
-    assert body["filtered_out"] >= 1  # 设计部(doc_7002)/友商租户(doc_8008)被过滤
+    # M10 起过滤前移到候选阶段（_vis_mask），`filtered_out` 由「聚合后被裁掉几条」
+    # 变成「兜底裁掉几条」，通常就是 0。断言改看真正的红线：不可见的文档进不进结果。
+    ids = {h["doc_id"] for h in body["hits"]}
+    assert "doc_7002" not in ids, "设计部文档不该出现在销售部结果里"
+    assert "doc_8008" not in ids, "其他租户文档不该出现在结果里"
 
 
 def test_kb_forbids_cross_dept_write():
@@ -147,13 +151,15 @@ def test_rag_retrieve_returns_hits():
 
 
 def test_rag_scope_filter_via_endpoint():
-    # 张三(销售部) 查「设计部品牌规范」：应被过滤（filtered_out>=1，hits 不含 design 部）
+    # 张三(销售部) 查「设计部品牌规范」：跨部门内容一律不可见
     r = client.post("/api/v1/rag/retrieve",
                     json={"query": "设计部品牌规范", "kb_scope": "all", "top_k": 10, "tenant_id": "t_demo"},
                     headers=AUTH)
     body = r.json()["data"]
-    assert body["filtered_out"] >= 1
+    # M10：候选阶段就按身份预筛，所以他根本拿不到设计部的候选——
+    # 这条 query 命中为空是**正确结果**（他没有可见的匹配文档），关键是没有泄漏。
     assert all(not (h["scope"] == "department" and h.get("dept") != "d_sales") for h in body["hits"])
+    assert "doc_7002" not in {h["doc_id"] for h in body["hits"]}
 
 
 def test_golden_size_ge_200():

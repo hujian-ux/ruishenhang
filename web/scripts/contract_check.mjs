@@ -205,6 +205,39 @@ async function main() {
   assert(!!latestEval.data.metrics && latestEval.data.golden_size > 0,
     `基线报告 (GET /eval/latest) golden=${latestEval.data.golden_size} recall@100=${latestEval.data.metrics["recall@100"]}`);
 
+  // ── M10：异步导入（提交即返回 → 轮询进度 → 终态） ──
+  const asyncDocs = Array.from({ length: 12 }, (_, i) => ({
+    title: `M10 契约异步 ${i}`,
+    filename: `m10-contract-${i}.txt`,
+    content: `M10 异步契约第 ${i} 篇 ${stamp}：区域备货上限 120 套，超储需区域经理签批。`,
+  }));
+  const submit = await fetch(`${BASE}/kb/ingest`, {
+    method: "POST", headers: H,
+    body: JSON.stringify({ documents: asyncDocs, scope: "department" }),
+  }).then((r) => r.json());
+  const job = submit.data;
+  assert(!!job.job_id && job.total === 12,
+    `异步导入已受理 (POST /kb/ingest) 任务=${job.job_id} 篇数=${job.total} 状态=${job.status}`);
+
+  let final = job;
+  for (let i = 0; i < 80; i++) {
+    final = (await fetch(`${BASE}/kb/ingest/${job.job_id}`, { headers: H }).then((r) => r.json())).data;
+    if (final.status === "done" || final.status === "failed") break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  assert(final.status === "done" && final.processed === final.total,
+    `异步导入跑完 (GET /kb/ingest/{id}) 新增=${final.added} 判重=${final.duplicated} 耗时=${final.elapsed_s}s`);
+
+  const jobList = await fetch(`${BASE}/kb/ingest?limit=5`, { headers: H }).then((r) => r.json());
+  assert(jobList.data.count >= 1 && jobList.data.jobs[0].job_id,
+    `任务列表 (GET /kb/ingest) 共 ${jobList.data.count} 条，最新=${jobList.data.jobs[0]?.status}`);
+
+  // 清场：把本次异步导入的 12 篇删掉，别污染试点语料
+  const mine = await fetch(`${BASE}/kb/documents`, { headers: H }).then((r) => r.json());
+  for (const d of (mine.data.documents || []).filter((x) => String(x.title).startsWith("M10 契约异步"))) {
+    await fetch(`${BASE}/kb/documents/${d.doc_id}`, { method: "DELETE", headers: H });
+  }
+
   for (const id of bulkIds) {
     await fetch(`${BASE}/kb/documents/${id}`, { method: "DELETE", headers: H });
   }

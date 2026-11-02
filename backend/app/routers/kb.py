@@ -13,8 +13,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.models.schemas import KbDocumentRequest, KbDocumentResponse
-from app.services import kb_store, object_store
+from app.models.schemas import KbDocumentRequest, KbDocumentResponse, KbIngestRequest
+from app.services import ingest_jobs, kb_store, object_store
 
 router = APIRouter(prefix="/kb", tags=["kb"])
 
@@ -147,6 +147,52 @@ async def bulk_upload_documents(
 async def kb_stats(caller: CallerContext = Depends(get_caller)):
     """语料画像（试点每日开机第一屏）：规模 / 分布 / 截断 / 存储与持久化状态。"""
     return {"code": 0, "data": kb_store.stats()}
+
+
+# ── M10 异步导入：提交即返回，进度靠轮询 ────────────────────────────────────
+@router.post("/ingest")
+async def create_ingest_job(req: KbIngestRequest, caller: CallerContext = Depends(get_caller)):
+    """提交异步导入任务（万篇级）。
+
+    同步 `/kb/documents/bulk` 一次最多 50 个文件，1 万篇要分 200 次请求；
+    这里一次提交整批，后台单 worker 分批入库，前端拿 `job_id` 轮询进度。
+    已入库的文档不会因为任务中断而丢——任务单只在内存，数据在 PG。
+    """
+    _guard_scope(req.scope, req.dept_id, caller)
+    rows = [{"title": d.title or (d.filename or "").rsplit(".", 1)[0] or "(无标题)",
+             "content": d.content, "filename": d.filename or ""} for d in req.documents]
+    if not rows:
+        raise HTTPException(status_code=400, detail="documents 为空")
+    try:
+        job = ingest_jobs.submit(rows, caller, scope=req.scope,
+                                 dept_id=req.dept_id, source=req.source or "async_ingest")
+    except ValueError as e:
+        raise HTTPException(status_code=413, detail=str(e))
+    return {"code": 0, "data": {**job, "object_store_available": object_store.available()}}
+
+
+@router.get("/ingest")
+async def list_ingest_jobs(limit: int = 20, caller: CallerContext = Depends(get_caller)):
+    """最近导入任务（新→旧）：本人任务，平台管理员看全租户。"""
+    jobs = ingest_jobs.list_jobs(caller, limit=max(1, min(limit, 100)))
+    return {"code": 0, "data": {"jobs": jobs, "count": len(jobs)}}
+
+
+@router.get("/ingest/{job_id}")
+async def get_ingest_job(job_id: str, caller: CallerContext = Depends(get_caller)):
+    """查导入进度：processed/total 单调递增，status=done 即全部入库完成。"""
+    job = ingest_jobs.get(job_id, caller)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或无权查看")
+    return {"code": 0, "data": job}
+
+
+@router.post("/ingest/{job_id}/cancel")
+async def cancel_ingest_job(job_id: str, caller: CallerContext = Depends(get_caller)):
+    """取消导入（尽力而为）：当前批跑完就停，已入库的不回滚。"""
+    if not ingest_jobs.cancel(job_id, caller):
+        raise HTTPException(status_code=409, detail="任务不存在、已终态或无权取消")
+    return {"code": 0, "data": {"job_id": job_id, "status": "cancelling"}}
 
 
 @router.get("/index")

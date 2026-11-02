@@ -52,7 +52,7 @@ cd web && npm install && npm run dev
 - **触发方式**：把本仓库 `git remote add origin <你的GitHub地址>` 后 `git push -u origin main`，GitHub 即自动跑该工作流（需先在仓库 Secrets/环境装好 Python 3.11，无需其他配置）。
 
 ## 与蓝图的对应（契约同源）
-- **openapi.yaml（24 paths / 24 schemas）** ←→ `backend/app/routers/*` 一一映射
+- **openapi.yaml（27 paths / 24 schemas）** ←→ `backend/app/routers/*` 一一映射
 - **第18章 单一过滤点** ←→ `core/filter.py` + `core/middleware.py`（只在网关一处）
 - **第25章 模型网关** ←→ `services/model_gateway.py` + `litellm_config.yaml`
 - **第35章 选型** ←→ `selection/framework.py`（与原型「选型向导」结果一致，导出 JSON 对齐 `/agents`）
@@ -73,6 +73,7 @@ cd web && npm install && npm run dev
 | M7 计量真实化 | 2 周 | 每次调用落一单账（token 真值优先/成本写账固化/真实 or stub 可判别）+ 五维聚合（dept/agent/model/user/day，RBAC 收敛）+ 配额红线（30 天超限 invoke 429）+ 知识库上传（三处一致、删了不再召回）+ 会话/模型管理页 | ✅ 9 项 M7 测试全过；`usage_records` 直查可对账 |
 | M8 试点就绪 | 2 周 | ① 批量语料导入（内容指纹去重/重跑幂等/失败逐条记录/索引只重建一次）② 知识库 PG 载回（重启不清零）③ 基线跑批（外部 golden 用标题反查、JSON+Markdown 报告、漂移历史）④ 成本曲线（逐日补零/月末外推/预算水位）⑤ 试点看板一屏 | ✅ 9 项 M8 测试全过；实测 250 篇导入 5.1 秒、重启仍 250 篇、加语料后 Recall@100 稳定 1.0 |
 | M9 规模化 | 2 周 | ① 向量存 (N,D) numpy 矩阵 + 倒排预筛 BM25（`knowledge.py` 重写）② 增量写入 + tombstone 删除（不再全量重建）③ embedding sqlite 持久缓存 ④ 向量后端可插拔（memory/qdrant，失败静默降级）⑤ `/kb/index` 索引健康屏 + 试点看板卡 ⑥ golden 多目标命中（`accept_titles` 同族等价）⑦ 压测基准脚本 | ✅ 8 项 M9 测试全过（总 72）；2720 篇/33712 子块 检索 p50 **17.71ms**；2720 篇 golden Recall@5/10/100 全 **1.0**、MRR **0.9659** |
+| M10 多租户规模化 | 2 周 | ① 候选阶段按身份预筛（同一份 `visible_fields`，第18章判权不复制）+ BM25 idf 粗排截断 3000 ② 异步导入任务 `/kb/ingest`（≤20000 篇/任务，进度/取消/列表）③ 对象存储 8 路并发写 ④ 索引读写加锁 ⑤ 多租户压测脚本 `bench_multitenant.py` | ✅ 7 项 M10 测试全过（总 79）；2485 篇/3 部门 × 6 身份**泄露 0、空结果 0、Recall@10 全 1.0**；p50 46ms→**19ms**；**1 万篇/122k 子块 p50 31.9ms** |
 
 ## M8 试点怎么跑（最快路径）
 
@@ -123,8 +124,27 @@ VECTOR_BACKEND=memory EMBED_CACHE=1 ./.venv/Scripts/python.exe -m uvicorn app.ma
 
 改造前后对比、规模化边界与降级策略见 `docs/M9_规模化报告.md`。
 
+## M10 多租户怎么验（三个部门共用一套索引）
+
+```bash
+cd D:/enterprise-ai-platform/backend
+
+# 多租户压测：3 部门 × 800 篇 + 其他租户噪声 + 6 个身份探针（泄露/空结果/Recall/延迟）
+./.venv/Scripts/python.exe scripts/bench_multitenant.py --per-dept 800
+./.venv/Scripts/python.exe scripts/bench_multitenant.py --per-dept 100 --with-pg   # 连真 PG
+
+# 异步导入（服务内万篇级；同步 bulk 一次只收 50 个文件）
+curl -X POST http://127.0.0.1:8080/api/v1/kb/ingest -H "Authorization: $TK" \
+     -H "Content-Type: application/json" \
+     -d '{"documents":[{"title":"x","content":"..."}],"scope":"department"}'
+curl http://127.0.0.1:8080/api/v1/kb/ingest/<job_id> -H "Authorization: $TK"     # 轮询进度
+```
+
+要点：**过滤在候选阶段就做了**（`_vis_mask`），`filtered_out` 因此通常是 0——那是兜底计数，不是「过滤没生效」。多租户细节与压测数据见 `docs/M10_多租户规模化报告.md`。
+
 ## 当前骨架已验证
-- `pytest`：**72 项全过**（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + M9×8 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**（`tests/conftest.py` 默认把 PG 指向不可达端口做隔离，`TEST_WITH_PG=1` 跑真 PG）
+- `pytest`：**79 项全过**（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + M9×8 + M10×7 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**（`tests/conftest.py` 默认把 PG 指向不可达端口做隔离，`TEST_WITH_PG=1` 跑真 PG）
+- M10 多租户实机验证（2026-11-02，模拟语料）：2485 篇 / 3 部门 / 30 358 子块，6 个身份 × 24 条 query —— **泄露 0、空结果 0、Recall@10 全 1.0**、p50 19–21ms；压测暴露并修掉「过滤在聚合之后导致空结果」（5→0，p50 46ms→19ms）；**10 000 篇 / 122 084 子块 / 500MB，p50 31.9ms、p95 71ms**
 - M9 规模化实机验证（2026-11-02，模拟语料）：220 篇/2686 子块 检索 p50 **133ms → 3.35ms**；2720 篇/33712 子块 p50 **17.71ms**、p95 21.1ms；增量写入 20 篇/批 **0.018s**（改造前 0.313s）；导入 **1100 篇/秒**；golden 补 `accept_titles` 后 Recall@5/10/100 全 1.0、MRR 0.9659（原 Recall@5 0.5909 的「坏例」经排查**全部是同族等价，真漏检 0 条**）
 - M8 实机验证（2026-11-02，模拟语料）：导入 220 篇 **5.1 秒（43 篇/秒）**；重跑整批 **全部判重、78 ms**；重启后端 `/kb/stats` 仍为 220 篇；加 30 篇后 250 篇、Recall@100 仍 1.0、Recall@10 仍 0.8864
 - 最小闭环端到端走查：`python scripts/e2e_walkthrough.py`（进程内串起 P0 三章，打印人读报告，无需起服务）

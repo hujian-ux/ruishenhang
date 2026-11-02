@@ -4,7 +4,7 @@
   ① 选型服务：POST /selection/recommend 得到 adapter_type 与落地章节
   ② 建智能体：POST /agents 落库（服务端强制 registered_by，缺选型不可发布）
   ③ 提问：     POST /rag/retrieve 走混合检索 + 父子聚合
-  ④ 过滤：     第18章单一过滤点——跨部文档不进上下文（filtered_out≥1 且不泄漏）
+  ④ 过滤：     第18章单一过滤点——跨部文档不进上下文（候选阶段预筛 + 聚合后兜底，零泄漏）
   ⑤ 评测：     eval 客观门禁（Recall@100 / objective 均 passed，不依赖 LLM-as-judge）
 """
 import sys
@@ -72,7 +72,9 @@ def test_e2e_full_loop():
                     headers=SALES_AUTH)
     assert r.status_code == 200, r.text
     ret_sales = r.json()["data"]
-    assert ret_sales["filtered_out"] >= 1, "跨部 department 文档应被过滤"
+    # M10：过滤前移到候选阶段后 filtered_out（兜底数）通常为 0，
+    # 真正的红线是「设计部文档不出现」，不再用兜底计数当证据。
+    assert ret_sales["hits"], "检索不该返回空结果"
     assert "doc_7002" not in {h["doc_id"] for h in ret_sales["hits"]}, "设计部文档不应泄漏给销售部"
 
     # 同一查询以设计部员工检索 → 该文档可见（过滤是 caller 相关，而非一刀切）

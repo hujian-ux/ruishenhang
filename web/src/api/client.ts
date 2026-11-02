@@ -94,6 +94,13 @@ export const api = {
   getKbStats: () => req<{ code: number; data: any }>("GET", "/kb/stats"),
   getKbIndex: () => req<{ code: number; data: any }>("GET", "/kb/index"),
 
+  // ── M10 异步导入（万篇级：提交即返回，轮询进度） ──
+  createKbIngest: (body: { documents: { title?: string; content: string; filename?: string }[]; scope: string }) =>
+    req<{ code: number; data: any }>("POST", "/kb/ingest", body),
+  getKbIngest: (jobId: string) => req<{ code: number; data: any }>("GET", `/kb/ingest/${jobId}`),
+  listKbIngest: (limit = 10) => req<{ code: number; data: { jobs: any[]; count: number } }>("GET", `/kb/ingest?limit=${limit}`),
+  cancelKbIngest: (jobId: string) => req<{ code: number; data: any }>("POST", `/kb/ingest/${jobId}/cancel`),
+
   // ── M8 试点：成本曲线 + 基线评测 ──
   getUsageTrend: (days = 14) => req<{ code: number; data: any }>("GET", `/usage/trend?days=${days}`),
   getEvalLatest: () => req<{ code: number; data: any; source?: string }>("GET", "/eval/latest"),

@@ -11,13 +11,32 @@ M2 业务填充（相对 M0 骨架）：
 重客户端（qdrant/sqlalchemy/minio/sentence_transformers）均懒加载；未安装时提供确定性
 实现，保证应用可导入、可演示且可跑真实检索质量评估。
 """
+import functools
 import math
 import re
+import threading
 from collections import defaultdict
 
 from app.core.config import settings
-from app.core.filter import single_filter
+from app.core.filter import single_filter, visible_fields
 from app.models.caller import CallerContext
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 并发保护（M10）：后台导入任务（/kb/ingest）与同步上传/检索会同时打进来。
+# 索引是「预分配矩阵 + 倒排表 + tombstone 位图」的组合结构，写一半被读到会看到
+# 半截状态（行数对不上、倒排指向未写入的行）。用一把可重入锁把写路径与检索串起来：
+# 进程内单写者，读也不并发 —— 3ms 的锁持有期换来「不会再出现幽灵召回」。
+# ─────────────────────────────────────────────────────────────────────────────
+_WRITE_LOCK = threading.RLock()
+
+
+def _locked(fn):
+    """串行化索引读/写（可重入：add_document → add_documents_bulk 不会自锁）。"""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _WRITE_LOCK:
+            return fn(*args, **kwargs)
+    return wrapper
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Embedding：bge 懒加载（单例缓存），否则确定性伪向量（与 bge-m3 维度对齐，CI/离线用）。
@@ -194,6 +213,17 @@ _BUILD_MS = 0.0
 _LAST_QUERY_MS = 0.0
 _QUERY_COUNT = 0
 
+# 行级权限元数据（与 _CHILDREN 同下标）：给「按身份预筛候选」用，避免每次检索都翻 dict。
+# 关键是候选阶段就要裁掉看不见的行——多部门同题语料下，聚合后再过滤会把候选窗口吃光。
+_ROW_SCOPE: list = []
+_ROW_OWNER: list = []
+_ROW_DEPT: list = []
+_ROW_TENANT: list = []
+# (tenant, dept, user, role) → 可见性掩码；None 表示「全可见，不必预筛」
+_MASK_CACHE: dict = {}
+_MASK_BUILD_MS = 0.0
+_BM25_CAND_CAP = 3000         # BM25 精算候选上限（粗排截断，见 _bm25_candidates）
+
 
 def _embed_one(text: str) -> list:
     """单条向量化（纯计算；缓存查询由 _embed_many 统一前置）。"""
@@ -305,6 +335,10 @@ def _append_parents(parents: list) -> list:
         _write_vec(row, v)
         _CHILDREN.append(c)
         _ALIVE.append(1)
+        _ROW_SCOPE.append(c.get("scope"))
+        _ROW_OWNER.append(c.get("owner"))
+        _ROW_DEPT.append(c.get("dept"))
+        _ROW_TENANT.append(c.get("tenant_id"))
         _ROWS += 1
         rows.append(row)
 
@@ -364,6 +398,11 @@ def _reindex() -> None:
     _AVGL = 1.0
     _TITLE_IDX.clear()
     _META_IDX.clear()
+    _ROW_SCOPE.clear()
+    _ROW_OWNER.clear()
+    _ROW_DEPT.clear()
+    _ROW_TENANT.clear()
+    _MASK_CACHE.clear()
     # 全量重建必须先清空向量库：row 号会重新分配，残留旧点会被召回成「幽灵文档」
     from app.services import vector_store
     if vector_store.available():
@@ -528,7 +567,37 @@ def rerank(query: str, candidates: list, qvec: list | None = None,
     return scored
 
 
-def _vector_rank(qvec: list, head: int):
+def _vis_mask(caller: CallerContext):
+    """按身份算出「可见行」掩码（O(行数)，按身份缓存）。返回 None = 全可见。
+
+    为什么要预筛（M10 多租户压测暴露）：过滤点在聚合之后，而候选窗口只有
+    top-200 子块。三个部门各有同题文档时，这 200 个候选可能全属于别的部门，
+    过滤完一条不剩 —— 用户看到「知识库没有这条制度」，而文档清清楚楚在库里
+    （实测 2400 篇 / 3 部门时出现 5 条空结果）。把同一份判权函数搬到候选阶段
+    先裁一次，既修掉空结果，也省掉对不可见行的 BM25 计算。
+
+    判权逻辑仍然只有 `filter.visible_fields` 一份（第18章），这里只是提前调用；
+    聚合后的 single_filter 照旧兜底，不删。
+    """
+    if _np is None or _ROWS == 0:
+        return None
+    key = (caller.tenantId, caller.deptId, caller.userId, caller.role)
+    if key in _MASK_CACHE:
+        return _MASK_CACHE[key]
+    t0 = _time.perf_counter()
+    mask = _np.zeros(_ROWS, dtype=bool)
+    for i in range(_ROWS):
+        if _ALIVE[i] and visible_fields(_ROW_SCOPE[i], _ROW_OWNER[i],
+                                        _ROW_DEPT[i], _ROW_TENANT[i], caller):
+            mask[i] = True
+    global _MASK_BUILD_MS
+    _MASK_BUILD_MS = round((_time.perf_counter() - t0) * 1000, 2)
+    result = None if bool(mask.all()) else mask    # 全可见就别付预筛的代价
+    _MASK_CACHE[key] = result
+    return result
+
+
+def _vector_rank(qvec: list, head: int, mask=None):
     """向量路召回：返回 (order, scores)。
 
     `scores` 在 memory 后端是**全量**分数（按行号索引的数组），qdrant 后端是只含头部的
@@ -546,7 +615,7 @@ def _vector_rank(qvec: list, head: int):
             order: list = []
             score_map: dict = {}
             for row, sc in pts:
-                if 0 <= row < _ROWS and _ALIVE[row]:
+                if 0 <= row < _ROWS and _ALIVE[row] and (mask is None or bool(mask[row])):
                     order.append(row)
                     score_map[row] = sc
             return order, score_map
@@ -564,11 +633,20 @@ def _vector_rank(qvec: list, head: int):
         # lexsort 而非 argsort：离线伪向量会产生大量完全相同的余弦分，
         # 默认 quicksort 的平局顺序不确定，同一份语料每次跑出不同 top-K，
         # 召回指标会随之抖动（实测 1.0 ↔ 0.52 来回跳）。
-        raw = _np.lexsort((_np.arange(n), -scores))[:head].tolist()
+        if mask is None:
+            raw = _np.lexsort((_np.arange(n), -scores))[:head].tolist()
+        else:
+            idx = _np.flatnonzero(mask)
+            if idx.size == 0:
+                return [], scores
+            # 平局用行号兜底（不是 idx 在数组里的位置），保证可复现
+            pick = _np.lexsort((idx, -scores[idx]))[:head]
+            raw = idx[pick].tolist()
         order = [i for i in raw if _ALIVE[i]]
         return order, scores
     out = [(_cosine(qvec, _VEC[i]) if _ALIVE[i] else -2.0) for i in range(n)]
-    raw = sorted(range(n), key=lambda i: -out[i])[:head]
+    universe = range(n) if mask is None else [i for i in range(n) if mask[i]]
+    raw = sorted(universe, key=lambda i: -out[i])[:head]
     order = [i for i in raw if _ALIVE[i]]
     return order, out
 
@@ -583,22 +661,38 @@ def _score_at(scores, i: int) -> float:
         return 0.0
 
 
-def _bm25_candidates(qtoks: set, n: int):
-    """倒排取 BM25 候选行号：只有含 query 词的子块才可能得正分。
+def _bm25_candidates(qtoks: set, n: int, mask=None):
+    """倒排取 BM25 候选行号：按「命中词的 idf 之和」粗排后截断。
 
-    候选过大（>60% 全量）时退回全量——此时 set 并集与全扫同量级，
-    再筛一遍只是白花开销。
+    为什么要截断（M10）：不截断时，query 里只要有几个高频词（"怎么""规定""的"），
+    候选就能涨到上万行，每行都要跑一次 `_bm25`——实测 2400 篇/3 万子块时
+    单次检索 46ms，其中 34ms 花在这 1.6 万次打分上。
+
+    截断是**安全的**：BM25 分母只跟文档长度有关，分子就是「命中词的 idf 之和」，
+    所以 idf 加权命中数正是 BM25 的粗排等价物。取前 3000 名再精算，
+    漏掉的只能是「只命中高频词」的行——那些行本来就排在后面。
     """
-    cand: set = set()
+    cand: dict = {}
     for t in qtoks:
         rows = _INV.get(t)
-        if rows:
-            cand.update(rows)
-    if not cand or len(cand) > int(n * 0.6):
-        return range(n)
-    return [i for i in cand if _ALIVE[i]]
+        if not rows:
+            continue
+        w = _IDF.get(t, 0.5)
+        for r in rows:
+            if not _ALIVE[r]:
+                continue
+            if mask is not None and not mask[r]:
+                continue
+            cand[r] = cand.get(r, 0.0) + w
+    if not cand:
+        return []
+    if len(cand) > _BM25_CAND_CAP:
+        top = sorted(cand.items(), key=lambda kv: (-kv[1], kv[0]))[:_BM25_CAND_CAP]
+        return [i for i, _ in top]
+    return list(cand)
 
 
+@_locked
 def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
     """混合检索 + 父子聚合 + 重排 + 第18章单一过滤（不可绕过）。
 
@@ -617,11 +711,13 @@ def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
         return [], 0
 
     # 1) 向量路：内存矩阵或 Qdrant（两者都只取前 head，够 RRF 融合用）
-    vec_order, score_map = _vector_rank(qvec, max(_RRF_HEAD, 100))
+    #    先按身份算一次可见掩码：候选阶段就裁掉看不见的行（理由见 _vis_mask 注释）
+    mask = _vis_mask(caller)
+    vec_order, score_map = _vector_rank(qvec, max(_RRF_HEAD, 100), mask=mask)
 
-    # 2) BM25 路：倒排候选
-    cand = _bm25_candidates(qtoks, n)
-    bm_scored = [(i, _bm25(qtoks, _CHILDREN[i]["_toks"])) for i in cand if _ALIVE[i]]
+    # 2) BM25 路：倒排候选（同样只算可见行，省掉无关部门的打分）
+    cand = _bm25_candidates(qtoks, n, mask)
+    bm_scored = [(i, _bm25(qtoks, _CHILDREN[i]["_toks"])) for i in cand]
     bm_scored.sort(key=lambda x: x[1], reverse=True)
     bm_order = [i for i, s in bm_scored][:max(_RRF_HEAD, 100)]
 
@@ -674,6 +770,7 @@ def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
 # ─────────────────────────────────────────────────────────────────────────────
 # 写入 / 删除（M9：增量，不再每次全量重建）
 # ─────────────────────────────────────────────────────────────────────────────
+@_locked
 def add_document(title: str, content: str, scope: str, owner: str, dept: str, tenant_id: str) -> str:
     """写入单篇（增量追加，不重建全量索引）。"""
     doc_id = "doc_" + _short_uuid()
@@ -684,9 +781,11 @@ def add_document(title: str, content: str, scope: str, owner: str, dept: str, te
     PARENTS.append(parent)
     _index_doc_meta([parent])
     _append_parents([parent])
+    _MASK_CACHE.clear()
     return doc_id
 
 
+@_locked
 def add_documents_bulk(rows: list) -> list:
     """批量写入（M8 入口，M9 改为**增量**：只处理新增文档的切块与向量化）。
 
@@ -714,11 +813,13 @@ def add_documents_bulk(rows: list) -> list:
     PARENTS.extend(parents)
     _index_doc_meta(parents)
     _append_parents(parents)
+    _MASK_CACHE.clear()      # 新文档可能改变任何身份的可见集合
     from app.services import embed_cache
     embed_cache.flush()   # 批量导入结束即落盘，重启才有得命
     return ids
 
 
+@_locked
 def remove_documents(doc_ids: list) -> int:
     """批量移除：先从语料与快表摘除，再把对应子块标 tombstone（O(块数)）。
 
@@ -730,6 +831,7 @@ def remove_documents(doc_ids: list) -> int:
     if not drop:
         return 0
 
+    _MASK_CACHE.clear()
     before = len(PARENTS)
     PARENTS[:] = [p for p in PARENTS if p["doc_id"] not in drop]
     removed = before - len(PARENTS)

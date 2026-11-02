@@ -22,6 +22,10 @@ export function KnowledgePage() {
   const [err, setErr] = useState("");
   const [preview, setPreview] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // M10 异步导入：大任务提交后轮询进度，页面可以离开再回来
+  const [ajob, setAjob] = useState<any>(null);
+  const asyncRef = useRef<HTMLInputElement>(null);
+  const pollTimer = useRef<number | null>(null);
 
   const load = async () => {
     try {
@@ -74,6 +78,65 @@ export function KnowledgePage() {
       setErr(e.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const readText = (f: File) => new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = () => reject(new Error(`读取失败：${f.name}`));
+    r.readAsText(f);
+  });
+
+  const pollJob = (id: string) => {
+    if (pollTimer.current) window.clearTimeout(pollTimer.current);
+    const tick = async () => {
+      try {
+        const r = await api.getKbIngest(id);
+        setAjob(r.data);
+        if (r.data.status === "queued" || r.data.status === "running") {
+          pollTimer.current = window.setTimeout(tick, 700);
+        } else {
+          await load();
+        }
+      } catch (e: any) {
+        setErr(e.message);
+      }
+    };
+    pollTimer.current = window.setTimeout(tick, 400);
+  };
+
+  useEffect(() => () => { if (pollTimer.current) window.clearTimeout(pollTimer.current); }, []);
+
+  const doAsyncIngest = async () => {
+    const files = Array.from(asyncRef.current?.files || []);
+    if (files.length === 0) { setErr("先选文件（不限个数，万篇级请走这里）"); return; }
+    setBusy(true); setErr(""); setMsg("");
+    try {
+      const documents = await Promise.all(files.map(async (f) => ({
+        title: f.name.replace(/\.[^.]+$/, ""),
+        filename: f.name,
+        content: await readText(f),
+      })));
+      const r = await api.createKbIngest({ documents, scope });
+      setAjob(r.data);
+      setMsg(`已提交异步任务 ${r.data.job_id}（${r.data.total} 篇）· 后台分批入库，可以离开本页`);
+      pollJob(r.data.job_id);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+      if (asyncRef.current) asyncRef.current.value = "";
+    }
+  };
+
+  const cancelJob = async () => {
+    if (!ajob) return;
+    try {
+      await api.cancelKbIngest(ajob.job_id);
+      setMsg("已请求取消：当前批跑完就停，已入库的不回滚");
+    } catch (e: any) {
+      setErr(e.message);
     }
   };
 
@@ -148,6 +211,47 @@ export function KnowledgePage() {
         </div>
         {msg && <div className="ok">{msg}</div>}
         {err && <div className="hint" style={{ color: "#c62828", marginTop: 8 }}>{err}</div>}
+      </div>
+
+      <div className="card">
+        <h3>异步导入（M10 · 万篇级任务，提交即返回，进度可查）</h3>
+        <div className="row" style={{ gap: 10, alignItems: "flex-end" }}>
+          <div className="field" style={{ flex: "1 1 300px", margin: 0 }}>
+            <label>选择文件（不限个数；单任务 ≤ 20000 篇，范围沿用上面的选择）</label>
+            <input type="file" ref={asyncRef} multiple accept={ACCEPT} />
+          </div>
+          <button className="btn" onClick={doAsyncIngest} disabled={busy}>
+            {busy ? "提交中…" : "提交异步任务"}
+          </button>
+        </div>
+        <div className="hint" style={{ marginTop: 8 }}>
+          与批量上传的区别：批量上传是同步的（一次 ≤ {MAX_BULK} 个文件、请求里等结果）；
+          异步导入提交后立刻返回任务号，服务端单线程分批入库，关掉页面也会继续跑。
+        </div>
+
+        {ajob && (
+          <div style={{ marginTop: 12 }}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+              <b>{ajob.job_id}</b>
+              <span className="hint">
+                状态 {ajob.status} · 已处理 {ajob.processed}/{ajob.total} 篇
+                {ajob.elapsed_s != null ? ` · 耗时 ${ajob.elapsed_s}s` : ""}
+              </span>
+            </div>
+            <div className="bar" style={{ marginTop: 6 }}>
+              <div className="bar-in"
+                style={{ width: `${ajob.total ? Math.min(100, (ajob.processed / ajob.total) * 100) : 0}%`,
+                         background: ajob.status === "failed" ? "#c62828" : "#2f6fed" }} />
+            </div>
+            <div className="hint" style={{ marginTop: 6 }}>
+              新增 {ajob.added} · 判重 {ajob.duplicated} · 失败 {ajob.failed}
+              {ajob.failures?.length ? `（首个失败：${ajob.failures[0].reason}）` : ""}
+            </div>
+            {(ajob.status === "running" || ajob.status === "queued") && (
+              <button className="btn ghost" style={{ marginTop: 8 }} onClick={cancelJob}>取消任务</button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="card">

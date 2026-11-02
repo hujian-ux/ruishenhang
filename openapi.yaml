@@ -898,6 +898,151 @@ paths:
                     mode: http
                     error: null
 
+  /kb/ingest:
+    post:
+      tags: [kb]
+      operationId: createKbIngestJob
+      summary: 异步导入任务（M10，万篇级：提交即返回）
+      description: >
+        同步 `/kb/documents/bulk` 一次最多 50 个文件、请求里等结果；1 万篇要分 200 次请求。
+        这里一次提交整批（≤20000 篇），服务端单 worker 每 200 篇一批入库，
+        返回 `job_id` 由 `GET /kb/ingest/{job_id}` 轮询进度。
+        任务单只存内存，重启丢任务单不丢数据（已入库的文档在 PG）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  items:
+                    type: object
+                    required: [content]
+                    properties:
+                      title: {type: string}
+                      content: {type: string}
+                      filename: {type: string}
+                scope: {type: string, enum: [personal, department, global], default: department}
+                dept_id: {type: string, nullable: true}
+            example:
+              documents:
+                - {title: "2026 渠道政策", filename: "渠道政策.md", content: "一级经销商年度返点 8%…"}
+                - {title: "售后备件", filename: "备件.md", content: "常用备件安全库存 20 套…"}
+              scope: department
+      responses:
+        '200':
+          description: 任务已受理
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  job_id: job_4cae2b30ac
+                  status: running
+                  total: 1200
+                  processed: 0
+                  added: 0
+                  duplicated: 0
+                  failed: 0
+                  failures: []
+                  scope: department
+                  dept_id: d_sales
+                  object_store_available: true
+        '400':
+          description: documents 为空
+        '403':
+          description: 越权范围（跨部门 / 员工写 global）
+        '413':
+          description: 单任务超过 20000 篇
+    get:
+      tags: [kb]
+      operationId: listKbIngestJobs
+      summary: 最近导入任务（本人；平台管理员看全租户）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: limit
+          in: query
+          schema: {type: integer, default: 20, maximum: 100}
+      responses:
+        '200':
+          description: 任务列表（新→旧）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  count: 1
+                  jobs:
+                    - {job_id: job_4cae2b30ac, status: done, total: 1200, processed: 1200, added: 1198, duplicated: 2, failed: 0, elapsed_s: 11.4}
+
+  /kb/ingest/{job_id}:
+    get:
+      tags: [kb]
+      operationId: getKbIngestJob
+      summary: 查导入进度（processed 单调递增，status=done 即完成）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: 任务详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  job_id: job_4cae2b30ac
+                  status: done
+                  total: 1200
+                  processed: 1200
+                  added: 1198
+                  duplicated: 2
+                  failed: 0
+                  failures: []
+                  chars_added: 512340
+                  elapsed_s: 11.4
+                  error: null
+        '404':
+          description: 任务不存在或无权查看
+
+  /kb/ingest/{job_id}/cancel:
+    post:
+      tags: [kb]
+      operationId: cancelKbIngestJob
+      summary: 取消导入（尽力而为：当前批跑完就停，已入库的不回滚）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: 已请求取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data: {job_id: job_4cae2b30ac, status: cancelling}
+        '409':
+          description: 任务不存在、已终态或无权取消
+
   /usage/trend:
     get:
       tags: [usage]

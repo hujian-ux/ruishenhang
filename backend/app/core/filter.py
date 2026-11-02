@@ -11,20 +11,33 @@
 from app.models.caller import CallerContext
 
 
-def visible(meta: dict, caller: CallerContext) -> bool:
-    """判定单条知识/数据对 caller 是否可见。meta 需含 tenant_id/scope/owner/dept。"""
-    if meta.get("tenant_id") and meta["tenant_id"] != caller.tenantId:
+def visible_fields(scope: str | None, owner: str | None, dept_id: str | None,
+                   tenant_id: str | None, caller: CallerContext) -> bool:
+    """判定内核（**第18章的单一定义**）：按字段判一条内容对 caller 是否可见。
+
+    为什么单拆这一层（M10）：规模化后「聚合完再过滤」会把候选窗口吃光——
+    三个部门各有同题文档时，top-200 子块可能全属于别的部门，过滤后一条不剩，
+    用户看到「知识库没有这条制度」。修法是在**候选阶段**就按可见性预筛，
+    但判权逻辑必须还是这一份，所以内核抽出来给两处调用（预筛 + 兜底），
+    不是新增第二个过滤点。
+    """
+    if tenant_id and tenant_id != caller.tenantId:
         return False
-    scope = meta.get("scope")
     if scope == "global":
         return caller.role in ("employee", "dept_admin", "platform_admin")
     if scope == "department":
-        return meta.get("dept") == caller.deptId
+        return dept_id == caller.deptId
     if scope == "owner":
-        return meta.get("owner") == caller.userId or caller.role == "platform_admin"
+        return owner == caller.userId or caller.role == "platform_admin"
     if scope == "personal":
-        return meta.get("owner") == caller.userId
+        return owner == caller.userId
     return False
+
+
+def visible(meta: dict, caller: CallerContext) -> bool:
+    """判定单条知识/数据对 caller 是否可见。meta 需含 tenant_id/scope/owner/dept。"""
+    return visible_fields(meta.get("scope"), meta.get("owner"), meta.get("dept"),
+                          meta.get("tenant_id"), caller)
 
 
 def single_filter(items: list[dict], caller: CallerContext) -> tuple[list[dict], int]:
