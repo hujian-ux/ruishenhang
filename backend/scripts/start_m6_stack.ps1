@@ -28,6 +28,12 @@ param(
 
 $ErrorActionPreference = "Continue"
 
+# 防御：同一窗口里 LLM_DEFAULT_MODEL 可能被误设成密钥串或被占位串污染，
+# 强制归一，避免把 "sk-..." 当模型名发给网关（会报 Invalid model name）。
+if ([string]::IsNullOrWhiteSpace($Model) -or $Model -match '^sk-') { $Model = "qwen-plus" }
+$env:LLM_DEFAULT_MODEL = $Model
+if (-not [string]::IsNullOrWhiteSpace($Key)) { $env:DASHSCOPE_API_KEY = $Key }
+
 $Root       = "D:\enterprise-ai-platform"
 $Backend    = Join-Path $Root "backend"
 $Python     = Join-Path $Backend ".venv\Scripts\python.exe"
@@ -84,8 +90,9 @@ function Show-LogTail([string]$Path, [int]$Lines = 8) {
 if ($Stop) {
     Say "Stopping M6 services ..."
     Get-Process litellm, minio -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # litellm.exe 的真实进程是 python.exe（命令行里带 litellm），moto 同理
     Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like "*moto.server*" } |
+        Where-Object { $_.CommandLine -like "*litellm*" -or $_.CommandLine -like "*moto.server*" } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     if (Test-Path (Join-Path $PgsqlBin "pg_ctl.exe")) {
         & (Join-Path $PgsqlBin "pg_ctl.exe") -D $PgData stop -m fast 2>&1 | Out-Null
@@ -115,7 +122,24 @@ Say "==============================================================="
 # ------------------------------------------------------------ 1) LiteLLM
 Say ""
 Say "[1/3] LiteLLM  ->  127.0.0.1:4000"
-if (Test-Port 4000) {
+$needStart = -not (Test-Port 4000)
+if (-not $needStart -and -not [string]::IsNullOrWhiteSpace($Key)) {
+    # 端口已被占用时，旧实例的环境变量（可能是中文占位密钥）改不了，
+    # 带 -Key 就必须重启，否则新密钥永远不生效。
+    $conn = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    $owner = if ($conn) { Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue } else { $null }
+    # litellm.exe 实际是 python.exe 起的壳，不能只看进程名，要看命令行里有没有 litellm
+    $ownerCmd = if ($owner) { (Get-CimInstance Win32_Process -Filter "ProcessId=$($owner.Id)" -ErrorAction SilentlyContinue).CommandLine } else { "" }
+    if ($ownerCmd -match "litellm") {
+        Say "      port 4000 held by an old litellm -> restarting to apply the new key"
+        Stop-Process -Id $owner.Id -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 3
+        $needStart = $true
+    } else {
+        Say "      port 4000 held by another process ($($owner.ProcessName)) -> leave it alone"
+    }
+}
+if (-not $needStart) {
     Say "      already listening - skip"
 } elseif (-not (Test-Path $LitellmExe)) {
     Say "      litellm.exe missing. Install it first:"
@@ -262,7 +286,8 @@ if ($SkipValidate) {
     exit 0
 }
 
-if ([string]::IsNullOrWhiteSpace($env:LLM_DEFAULT_MODEL)) { $env:LLM_DEFAULT_MODEL = $Model }
+$env:LLM_DEFAULT_MODEL = $Model
+if (-not [string]::IsNullOrWhiteSpace($Key)) { $env:DASHSCOPE_API_KEY = $Key }
 Push-Location $Backend
 & $Python (Join-Path $Backend "scripts\validate_m6.py")
 $code = $LASTEXITCODE

@@ -116,7 +116,8 @@ def main() -> None:
         answer = ans["answer"]
         is_real = not answer.startswith("[stub")
         tag = ("真实LLM生成" if is_real
-               else "调用失败→stub回退（查 DASHSCOPE_API_KEY 是否为真实 ASCII 密钥、模型名是否 qwen-plus）")
+               else "调用失败→stub回退（查 D:\\enterprise-ai-platform\\logs\\litellm.err.log："
+                    "常见原因＝密钥含中文/占位文字、或模型名被误设成密钥）")
         return True, f"模型={settings.LLM_DEFAULT_MODEL}；{tag}：{answer[:64]}"
 
     check("LiteLLM 可达 + 智能体调用（真/伪生成判别）", llm_test)

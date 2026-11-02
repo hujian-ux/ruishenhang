@@ -272,6 +272,13 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
 - **`minio.exe` 报 `Access denied. No license is installed`**：下到的是 AIStor 商业版。改用 S3 兼容的
   moto（见附录 ②），或装 Docker 用 `minio/minio` 镜像。
 - **想停掉底座**：`.\scripts\start_m6_stack.cmd -Stop`（停 litellm / moto / PG，Docker 版同时停容器）。
+- **第三项显示"调用失败→stub回退"，且 `logs\litellm.err.log` 里有 `'ascii' codec can't encode characters`**：
+  4000 端口上那个 litellm 是用**中文占位密钥**（如 `Bearer 你的密钥`）启动的旧实例，环境变量改不动。
+  现在脚本带 `-Key` 时会自动重启旧 litellm；若仍未生效，先 `-Stop` 再重跑。
+- **`Invalid model name passed in model=sk-...`**：`LLM_DEFAULT_MODEL` 被误设成了密钥串（同窗口里手误 `export` 过）。
+  脚本已强制归一为 `qwen-plus`；手工跑验证时注意别把 `LLM_DEFAULT_MODEL` 和 `DASHSCOPE_API_KEY` 写混。
+- **密钥格式**：工作空间密钥形如 `sk-ws-...`（带点、较长）也能直连百炼兼容端点，不必是 `sk-` + 32 位那种；
+  判断标准是能否 `curl` 通 `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`。
 
 ---
 
