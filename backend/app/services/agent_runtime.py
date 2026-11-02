@@ -6,11 +6,22 @@ history 由 session_store 注入：
   - 生成上下文注入（最近 N 轮对话进 generate，答案可引用历史）
 LangGraph 为可选依赖；未安装时退化为确定性 stub，保证可运行。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from app.models.caller import CallerContext
 from app.services import knowledge, model_gateway, session_store
 from app.core.config import settings
+
+
+class _AgentState(TypedDict, total=False):
+    """显式状态 schema：新版 LangGraph 只保留声明过的键（dict schema 会丢键）。"""
+    input: str
+    caller: Any
+    history: list
+    hits: list
+    filtered_out: int
+    query_rewritten: bool
+    answer: str
 
 
 def build_graph():
@@ -46,7 +57,7 @@ def build_graph():
             answer = f"[第{turn_no}轮|LLM生成] {answer}"
         return {"answer": answer}
 
-    g = StateGraph(dict)
+    g = StateGraph(_AgentState)
     g.add_node("retrieve", retrieve)
     g.add_node("generate", generate)
     g.add_edge("retrieve", "generate")
