@@ -177,6 +177,10 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
 - **litellm 起不来**：新版 LiteLLM 默认要求鉴权，报 `UnsafeMasterKeyError`。
   本地开发加环境变量 `LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true` 即可；
   生产则设 `LITELLM_MASTER_KEY`（后端同名环境变量会自动透传 `Authorization`）。
+- **调用 500，日志 `'ascii' codec can't encode characters`**：`DASHSCOPE_API_KEY` 里有中文
+  （多半是没替换占位文字）。换成阿里云百炼控制台复制的真实 ASCII 密钥（`sk-` + 一串字母数字），重启 litellm。
+- **compose 的 litellm 与 pip 版抢 4000 端口**：只起 PG 和 MinIO 即可——
+  `docker compose up -d postgres minio`，LLM 继续用 pip 版。
 - **MinIO 桶不存在**：应用首次调用会自动 `make_bucket`，无需手动建。
 - **PG 表没建**：确认 `./infra/init` 已挂载到 `/docker-entrypoint-initdb.d`；只有**首次**建库时执行，已存在的数据卷不会重复执行。
 

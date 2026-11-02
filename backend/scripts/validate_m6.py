@@ -115,7 +115,8 @@ def main() -> None:
         ans = agent_runtime.run_agent("val_agent", "用一句话说明知识库混合检索的原理。", caller, history=[])
         answer = ans["answer"]
         is_real = not answer.startswith("[stub")
-        tag = "真实LLM生成" if is_real else "无可用密钥→stub回退"
+        tag = ("真实LLM生成" if is_real
+               else "调用失败→stub回退（查 DASHSCOPE_API_KEY 是否为真实 ASCII 密钥、模型名是否 qwen-plus）")
         return True, f"模型={settings.LLM_DEFAULT_MODEL}；{tag}：{answer[:64]}"
 
     check("LiteLLM 可达 + 智能体调用（真/伪生成判别）", llm_test)
