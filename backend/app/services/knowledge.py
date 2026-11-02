@@ -295,6 +295,16 @@ def add_document(title: str, content: str, scope: str, owner: str, dept: str, te
     return doc_id
 
 
+def remove_document(doc_id: str) -> bool:
+    """从内存语料移除文档并重建索引（M7：KB 删除同步检索侧，避免"删了还能召回"）。"""
+    before = len(PARENTS)
+    PARENTS[:] = [p for p in PARENTS if p["doc_id"] != doc_id]
+    if len(PARENTS) == before:
+        return False
+    _reindex()
+    return True
+
+
 def _short_uuid() -> str:
     import uuid
     return uuid.uuid4().hex[:8]

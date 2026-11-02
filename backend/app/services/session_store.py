@@ -116,3 +116,31 @@ def session_summary(sess: Dict[str, Any]) -> Dict[str, Any]:
         "turn_count": len(sess["turns"]),
         "created_at": sess["created_at"],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M7 会话管理（列表 / 删除）：默认只看自己的会话，平台管理员可看全量
+# ─────────────────────────────────────────────────────────────────────────────
+def list_sessions(caller: CallerContext, include_all: bool = False,
+                  limit: int = 20) -> List[Dict[str, Any]]:
+    items = [s for s in _SESSIONS.values() if include_all or s["user_id"] == caller.userId]
+    items.sort(key=lambda s: (s["turns"][-1]["ts"] if s["turns"] else s["created_at"]), reverse=True)
+    out = []
+    for s in items[:limit]:
+        last = s["turns"][-1] if s["turns"] else None
+        out.append({
+            **session_summary(s),
+            "dept_id": s["dept_id"],
+            "updated_at": last["ts"] if last else s["created_at"],
+            "last_role": last["role"] if last else None,
+            "last_message": (last["content"][:80] if last else ""),
+        })
+    return out
+
+
+def delete_session(session_id: str, caller: CallerContext) -> bool:
+    """删除会话（仅创建者本人；PG 副本一并删除，避免重启后复活）。"""
+    get_session(session_id, caller)  # 不存在抛 KeyError / 非本人抛 SessionAccessError
+    _SESSIONS.pop(session_id, None)
+    pg_store.delete_row("agent_sessions", "session_id", session_id)
+    return True

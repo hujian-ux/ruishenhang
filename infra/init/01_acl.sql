@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS usage_records (
     prompt_tokens INTEGER DEFAULT 0,
     completion_tokens INTEGER DEFAULT 0,
     cost          DOUBLE PRECISION DEFAULT 0,
+    real          BOOLEAN,              -- 是否真实 LLM 生成（FALSE=stub 回退），M7 计量口径
+    latency_ms    INTEGER DEFAULT 0,    -- 端到端延迟，M7 账单附带
     created_at    TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_usage_dim ON usage_records (tenant_id, dept_id, created_at);

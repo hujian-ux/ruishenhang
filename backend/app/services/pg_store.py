@@ -44,6 +44,23 @@ def _ensure_tables() -> None:
                 payload JSONB NOT NULL,
                 updated_at TIMESTAMPTZ DEFAULT now()
             );
+            CREATE TABLE IF NOT EXISTS usage_records (
+                id BIGSERIAL PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                dept_id TEXT,
+                user_id TEXT,
+                agent_id TEXT,
+                model_id TEXT,
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                cost DOUBLE PRECISION DEFAULT 0,
+                real BOOLEAN,
+                latency_ms INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT now()
+            );
+            ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS real BOOLEAN;
+            ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS latency_ms INTEGER DEFAULT 0;
+            CREATE INDEX IF NOT EXISTS idx_usage_dim ON usage_records (tenant_id, dept_id, created_at);
         """)
 
 
@@ -83,3 +100,70 @@ def load_all(table: str) -> List[Dict[str, Any]]:
             return [r[0] for r in cur.fetchall()]
     except Exception:
         return []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M7 通用行操作（usage_records 计量用；表名走白名单，防 SQL 注入）
+# ─────────────────────────────────────────────────────────────────────────────
+def insert_usage(rec: Dict[str, Any]) -> bool:
+    """追加一条用量记录（真实 PG 行，可出账单）。失败静默，内存仍留副本。"""
+    conn = _connect()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO usage_records (tenant_id, dept_id, user_id, agent_id, model_id, "
+                "prompt_tokens, completion_tokens, cost, real, latency_ms) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (rec.get("tenant_id"), rec.get("dept_id"), rec.get("user_id"),
+                 rec.get("agent_id"), rec.get("model_id"),
+                 int(rec.get("prompt_tokens") or 0), int(rec.get("completion_tokens") or 0),
+                 float(rec.get("cost") or 0), bool(rec.get("real")),
+                 int(rec.get("latency_ms") or 0)),
+            )
+        return True
+    except Exception:
+        return False
+
+
+def load_usage(limit: int = 5000) -> List[Dict[str, Any]]:
+    """启动载回最近的用量记录（重启后账单不丢）。"""
+    conn = _connect()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT tenant_id, dept_id, user_id, agent_id, model_id, "
+                "prompt_tokens, completion_tokens, cost, real, latency_ms, "
+                "EXTRACT(EPOCH FROM created_at) FROM usage_records "
+                "ORDER BY id DESC LIMIT %s", (limit,))
+            rows = []
+            for r in cur.fetchall():
+                rows.append({
+                    "tenant_id": r[0], "dept_id": r[1], "user_id": r[2], "agent_id": r[3],
+                    "model_id": r[4], "prompt_tokens": int(r[5] or 0),
+                    "completion_tokens": int(r[6] or 0), "cost": float(r[7] or 0),
+                    "real": bool(r[8]) if r[8] is not None else None,
+                    "latency_ms": int(r[9] or 0),
+                    "ts": float(r[10] or 0),
+                })
+            return rows
+    except Exception:
+        return []
+
+
+def delete_row(table: str, key_col: str, key: str) -> bool:
+    """按主键删除一行（会话删除用）。表/列名白名单。"""
+    if table not in _KEY_COL:
+        return False
+    conn = _connect()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"DELETE FROM {table} WHERE {key_col} = %s", (key,))
+        return True
+    except Exception:
+        return False

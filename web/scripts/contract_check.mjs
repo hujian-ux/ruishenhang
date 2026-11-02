@@ -105,6 +105,69 @@ async function main() {
   const sessBody = await sess.json();
   assert(sess.status === 200 && sessBody.data.turn_count === 4, `会话记忆查询 (GET /agent/sessions) turn_count=${sessBody.data?.turn_count}`);
 
+  // ── 9) M7 计量：调用后立即出账（token 真值 + 成本） ──
+  const recs = await fetch(`${BASE}/usage/records?limit=20`, { headers: H }).then((r) => r.json());
+  const rec = recs.data.records.find((x) => x.agent_id === agentId);
+  assert(!!rec, "计量明细含本次调用的账单 (GET /usage/records)");
+  assert(rec.prompt_tokens > 0 && rec.completion_tokens > 0,
+    `token 落账：入 ${rec.prompt_tokens} / 出 ${rec.completion_tokens}`);
+  assert(typeof rec.cost === "number" && rec.cost >= 0, `成本按单价折算：¥${rec.cost}`);
+  assert(typeof rec.real === "boolean", `生成方式可判别：${rec.real ? "真实 LLM" : "stub 回退"}`);
+
+  const sum = await fetch(`${BASE}/usage/summary?dimension=model`, { headers: H }).then((r) => r.json());
+  assert(sum.data.rows.length > 0 && sum.data.total.total_tokens > 0,
+    `按模型聚合 (GET /usage/summary) 共 ${sum.data.total.total_tokens} tokens`);
+
+  const quota = await fetch(`${BASE}/usage/quota`, { headers: H }).then((r) => r.json());
+  assert(quota.data.used_tokens > 0 && quota.data.exceeded === false,
+    `配额水位 ${quota.data.used_pct}%（未超限，超限则 invoke 429）`);
+
+  // ── 10) M7 会话管理：列表可见 + 他人不可删（403） ──
+  const sessList = await fetch(`${BASE}/agent/sessions`, { headers: H }).then((r) => r.json());
+  assert(sessList.data.sessions.some((s) => s.session_id === sid), "会话列表含刚建的会话 (GET /agent/sessions)");
+  const delByOther = await fetch(`${BASE}/agent/sessions/${sid}`, { method: "DELETE", headers: AH });
+  assert(delByOther.status === 403, "跨用户删除会话被拒（403，归属校验）");
+
+  // ── 11) M7 知识库上传 → 可召回 → 删除 ──
+  const marker = "契约验收标记词";
+  const fd = new FormData();
+  fd.append("file", new Blob([`${marker}：契约脚本上传的验收文档正文。`], { type: "text/plain" }), "contract.txt");
+  fd.append("title", marker);
+  fd.append("scope", "department");
+  const up = await fetch(`${BASE}/kb/documents/upload`, { method: "POST", headers: { Authorization: token }, body: fd });
+  const upBody = await up.json();
+  assert(up.status === 200 && upBody.data.indexed === true,
+    `文件上传入库 (POST /kb/documents/upload) doc=${upBody.data?.doc_id} indexed=${upBody.data?.indexed}`);
+  const docId = upBody.data.doc_id;
+
+  const kbHits = await fetch(`${BASE}/rag/retrieve`, {
+    method: "POST", headers: H,
+    body: JSON.stringify({ query: marker, kb_scope: "all", top_k: 6, tenant_id: "t_demo" }),
+  }).then((r) => r.json());
+  assert(kbHits.data.hits.some((h) => h.doc_id === docId), "上传后立即可被召回（同一份索引，无二次同步）");
+
+  const del = await fetch(`${BASE}/kb/documents/${docId}`, { method: "DELETE", headers: H });
+  assert(del.status === 200, "删除知识文档 (DELETE /kb/documents/{id}) 三处同步清理");
+
+  // ── 12) M7 模型管理：员工无权启停（403）→ 管理员可停/启 ──
+  const toggleByEmp = await fetch(`${BASE}/models/qwen-turbo`, {
+    method: "PATCH", headers: H, body: JSON.stringify({ status: "inactive" }),
+  });
+  assert(toggleByEmp.status === 403, "员工启停模型被拒（403）");
+  const off = await fetch(`${BASE}/models/qwen-turbo`, {
+    method: "PATCH", headers: AH, body: JSON.stringify({ status: "inactive" }),
+  }).then((r) => r.json());
+  assert(off.data.model.status === "inactive", "管理员停用模型 (PATCH /models/{id}) 生效");
+  const activeList = await fetch(`${BASE}/models`, { headers: H }).then((r) => r.json());
+  assert(!activeList.data.models.some((m) => m.model_id === "qwen-turbo"), "停用后默认列表不再返回该模型");
+  await fetch(`${BASE}/models/qwen-turbo`, { method: "PATCH", headers: AH, body: JSON.stringify({ status: "active" }) });
+  const gw = await fetch(`${BASE}/models/gateway`, { headers: H }).then((r) => r.json());
+  assert(typeof gw.data.available === "boolean", `网关探活 (GET /models/gateway) available=${gw.data.available}`);
+
+  // ── 13) 收尾：删除本次会话（验证归属内可删） ──
+  const delOwn = await fetch(`${BASE}/agent/sessions/${sid}`, { method: "DELETE", headers: H });
+  assert(delOwn.status === 200, "本人删除会话成功（PG 副本同步删除）");
+
   console.log("─".repeat(56));
   console.log(process.exitCode ? "契约验证存在失败项 ✗" : "前端联调契约全部通过 ✓（浏览器经 Vite 代理等价）");
 }

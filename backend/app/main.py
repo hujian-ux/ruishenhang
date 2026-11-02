@@ -11,19 +11,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.middleware import GatewayMiddleware
 from app.routers import agents, approval, auth, invoke, kb, models, rag, selection, usage
-from app.services import approval_store, pg_store, session_store
+from app.services import approval_store, pg_store, session_store, usage_store
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """M6：PG 就绪时把会话/审批单载回内存（重启不丢）；不可达时静默用内存。"""
+    """PG 就绪时把会话/审批单/用量记录载回内存（重启不丢）；不可达时静默用内存。"""
     session_store.load_from_pg()
     approval_store.load_from_pg()
+    usage_store.load_from_pg()   # M7：重启后账单不清零
     pg_store._connect()  # 触发建表/探活（一次性）
     yield
 
 
-app = FastAPI(title="企业 AI 智能体中台", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="企业 AI 智能体中台", version="0.5.0", lifespan=lifespan)
 
 # 网关中间件：身份注入 + 单一过滤点前置（拆容器后整体迁到 api-gateway）
 app.add_middleware(GatewayMiddleware)

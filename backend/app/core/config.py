@@ -32,6 +32,10 @@ class Settings:
     # M6：对话默认路由的 model_id（LiteLLM model_list 里的一项）；探活通过走真生成，否则 stub
     LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "gpt-4o-mini")
 
+    # M7 计量配额：部门滚动 30 天 token 上限（0 = 不限额）。超限调用直接 429，
+    # 不是事后告警——计费在调用链路上是红线，不只是报表。
+    USAGE_QUOTA_TOKENS = int(_env("USAGE_QUOTA_TOKENS", "2000000"))
+
     # 决策：中文 Embedding 选 bge（bge-m3，维度 1024）
     # 真实模型开关：默认 0（确定性伪向量，离线/CI 稳定，不会触发 HF 下载）。
     # 开 1 时本地须已缓存模型（或设 HF_ENDPOINT=https://hf-mirror.com 走国内镜像）。

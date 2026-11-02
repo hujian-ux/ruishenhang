@@ -22,6 +22,27 @@ class _AgentState(TypedDict, total=False):
     filtered_out: int
     query_rewritten: bool
     answer: str
+    usage: dict
+
+
+SYSTEM_PROMPT = "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"
+
+
+def _call_llm(prompt: str) -> Dict[str, Any]:
+    """调模型网关并带回用量（M7：token/延迟原样上抛，由路由层落账）。"""
+    out = model_gateway.chat_sync_ex(settings.LLM_DEFAULT_MODEL, [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ])
+    return {
+        "text": out["text"],
+        "real": out["real"],
+        "model_id": out["model_id"],
+        "usage": out["usage"],
+        "latency_ms": out["latency_ms"],
+        "prompt_text": prompt,          # 无 usage 时供估算兜底
+        "completion_text": out["text"],
+    }
 
 
 def build_graph():
@@ -49,13 +70,11 @@ def build_graph():
                   f"授权片段：{ctx or '暂无'}\n"
                   + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
                   + f"用户问题：{state['input']}")
-        answer = model_gateway.chat_sync(settings.LLM_DEFAULT_MODEL, [
-            {"role": "system", "content": "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"},
-            {"role": "user", "content": prompt},
-        ])
+        llm = _call_llm(prompt)
+        answer = llm["text"]
         if not answer.startswith("[stub"):
             answer = f"[第{turn_no}轮|LLM生成] {answer}"
-        return {"answer": answer}
+        return {"answer": answer, "usage": llm}
 
     g = StateGraph(_AgentState)
     g.add_node("retrieve", retrieve)
@@ -78,6 +97,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         return {"answer": result["answer"], "citations": citations,
                 "query_rewritten": result.get("query_rewritten", False),
                 "turn_no": 1 + sum(1 for t in history if t["role"] == "user"),
+                "usage": result.get("usage") or {},
                 "tool_calls": [{"tool": "rag_retrieve", "authorized": True},
                                {"tool": "session_memory", "authorized": True}]}
     except RuntimeError:
@@ -91,10 +111,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                   f"授权片段：{ctx or '暂无'}\n"
                   + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
                   + f"用户问题：{user_input}")
-        answer = model_gateway.chat_sync(settings.LLM_DEFAULT_MODEL, [
-            {"role": "system", "content": "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"},
-            {"role": "user", "content": prompt},
-        ])
+        llm = _call_llm(prompt)
+        answer = llm["text"]
         if not answer.startswith("[stub"):
             answer = f"[stub|第{turn_no}轮|LLM生成] {answer}"
         elif query != user_input:
@@ -103,5 +121,6 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                 "citations": [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]} for h in hits],
                 "query_rewritten": query != user_input,
                 "turn_no": turn_no,
+                "usage": llm,
                 "tool_calls": [{"tool": "rag_retrieve", "authorized": True},
                                {"tool": "session_memory", "authorized": True}]}

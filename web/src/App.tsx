@@ -3,6 +3,10 @@ import { api, setToken } from "./api/client";
 import { AgentsPage } from "./pages/Agents";
 import { ChatPage } from "./pages/Chat";
 import { ApprovalPage } from "./pages/Approval";
+import { UsagePage } from "./pages/Usage";
+import { KnowledgePage } from "./pages/Knowledge";
+import { SessionsPage } from "./pages/Sessions";
+import { ModelsPage } from "./pages/Models";
 
 const STYLE = `
 :root{--navy:#0a2540;--blue:#1565c0;--accent:#2d7ff9;--bg:#f6f8fb;--card:#fff;--line:#dbe6f2;--ink:#1f2d3d;--muted:#5b7185;}
@@ -25,25 +29,17 @@ const STYLE = `
 .seg.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .ok{margin-top:10px;padding:10px 12px;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;color:#2e7d32;font-size:13px}
 .hint{font-size:12px;color:var(--muted)}
+.kpi{flex:1 1 150px;background:#f8fbfe;border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.kpi span{font-size:11.5px;color:var(--muted)}
+.kpi b{font-size:19px;color:var(--navy);line-height:1.2}
+.kpi i{font-size:11px;color:var(--muted);font-style:normal}
+.bar{height:8px;background:#e8eff8;border-radius:20px;overflow:hidden}
+.bar-in{height:100%;border-radius:20px;transition:width .3s}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);padding:7px 6px;white-space:nowrap}
+.tbl td{padding:7px 6px;border-bottom:1px solid #eef3f9;vertical-align:top}
+.tbl tr:hover td{background:#fafcff}
 `;
-
-function ModelsPage() {
-  const [models, setModels] = useState<any[]>([]);
-  useEffect(() => {
-    api.listModels().then((r) => setModels(r.data.models)).catch(() => setModels([]));
-  }, []);
-  return (
-    <div className="card">
-      <h3>模型注册表（第25章 · 可插拔）</h3>
-      {models.length === 0 && <div className="hint">加载中或后端未启动…</div>}
-      {models.map((m) => (
-        <div key={m.model_id} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
-          <span className="tag">{m.vendor}</span> <b>{m.model_id}</b> · {m.adapter} · 能力 [{m.capabilities.join(",")}]
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function RetrievePage() {
   const [q, setQ] = useState("五一活动方案");
@@ -71,7 +67,7 @@ function RetrievePage() {
 
 export function App() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<"agents" | "chat" | "approval" | "models" | "retrieve">("agents");
+  const [tab, setTab] = useState<"agents" | "chat" | "sessions" | "approval" | "kb" | "usage" | "models" | "retrieve">("agents");
   const [user, setUser] = useState<any>(null);
 
   const doLogin = (code: string) => {
@@ -83,16 +79,25 @@ export function App() {
   useEffect(() => { doLogin("dev"); }, []);
   const isAdmin = user?.role === "platform_admin" || user?.role === "dept_admin";
 
+  const NAV: { k: typeof tab; label: string }[] = [
+    { k: "agents", label: "选型 / 建智能体" },
+    { k: "chat", label: "智能体对话（会话记忆）" },
+    { k: "sessions", label: "会话管理" },
+    { k: "approval", label: "审批台（发布评审）" },
+    { k: "kb", label: "知识库上传" },
+    { k: "usage", label: "用量与成本" },
+    { k: "models", label: "模型管理" },
+    { k: "retrieve", label: "召回演示" },
+  ];
+
   return (
     <div className="app">
       <style>{STYLE}</style>
       <div className="side">
         <h1>企业 AI 智能体中台</h1>
-        <div className={"nav " + (tab === "agents" ? "on" : "")} onClick={() => setTab("agents")}>选型 / 建智能体</div>
-        <div className={"nav " + (tab === "chat" ? "on" : "")} onClick={() => setTab("chat")}>智能体对话（会话记忆）</div>
-        <div className={"nav " + (tab === "approval" ? "on" : "")} onClick={() => setTab("approval")}>审批台（发布评审）</div>
-        <div className={"nav " + (tab === "models" ? "on" : "")} onClick={() => setTab("models")}>模型注册表</div>
-        <div className={"nav " + (tab === "retrieve" ? "on" : "")} onClick={() => setTab("retrieve")}>召回演示</div>
+        {NAV.map((n) => (
+          <div key={n.k} className={"nav " + (tab === n.k ? "on" : "")} onClick={() => setTab(n.k)}>{n.label}</div>
+        ))}
         <div style={{ marginTop: 18, padding: "0 6px", fontSize: 11.5, color: "#9db8d9" }}>
           当前身份：{user ? `${user.name}（${user.role}）` : "…"}
           <div style={{ marginTop: 6 }}>
@@ -106,8 +111,11 @@ export function App() {
         {!ready && <div className="hint">正在签发 dev token …</div>}
         {ready && tab === "agents" && <AgentsPage />}
         {ready && tab === "chat" && <ChatPage />}
+        {ready && tab === "sessions" && <SessionsPage />}
         {ready && tab === "approval" && <ApprovalPage />}
-        {ready && tab === "models" && <ModelsPage />}
+        {ready && tab === "kb" && <KnowledgePage />}
+        {ready && tab === "usage" && <UsagePage />}
+        {ready && tab === "models" && <ModelsPage isAdmin={isAdmin} />}
         {ready && tab === "retrieve" && <RetrievePage />}
       </div>
     </div>

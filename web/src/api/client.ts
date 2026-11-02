@@ -24,6 +24,21 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return res.json() as Promise<T>;
 }
 
+// 文件上传走 multipart，不能带 Content-Type（浏览器自动补 boundary）
+async function uploadFile(path: string, form: FormData): Promise<any> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: token } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export const api = {
   login: (code = "dev") => req<{ code: number; data: { token: string; user: any } }>("POST", "/auth/sso/callback", {
     provider: "wecom", code, device_id: "dev", state: "x",
@@ -50,6 +65,34 @@ export const api = {
   pendingApprovals: () => req<{ code: number; data: { count: number; tickets: any[] } }>("GET", "/approval/pending"),
   decideApproval: (approvalId: string, decision: "approve" | "reject", comment?: string) =>
     req<any>("POST", `/approval/${approvalId}/decide`, { decision, comment }),
+
+  // ── M7 计量（第25章）：真实落账 + 多维聚合 + 配额 ──
+  getUsage: (dimension: string, days = 30) =>
+    req<any>("GET", `/usage/summary?dimension=${dimension}&days=${days}`),
+  getUsageRecords: (limit = 50) => req<any>("GET", `/usage/records?limit=${limit}`),
+  getQuota: () => req<any>("GET", "/usage/quota"),
+
+  // ── M7 知识库：上传 / 列表 / 读回 / 删除 ──
+  listKbDocuments: () => req<{ code: number; data: { documents: any[]; count: number; object_store_available: boolean } }>("GET", "/kb/documents"),
+  uploadKbDocument: (file: File, title: string, scope: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    form.append("scope", scope);
+    return uploadFile("/kb/documents/upload", form);
+  },
+  getKbContent: (docId: string) => req<any>("GET", `/kb/documents/${docId}/content`),
+  deleteKbDocument: (docId: string) => req<any>("DELETE", `/kb/documents/${docId}`),
+
+  // ── M7 会话管理 ──
+  listSessions: (limit = 20) => req<{ code: number; data: { sessions: any[]; count: number } }>("GET", `/agent/sessions?limit=${limit}`),
+  deleteSession: (sessionId: string) => req<any>("DELETE", `/agent/sessions/${sessionId}`),
+
+  // ── M7 模型管理 ──
+  listModelsAll: (status = "all") => req<{ code: number; data: { models: any[]; gateway: any } }>("GET", `/models?status=${status}`),
+  gatewayHealth: () => req<any>("GET", "/models/gateway"),
+  toggleModel: (modelId: string, status: "active" | "inactive") =>
+    req<any>("PATCH", `/models/${modelId}`, { status }),
 };
 
 // 第35章选型规则（本地兜底，与后端 selection/framework.py 同源；后端不可达时使用）

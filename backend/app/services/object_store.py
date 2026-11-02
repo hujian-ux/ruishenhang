@@ -70,3 +70,16 @@ def get_text(key: str) -> str:
         except Exception:
             pass
     return _FALLBACK.get(key, "")
+
+
+def delete_text(key: str) -> bool:
+    """删除文档原文（M7 KB 删除：对象存储与检索语料同步清理）。"""
+    _FALLBACK.pop(key, None)
+    c = _get_client()
+    if not c:
+        return False
+    try:
+        c.remove_object(settings.MINIO_BUCKET, key)
+        return True
+    except Exception:
+        return False
