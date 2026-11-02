@@ -164,6 +164,40 @@ async function main() {
   const gw = await fetch(`${BASE}/models/gateway`, { headers: H }).then((r) => r.json());
   assert(typeof gw.data.available === "boolean", `网关探活 (GET /models/gateway) available=${gw.data.available}`);
 
+  // ── 12b) M8 试点：批量上传去重 / 语料画像 / 成本曲线 / 基线报告 ──
+  const stamp = Date.now();
+  const mkForm = () => {
+    const f = new FormData();
+    f.append("files", new Blob([`M8 批量契约甲 ${stamp}：区域备货上限 120 套，超储需区域经理签批。`], { type: "text/plain" }), `m8-a-${stamp}.txt`);
+    f.append("files", new Blob([`M8 批量契约乙 ${stamp}：售后工单两小时未响应自动升级到大区。`], { type: "text/plain" }), `m8-b-${stamp}.txt`);
+    f.append("scope", "department");
+    return f;
+  };
+  const bulk = await fetch(`${BASE}/kb/documents/bulk`, { method: "POST", headers: { Authorization: token }, body: mkForm() });
+  const bulkBody = await bulk.json();
+  assert(bulk.status === 200 && bulkBody.data.added === 2,
+    `多文件批量上传 (POST /kb/documents/bulk) 新增 ${bulkBody.data?.added} 篇`);
+  const bulkIds = (bulkBody.data?.docs || []).map((d) => d.doc_id);
+  const bulkAgain = await fetch(`${BASE}/kb/documents/bulk`, { method: "POST", headers: { Authorization: token }, body: mkForm() })
+    .then((r) => r.json());
+  assert(bulkAgain.data.duplicated === 2 && bulkAgain.data.added === 0, "同内容重传被去重（导入幂等）");
+
+  const stats = await fetch(`${BASE}/kb/stats`, { headers: H }).then((r) => r.json());
+  assert(typeof stats.data.documents === "number" && stats.data.index_char_cap > 0,
+    `语料画像 (GET /kb/stats) 篇数=${stats.data.documents} 索引上限=${stats.data.index_char_cap}`);
+
+  const trend = await fetch(`${BASE}/usage/trend?days=7`, { headers: H }).then((r) => r.json());
+  assert(trend.data.series.length === 7 && "budget_status" in trend.data,
+    `成本曲线 (GET /usage/trend) 7 天连续 · 预算水位=${trend.data.budget_status} · 外推 ¥${trend.data.projected_month_cost}`);
+
+  const latestEval = await fetch(`${BASE}/eval/latest`, { headers: H }).then((r) => r.json());
+  assert(!!latestEval.data.metrics && latestEval.data.golden_size > 0,
+    `基线报告 (GET /eval/latest) golden=${latestEval.data.golden_size} recall@100=${latestEval.data.metrics["recall@100"]}`);
+
+  for (const id of bulkIds) {
+    await fetch(`${BASE}/kb/documents/${id}`, { method: "DELETE", headers: H });
+  }
+
   // ── 13) 收尾：删除本次会话（验证归属内可删） ──
   const delOwn = await fetch(`${BASE}/agent/sessions/${sid}`, { method: "DELETE", headers: H });
   assert(delOwn.status === 200, "本人删除会话成功（PG 副本同步删除）");

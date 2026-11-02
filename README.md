@@ -70,9 +70,34 @@ cd web && npm install && npm run dev
 | M4 编排与记忆 | 2 周 | `/agent/invoke` 多轮编排（LangGraph 记忆接入：query 改写+上下文注入）+ 会话记忆（归属校验/滑动窗口）+ `/agent/sessions/{id}` 查询 | ✅ 7 项 M4 测试全过；跨智能体/跨用户隔离验证通过 |
 | M5 审批流 | 1 周 | 注册自动开审批单；`/approval/{id}/decide` 真实决策（dept_admin 限本部门/重复决策 409）+ `/approval/pending` 待审列表；**发布红线：未 published 一律 403 不可调用**；dev 登录支持管理员身份切换 | ✅ 9 项 M5 测试全过；红线→审批→发布→可调用 全链路验证 |
 | M6 基础设施接入 | 2 周 | ① 模型网关真生成（LiteLLM 探活+同步调用，离线 stub 兜底）② 会话/审批单 PG 写穿持久化（`pg_store`，重启载回）③ 知识文档 MinIO 对象存储（`object_store`，离线 memory 兜底）+ kb 列表/原文读回端点 | ✅ 6 项 M6 测试全过；compose up 后自动启用真设施，离线全链路不中断 |
+| M7 计量真实化 | 2 周 | 每次调用落一单账（token 真值优先/成本写账固化/真实 or stub 可判别）+ 五维聚合（dept/agent/model/user/day，RBAC 收敛）+ 配额红线（30 天超限 invoke 429）+ 知识库上传（三处一致、删了不再召回）+ 会话/模型管理页 | ✅ 9 项 M7 测试全过；`usage_records` 直查可对账 |
+| M8 试点就绪 | 2 周 | ① 批量语料导入（内容指纹去重/重跑幂等/失败逐条记录/索引只重建一次）② 知识库 PG 载回（重启不清零）③ 基线跑批（外部 golden 用标题反查、JSON+Markdown 报告、漂移历史）④ 成本曲线（逐日补零/月末外推/预算水位）⑤ 试点看板一屏 | ✅ 9 项 M8 测试全过；实测 250 篇导入 5.1 秒、重启仍 250 篇、加语料后 Recall@100 稳定 1.0 |
+
+## M8 试点怎么跑（最快路径）
+
+```bash
+cd D:/enterprise-ai-platform/backend
+
+# 1) 底座（PG 5432 / 对象存储 9000 / LiteLLM 4000）
+./scripts/start_m6_stack.cmd -SkipValidate
+
+# 2) 批量导入（先干跑看清单）；--scope department --dept d_sales
+./.venv/Scripts/python.exe scripts/ingest_corpus.py --dir D:/corpus/sales --dry-run
+./.venv/Scripts/python.exe scripts/ingest_corpus.py --dir D:/corpus/sales --scope department --dept d_sales
+
+# 3) 基线评测（golden 只写 query + expected_title）
+./.venv/Scripts/python.exe scripts/eval_baseline.py --golden D:/corpus/golden.jsonl --gate
+
+# 4) 试点模式起后端（关演示语料，避免污染真实召回）
+SEED_DEMO_CORPUS=0 ./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8080
+```
+
+报告落 `backend/reports/`：`ingest_report.md`、`baseline.md`、`history.jsonl`（漂移）、`latest.json`（看板读它）。
+完整两周 SOP 见 `docs/M8_试点运行手册.md`；没有真实语料时可先 `scripts/gen_pilot_corpus.py` 生成模拟语料压测链路。
 
 ## 当前骨架已验证
-- `pytest`：46 项全过（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4 会话记忆×7 + M5 审批流×9 + M6 基础设施×6 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证
+- `pytest`：64 项全过（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**
+- M8 实机验证（2026-11-02，模拟语料）：导入 220 篇 **5.1 秒（43 篇/秒）**；重跑整批 **全部判重、78 ms**；重启后端 `/kb/stats` 仍为 220 篇；加 30 篇后 250 篇、Recall@100 仍 1.0、Recall@10 仍 0.8864
 - 最小闭环端到端走查：`python scripts/e2e_walkthrough.py`（进程内串起 P0 三章，打印人读报告，无需起服务）
 - **前端 React 联调已验证**：`npm run build` 通过（TS 编译 + Vite 打包 150KB/gzip 49KB）；选型向导改为异步调后端 `/selection/recommend`（本地规则兜底），`node web/scripts/contract_check.mjs` 复刻浏览器 fetch 链路（login→models→选型→召回→注册→**M4 对话/会话记忆**）全部通过；Vite dev server 经 `/api` 代理打到真实后端（127.0.0.1:8080），根页面 200、代理接口返回完整选型数据。
 - **前端智能体对话页（M4）**：`web/src/pages/Chat.tsx` —— 多轮聊天 + 会话记忆可视化（轮次数/query 改写标记/会话记忆 JSON 查看）；智能体下拉从 `/agents` 实时拉取。

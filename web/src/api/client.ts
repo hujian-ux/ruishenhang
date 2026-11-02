@@ -84,6 +84,21 @@ export const api = {
   getKbContent: (docId: string) => req<any>("GET", `/kb/documents/${docId}/content`),
   deleteKbDocument: (docId: string) => req<any>("DELETE", `/kb/documents/${docId}`),
 
+  // ── M8 试点：批量上传（服务端去重 + 只重建一次索引）/ 语料画像 ──
+  bulkUploadKbDocuments: (files: File[], scope: string) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    form.append("scope", scope);
+    return uploadFile("/kb/documents/bulk", form);
+  },
+  getKbStats: () => req<{ code: number; data: any }>("GET", "/kb/stats"),
+
+  // ── M8 试点：成本曲线 + 基线评测 ──
+  getUsageTrend: (days = 14) => req<{ code: number; data: any }>("GET", `/usage/trend?days=${days}`),
+  getEvalLatest: () => req<{ code: number; data: any; source?: string }>("GET", "/eval/latest"),
+  getEvalHistory: (limit = 14) => req<{ code: number; data: { rows: any[]; count: number } }>("GET", `/eval/history?limit=${limit}`),
+  runEval: (limit = 0) => req<any>("POST", `/eval/run${limit ? `?limit=${limit}` : ""}`),
+
   // ── M7 会话管理 ──
   listSessions: (limit = 20) => req<{ code: number; data: { sessions: any[]; count: number } }>("GET", `/agent/sessions?limit=${limit}`),
   deleteSession: (sessionId: string) => req<any>("DELETE", `/agent/sessions/${sessionId}`),

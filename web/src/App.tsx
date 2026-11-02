@@ -7,6 +7,7 @@ import { UsagePage } from "./pages/Usage";
 import { KnowledgePage } from "./pages/Knowledge";
 import { SessionsPage } from "./pages/Sessions";
 import { ModelsPage } from "./pages/Models";
+import { PilotPage } from "./pages/Pilot";
 
 const STYLE = `
 :root{--navy:#0a2540;--blue:#1565c0;--accent:#2d7ff9;--bg:#f6f8fb;--card:#fff;--line:#dbe6f2;--ink:#1f2d3d;--muted:#5b7185;}
@@ -67,7 +68,7 @@ function RetrievePage() {
 
 export function App() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<"agents" | "chat" | "sessions" | "approval" | "kb" | "usage" | "models" | "retrieve">("agents");
+  const [tab, setTab] = useState<"agents" | "chat" | "sessions" | "approval" | "kb" | "usage" | "pilot" | "models" | "retrieve">("agents");
   const [user, setUser] = useState<any>(null);
 
   const doLogin = (code: string) => {
@@ -86,6 +87,7 @@ export function App() {
     { k: "approval", label: "审批台（发布评审）" },
     { k: "kb", label: "知识库上传" },
     { k: "usage", label: "用量与成本" },
+    { k: "pilot", label: "试点看板（M8）" },
     { k: "models", label: "模型管理" },
     { k: "retrieve", label: "召回演示" },
   ];
@@ -115,6 +117,7 @@ export function App() {
         {ready && tab === "approval" && <ApprovalPage />}
         {ready && tab === "kb" && <KnowledgePage />}
         {ready && tab === "usage" && <UsagePage />}
+        {ready && tab === "pilot" && <PilotPage isAdmin={isAdmin} />}
         {ready && tab === "models" && <ModelsPage isAdmin={isAdmin} />}
         {ready && tab === "retrieve" && <RetrievePage />}
       </div>

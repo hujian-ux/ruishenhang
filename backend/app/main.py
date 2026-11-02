@@ -10,21 +10,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.middleware import GatewayMiddleware
-from app.routers import agents, approval, auth, invoke, kb, models, rag, selection, usage
-from app.services import approval_store, pg_store, session_store, usage_store
+from app.routers import agents, approval, auth, eval as eval_router, invoke, kb, models, rag, selection, usage
+from app.services import approval_store, kb_store, pg_store, session_store, usage_store
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """PG 就绪时把会话/审批单/用量记录载回内存（重启不丢）；不可达时静默用内存。"""
+    """PG 就绪时把会话/审批单/用量记录/知识文档载回内存（重启不丢）；不可达时静默用内存。"""
     session_store.load_from_pg()
     approval_store.load_from_pg()
     usage_store.load_from_pg()   # M7：重启后账单不清零
+    kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
     pg_store._connect()  # 触发建表/探活（一次性）
     yield
 
 
-app = FastAPI(title="企业 AI 智能体中台", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="企业 AI 智能体中台", version="0.8.0", lifespan=lifespan)
 
 # 网关中间件：身份注入 + 单一过滤点前置（拆容器后整体迁到 api-gateway）
 app.add_middleware(GatewayMiddleware)
@@ -45,6 +46,7 @@ app.include_router(kb.router, prefix=settings.API_PREFIX)
 app.include_router(models.router, prefix=settings.API_PREFIX)
 app.include_router(usage.router, prefix=settings.API_PREFIX)
 app.include_router(approval.router, prefix=settings.API_PREFIX)
+app.include_router(eval_router.router, prefix=settings.API_PREFIX)  # M8：基线评测最近报告
 
 
 @app.get("/healthz")

@@ -754,6 +754,193 @@ paths:
                   used_pct: 0.92
                   exceeded: false
                   window_days: 30
+
+  # ───────────────────────── M8 试点（Pilot-Ready） ─────────────────────────
+  /kb/documents/bulk:
+    post:
+      tags: [kb]
+      operationId: bulkUploadKbDocuments
+      summary: 多文件批量上传（M8，服务端去重 + 只重建一次索引）
+      description: >
+        一次请求收多篇（≤50），同租户内内容指纹（sha256）相同的只入一次，返回 duplicated 与既有 doc_id；
+        重跑导入幂等。单次上限 50 篇，更大规模走 `scripts/ingest_corpus.py` 目录导入。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                scope:
+                  type: string
+                  enum: [personal, department, global]
+                  default: department
+                dept_id:
+                  type: string
+      responses:
+        '200':
+          description: 逐文件结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  added: 2
+                  duplicated: 0
+                  total: 2
+                  skipped: 0
+                  chars_added: 1280
+                  failed: []
+                  docs:
+                    - {title: "区域价格表", doc_id: "doc_3f8a1c02", duplicated: false, filename: "区域价格表.txt", chars: 620}
+        '403':
+          description: 越权写（跨部门 / 员工写 global）
+        '413':
+          description: 超过单次文件数上限
+
+  /kb/stats:
+    get:
+      tags: [kb]
+      operationId: getKbStats
+      summary: 语料画像（M8，试点每日开机第一屏）
+      description: >
+        语料规模 / 范围与来源分布 / 超长截断篇数 / 对象存储与 PG 状态。
+        `pg_available=false` 表示重启后语料会丢，试点期间必须为 true。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 语料画像
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  documents: 250
+                  total_chars: 73919
+                  avg_chars: 295.7
+                  by_scope: {department: 250}
+                  by_dept: {d_sales: 250}
+                  by_source: {bulk_import: 250}
+                  truncated_documents: 0
+                  unique_hashes: 250
+                  index_char_cap: 20000
+                  object_store_available: true
+                  pg_available: true
+                  pg_persisted: true
+
+  /usage/trend:
+    get:
+      tags: [usage]
+      operationId: getUsageTrend
+      summary: 成本曲线（M8，逐日真落账 + 月末外推 + 预算水位）
+      description: >
+        按自然日连续补齐（没有调用的日子补 0，避免折线把空白日连成直线）。
+        月末外推 = 本月已发生 + 近 7 个自然日日均 × 当月剩余天数。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: days
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 365, default: 14}
+      responses:
+        '200':
+          description: 成本趋势
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  window_days: 14
+                  series:
+                    - {date: "2026-11-02", calls: 66, real_calls: 0, tokens: 11204, cost: 0.0291}
+                  calls: 66
+                  tokens: 11204
+                  cost: 0.0291
+                  active_days: 1
+                  zero_days: 13
+                  peak_day: {date: "2026-11-02", cost: 0.0291}
+                  month_to_date_cost: 0.0291
+                  days_in_month: 30
+                  elapsed_days: 2
+                  avg_7d_cost: 0.0042
+                  projected_month_cost: 0.15
+                  budget_cny: 500.0
+                  budget_used_pct: 0.01
+                  projected_budget_pct: 0.03
+                  budget_status: ok
+                  currency: CNY
+
+  /eval/latest:
+    get:
+      tags: [eval]
+      operationId: getLatestEval
+      summary: 最近一次 RAG 基线报告（M8）
+      description: >
+        先读 `backend/reports/latest.json`（由 `scripts/eval_baseline.py` 落盘）；
+        没有报告时用内置 golden 现算一遍（`source=computed`，不落盘）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 基线报告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+
+  /eval/history:
+    get:
+      tags: [eval]
+      operationId: getEvalHistory
+      summary: 基线漂移序列（M8，每天跑一次看召回是否下滑）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 200, default: 30}
+      responses:
+        '200':
+          description: 漂移历史
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+
+  /eval/run:
+    post:
+      tags: [eval]
+      operationId: runEval
+      summary: 现场跑一次基线并落盘（M8，仅部门管理员/平台管理员）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: limit
+          in: query
+          description: 只跑前 N 条 golden（0 = 全部）
+          schema: {type: integer, minimum: 0, maximum: 2000, default: 0}
+      responses:
+        '200':
+          description: 本次报告（同时写入 latest.json 与 history.jsonl）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '403':
+          description: 员工无权触发跑批
+
 components:
   securitySchemes:
     bearerAuth:

@@ -40,3 +40,14 @@ async def list_records(limit: int = Query(50, ge=1, le=500),
 async def quota_status(caller: CallerContext = Depends(get_caller)):
     """本部门配额水位（滚动窗口）；超限时调用会被 429 拦截。"""
     return {"code": 0, "data": usage_store.quota_status(caller)}
+
+
+@router.get("/trend")
+async def usage_trend(days: int = Query(14, ge=1, le=365, description="回溯天数（自然日，连续补齐）"),
+                      caller: CallerContext = Depends(get_caller)):
+    """成本曲线（M8 试点）：逐日用量/成本 + 月累计 + 月末外推 + 预算水位。
+
+    面试/评审常问「这套东西一个月烧多少钱」——这里给的是真落账数据外推，
+    不是拍脑袋的单价表。
+    """
+    return {"code": 0, "data": usage_store.trend(caller, days)}

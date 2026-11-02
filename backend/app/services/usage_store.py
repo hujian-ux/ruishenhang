@@ -10,7 +10,9 @@
   - **配额红线**：按部门滚动 30 天 token 用量封顶（settings.USAGE_QUOTA_TOKENS，0=不限额），
     超限调用前直接 429——计费不只是展示，是真的会拦。
 """
+import calendar
 import time
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
@@ -209,3 +211,96 @@ def enforce_quota(caller: CallerContext) -> Dict[str, Any]:
     if st["exceeded"]:
         raise QuotaExceeded(st["used_tokens"], st["quota_tokens"])
     return st
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M8 成本曲线（试点两周的核心问题：这个部门到底烧不烧得起）
+# ─────────────────────────────────────────────────────────────────────────────
+def trend(caller: CallerContext, days: int = 14) -> Dict[str, Any]:
+    """按自然日聚合的用量/成本曲线 + 月累计 + 月末外推 + 预算水位。
+
+    - 序列**连续补齐**（没有调用的日子补 0）：否则前端折线会把空白日连成直线，
+      看上去像"天天在用"，误导试点判断。
+    - 月末外推用「近 7 个自然日日均 × 当月剩余天数 + 本月已发生」，比"按当前累计直接
+      乘 30"稳，不会被月初的一次压测带飞。
+    """
+    days = max(1, min(365, int(days or 14)))
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    start = today - timedelta(days=days - 1)
+    since = start.timestamp()
+
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for i in range(days):
+        d = (start + timedelta(days=i)).strftime("%Y-%m-%d")
+        buckets[d] = {"date": d, "calls": 0, "real_calls": 0, "stub_calls": 0,
+                      "prompt_tokens": 0, "completion_tokens": 0, "tokens": 0, "cost": 0.0}
+
+    for rec in _RECORDS:
+        if not _visible(rec, caller) or rec["ts"] < since:
+            continue
+        key = time.strftime("%Y-%m-%d", time.localtime(rec["ts"]))
+        b = buckets.get(key)
+        if not b:
+            continue
+        b["calls"] += 1
+        b["real_calls"] += 1 if rec.get("real") else 0
+        b["stub_calls"] += 0 if rec.get("real") else 1
+        b["prompt_tokens"] += rec["prompt_tokens"]
+        b["completion_tokens"] += rec["completion_tokens"]
+        b["tokens"] += rec["prompt_tokens"] + rec["completion_tokens"]
+        b["cost"] = round(b["cost"] + rec["cost"], 6)
+
+    series = [buckets[k] for k in sorted(buckets)]
+    total_cost = round(sum(b["cost"] for b in series), 6)
+    total_tokens = sum(b["tokens"] for b in series)
+    total_calls = sum(b["calls"] for b in series)
+    active_days = sum(1 for b in series if b["calls"])
+    peak = max(series, key=lambda b: b["cost"], default={"date": "-", "cost": 0.0})
+
+    month_key = today.strftime("%Y-%m")
+    mtd = round(sum(b["cost"] for b in series if b["date"].startswith(month_key)), 6)
+    mtd_tokens = sum(b["tokens"] for b in series if b["date"].startswith(month_key))
+    days_in_month = calendar.monthrange(today.year, today.month)[1]
+    elapsed_days = today.day
+    last7 = series[-7:]
+    avg7 = round(sum(b["cost"] for b in last7) / max(1, len(last7)), 6)
+    projected = round(mtd + avg7 * max(0, days_in_month - elapsed_days), 6)
+
+    budget = float(getattr(settings, "USAGE_MONTHLY_BUDGET_CNY", 0) or 0)
+    used_pct = round(mtd / budget * 100, 2) if budget else 0.0
+    proj_pct = round(projected / budget * 100, 2) if budget else 0.0
+    if not budget:
+        status = "unset"
+    elif proj_pct >= 100 or used_pct >= 100:
+        status = "over"
+    elif proj_pct >= 80:
+        status = "warn"
+    else:
+        status = "ok"
+
+    return {
+        "window_days": days,
+        "start": series[0]["date"] if series else start.strftime("%Y-%m-%d"),
+        "end": series[-1]["date"] if series else today.strftime("%Y-%m-%d"),
+        "series": series,
+        "calls": total_calls,
+        "tokens": total_tokens,
+        "cost": total_cost,
+        "real_calls": sum(b["real_calls"] for b in series),
+        "active_days": active_days,
+        "zero_days": days - active_days,
+        "avg_daily_cost": round(total_cost / days, 6),
+        "peak_day": {"date": peak["date"], "cost": peak["cost"]},
+        "month_to_date_cost": mtd,
+        "month_to_date_tokens": mtd_tokens,
+        "days_in_month": days_in_month,
+        "elapsed_days": elapsed_days,
+        "avg_7d_cost": avg7,
+        "projected_month_cost": projected,
+        "budget_cny": budget,
+        "budget_used_pct": used_pct,
+        "projected_budget_pct": proj_pct,
+        "budget_status": status,
+        "currency": "CNY",
+        "quota": quota_status(caller),
+    }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { TrendChart } from "../components/TrendChart";
 
 const DIMS = [
   { k: "dept", label: "按部门" },
@@ -14,18 +15,21 @@ export function UsagePage() {
   const [data, setData] = useState<any>(null);
   const [recs, setRecs] = useState<any[]>([]);
   const [quota, setQuota] = useState<any>(null);
+  const [trend, setTrend] = useState<any>(null);
   const [err, setErr] = useState("");
 
   const load = async () => {
     try {
-      const [u, r, q] = await Promise.all([
+      const [u, r, q, tr] = await Promise.all([
         api.getUsage(dim),
         api.getUsageRecords(30),
         api.getQuota(),
+        api.getUsageTrend(14),
       ]);
       setData(u.data);
       setRecs(r.data.records);
       setQuota(q.data);
+      setTrend(tr.data);
       setErr("");
     } catch (e: any) {
       setErr(e.message);
@@ -105,6 +109,31 @@ export function UsagePage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      <div className="card">
+        <h3>成本曲线 · 近 14 天（M8 试点：逐日真落账，空白日补 0）</h3>
+        {trend ? (
+          <>
+            <div className="row" style={{ gap: 10, marginBottom: 10 }}>
+              <div className="kpi"><span>本月已发生</span><b>¥{trend.month_to_date_cost.toFixed(4)}</b><i>{trend.month_to_date_tokens.toLocaleString()} tokens · 第 {trend.elapsed_days}/{trend.days_in_month} 天</i></div>
+              <div className="kpi"><span>月末外推</span><b>¥{trend.projected_month_cost.toFixed(2)}</b><i>近 7 日均 ¥{trend.avg_7d_cost.toFixed(4)} × 剩余 {trend.days_in_month - trend.elapsed_days} 天</i></div>
+              <div className="kpi"><span>月度预算</span><b>{trend.budget_cny ? `¥${trend.budget_cny}` : "未设"}</b><i>{trend.budget_cny ? `外推占用 ${trend.projected_budget_pct}%` : "设 USAGE_MONTHLY_BUDGET_CNY 启用"}</i></div>
+              <div className="kpi"><span>活跃 / 空白日</span><b>{trend.active_days} / {trend.zero_days}</b><i>窗口 {trend.window_days} 天 · 峰值 {trend.peak_day.date.slice(5)}</i></div>
+            </div>
+            <TrendChart series={trend.series} budgetAvg={trend.budget_cny ? trend.budget_cny / trend.days_in_month : 0} />
+            {trend.budget_status === "over" && (
+              <div className="hint" style={{ color: "#c62828", marginTop: 6 }}>
+                外推已超月度预算 —— 试点要么加预算，要么降模型档位（模型管理页可停用高价模型）。
+              </div>
+            )}
+            {trend.budget_status === "warn" && (
+              <div className="hint" style={{ color: "#ef6c00", marginTop: 6 }}>
+                外推已过预算 80% —— 建议核对哪类调用在拉高成本（按智能体/模型维度下钻）。
+              </div>
+            )}
+          </>
+        ) : <div className="hint">加载中…</div>}
       </div>
 
       <div className="card">

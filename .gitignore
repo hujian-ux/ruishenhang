@@ -27,3 +27,10 @@ build/
 # local runtime artifacts
 logs/
 pytest_live.log
+
+# 运行时报告（由 scripts/ingest_corpus.py 与 scripts/eval_baseline.py 重跑生成）
+backend/reports/
+
+# 浏览器自动化 / TS 增量构建缓存
+.playwright-cli/
+*.tsbuildinfo

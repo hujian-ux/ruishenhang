@@ -61,6 +61,36 @@ def _ensure_tables() -> None:
             ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS real BOOLEAN;
             ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS latency_ms INTEGER DEFAULT 0;
             CREATE INDEX IF NOT EXISTS idx_usage_dim ON usage_records (tenant_id, dept_id, created_at);
+            -- M8 试点：知识库文档注册表（重启不清零，200–500 篇语料不必每次重灌）
+            -- 注意：kb_documents 在 infra/init/01_acl.sql 里已有旧定义（owner/dept/qdrant_id/minio_key），
+            -- 这里不重建表，只把 M8 需要的列 ALTER 补上，两套语义共用一张表。
+            CREATE TABLE IF NOT EXISTS kb_documents (
+                doc_id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                title TEXT,
+                scope TEXT,
+                owner_id TEXT,
+                dept_id TEXT,
+                source TEXT,
+                filename TEXT,
+                content_hash TEXT,
+                chars INTEGER DEFAULT 0,
+                object_key TEXT,
+                content TEXT,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS doc_id TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS owner_id TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS dept_id TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS source TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS filename TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS chars INTEGER DEFAULT 0;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS object_key TEXT;
+            ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_kb_doc_id ON kb_documents (doc_id);
+            CREATE INDEX IF NOT EXISTS idx_kb_hash ON kb_documents (tenant_id, content_hash);
+            CREATE INDEX IF NOT EXISTS idx_kb_dept_m8 ON kb_documents (tenant_id, dept_id, scope);
         """)
 
 
@@ -167,3 +197,121 @@ def delete_row(table: str, key_col: str, key: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M8 知识库文档（试点跑两周的前提：灌进去的语料重启不丢）
+# ─────────────────────────────────────────────────────────────────────────────
+_KB_COLS = ("doc_id", "tenant_id", "title", "scope", "owner_id", "dept_id",
+            "source", "filename", "content_hash", "chars", "object_key", "content")
+
+# 插入时同时写 01_acl.sql 的旧列（owner/dept/minio_key/created_by），
+# 让「ACL 元数据表」与「运行时可载回表」共用一行、语义一致。
+_KB_INSERT_COLS = ("doc_id", "tenant_id", "title", "scope", "owner_id", "dept_id",
+                   "owner", "dept", "source", "filename", "content_hash", "chars",
+                   "object_key", "minio_key", "content", "created_by")
+
+
+def kb_upsert(doc: Dict[str, Any]) -> bool:
+    """写入/更新一篇知识文档（含原文，供重启载回后重建检索索引）。"""
+    conn = _connect()
+    if not conn:
+        return False
+    try:
+        owner, dept = doc.get("owner_id"), doc.get("dept_id")
+        vals = (
+            doc.get("doc_id"), doc.get("tenant_id"), doc.get("title"), doc.get("scope"),
+            owner, dept, owner, dept,
+            doc.get("source"), doc.get("filename"), doc.get("content_hash"),
+            int(doc.get("chars") or 0), doc.get("object_key"), doc.get("object_key"),
+            doc.get("content"), owner,
+        )
+        upd = ", ".join(f"{c} = EXCLUDED.{c}" for c in _KB_INSERT_COLS if c != "doc_id")
+        sql = (f"INSERT INTO kb_documents ({', '.join(_KB_INSERT_COLS)}) "
+               f"VALUES ({', '.join(['%s'] * len(_KB_INSERT_COLS))}) "
+               f"ON CONFLICT (doc_id) DO UPDATE SET {upd}, updated_at = now()")
+        with conn.cursor() as cur:
+            cur.execute(sql, vals)
+        return True
+    except Exception:
+        return False
+
+
+def kb_load_all() -> List[Dict[str, Any]]:
+    """启动载回全部知识文档（按写入顺序，便于索引重建稳定）。"""
+    conn = _connect()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT doc_id, tenant_id, title, scope, owner_id, dept_id, source, "
+                "filename, content_hash, chars, object_key, content FROM kb_documents "
+                "ORDER BY updated_at ASC")
+            return [dict(zip(_KB_COLS, r)) | {"chars": int(r[9] or 0)} for r in cur.fetchall()]
+    except Exception:
+        return []
+
+
+def kb_delete(doc_id: str) -> bool:
+    conn = _connect()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM kb_documents WHERE doc_id = %s", (doc_id,))
+        return True
+    except Exception:
+        return False
+
+
+def kb_has_hash(tenant_id: str, content_hash: str) -> bool:
+    """同租户内同内容判重（批量导入幂等的持久依据）。"""
+    conn = _connect()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM kb_documents WHERE tenant_id = %s AND content_hash = %s LIMIT 1",
+                        (tenant_id, content_hash))
+            return cur.fetchone() is not None
+    except Exception:
+        return False
+
+
+def kb_hash_ids(tenant_id: str) -> Dict[str, str]:
+    """启动时取 (hash → doc_id) 映射，避免重复导入历史语料。"""
+    conn = _connect()
+    if not conn:
+        return {}
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT content_hash, doc_id FROM kb_documents "
+                        "WHERE tenant_id = %s AND content_hash IS NOT NULL", (tenant_id,))
+            return {h: d for h, d in cur.fetchall() if h}
+    except Exception:
+        return {}
+
+
+def kb_get_by_hash(tenant_id: str, content_hash: str) -> Dict[str, Any] | None:
+    """按内容指纹精确取一篇（避免为了判重把全表读进内存）。"""
+    conn = _connect()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT doc_id, tenant_id, title, scope, owner_id, dept_id, source, "
+                "filename, content_hash, chars, object_key, content FROM kb_documents "
+                "WHERE tenant_id = %s AND content_hash = %s LIMIT 1",
+                (tenant_id, content_hash))
+            r = cur.fetchone()
+            if not r:
+                return None
+            d = dict(zip(_KB_COLS, r))
+            d["chars"] = int(d.get("chars") or 0)
+            d["storage"] = "postgres"
+            d["indexed"] = True
+            return d
+    except Exception:
+        return None

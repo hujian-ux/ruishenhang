@@ -89,7 +89,7 @@ def _split_sentences(text: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────────
 # 内存语料（parent 文档）：覆盖 4 种 scope / 多部门 / 跨租户
 # ─────────────────────────────────────────────────────────────────────────────
-PARENTS: list[dict] = [
+_DEMO_PARENTS: list[dict] = [
     {"doc_id": "doc_8831", "tenant_id": "t_demo", "title": "五一营销活动方案 v3",
      "content": "建议分三档：① 到店礼 ② 满减 ③ 老带新。到店礼为小样赠品，满减门槛设 199 元，老带新返 20 元券。活动周期 5 月 1 日至 5 月 7 日。",
      "scope": "department", "owner": "u_1024", "dept": "d_sales", "source": "产品手册 v3"},
@@ -146,6 +146,10 @@ PARENTS: list[dict] = [
      "scope": "global", "owner": "u_admin_01", "dept": "d_hr", "source": "制度"},
 ]
 
+# 演示语料可关（M8）：真实语料进场后设 SEED_DEMO_CORPUS=0，
+# 避免 18 篇演示文档与真实文档抢排名、把召回指标撑成假象。
+PARENTS: list[dict] = list(_DEMO_PARENTS) if settings.SEED_DEMO_CORPUS else []
+
 
 _CHILDREN: list[dict] = []
 _DF: dict[str, int] = {}
@@ -187,6 +191,46 @@ def _reindex() -> None:
 def get_parents() -> list[dict]:
     """公开语料，供评测集生成（golden）复用，避免双份定义。"""
     return PARENTS
+
+
+def corpus_size() -> dict:
+    """语料规模画像（评测报告与试点看板共用）：父文档数 / 子块数 / 字节量。"""
+    if not _INDEX_BUILT:
+        _reindex()
+    return {
+        "documents": len(PARENTS),
+        "children": len(_CHILDREN),
+        "chars": sum(len(p.get("content") or "") for p in PARENTS),
+        "depts": len({p.get("dept") for p in PARENTS if p.get("dept")}),
+        "demo_documents": demo_corpus_size(),
+    }
+
+
+def demo_corpus_size() -> int:
+    """当前生效的演示语料篇数（用于区分「演示环境指标」与「真实语料指标」）。"""
+    return len(_DEMO_PARENTS) if settings.SEED_DEMO_CORPUS else 0
+
+
+def find_by_title(title: str) -> str | None:
+    """按标题找 doc_id（真实语料 doc_id 随机，外部 golden 用标题更可写）。"""
+    t = (title or "").strip()
+    if not t:
+        return None
+    for p in PARENTS:
+        if p["title"] == t:
+            return p["doc_id"]
+    for p in PARENTS:
+        if t in p["title"]:
+            return p["doc_id"]
+    return None
+
+
+def meta_of(doc_id: str) -> dict | None:
+    """取父文档的权限 meta（外部 golden 未给 viewer 时按文档归属推导）。"""
+    for p in PARENTS:
+        if p["doc_id"] == doc_id:
+            return p
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -293,6 +337,43 @@ def add_document(title: str, content: str, scope: str, owner: str, dept: str, te
     })
     _reindex()
     return doc_id
+
+
+def add_documents_bulk(rows: list[dict]) -> list[str]:
+    """批量写入并**只重建一次索引**（M8 试点：一次灌 200–500 篇）。
+
+    单篇 add_document 每次都会 _reindex()，500 篇 = 500 次全量重建，实测分钟级；
+    批量入口把重建压到 1 次，是批量导入能跑起来的前提。
+    rows: [{title, content, scope, owner, dept, tenant_id, source?, doc_id?}]
+    """
+    ids: list[str] = []
+    for r in rows:
+        doc_id = r.get("doc_id") or ("doc_" + _short_uuid())
+        PARENTS.append({
+            "doc_id": doc_id,
+            "tenant_id": r["tenant_id"],
+            "title": r.get("title") or "(无标题)",
+            "content": r.get("content") or "",
+            "scope": r.get("scope") or "personal",
+            "owner": r.get("owner") or "",
+            "dept": r.get("dept") or "",
+            "source": r.get("source") or "bulk",
+        })
+        ids.append(doc_id)
+    if ids:
+        _reindex()
+    return ids
+
+
+def remove_documents(doc_ids: list[str]) -> int:
+    """批量移除（批量导入回滚 / 测试清理），同样只重建一次索引。"""
+    drop = set(doc_ids)
+    before = len(PARENTS)
+    PARENTS[:] = [p for p in PARENTS if p["doc_id"] not in drop]
+    removed = before - len(PARENTS)
+    if removed:
+        _reindex()
+    return removed
 
 
 def remove_document(doc_id: str) -> bool:

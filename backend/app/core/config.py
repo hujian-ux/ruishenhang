@@ -36,6 +36,16 @@ class Settings:
     # 不是事后告警——计费在调用链路上是红线，不只是报表。
     USAGE_QUOTA_TOKENS = int(_env("USAGE_QUOTA_TOKENS", "2000000"))
 
+    # M8 试点：月度成本预算线（CNY，0 = 不设预算线）。趋势页按此画水位与月末外推，
+    # 超过 80% 预警、100% 标红——两周试点靠它判断"这个部门到底烧不烧得起"。
+    USAGE_MONTHLY_BUDGET_CNY = float(_env("USAGE_MONTHLY_BUDGET_CNY", "500"))
+    # M8 批量导入：单次扫描文件数上限、入索引字符上限（超出部分只存原文不建索引）
+    INGEST_MAX_FILES = int(_env("INGEST_MAX_FILES", "1000"))
+    INGEST_INDEX_CHAR_CAP = int(_env("INGEST_INDEX_CHAR_CAP", "20000"))
+    # M8 试点：是否加载 18 篇演示语料。真实语料进场后必须设 0，
+    # 否则演示文档会参与竞争、稀释真实召回（实测会把 Recall@10 抬高成假象）。
+    SEED_DEMO_CORPUS = _env("SEED_DEMO_CORPUS", "1") == "1"
+
     # 决策：中文 Embedding 选 bge（bge-m3，维度 1024）
     # 真实模型开关：默认 0（确定性伪向量，离线/CI 稳定，不会触发 HF 下载）。
     # 开 1 时本地须已缓存模型（或设 HF_ENDPOINT=https://hf-mirror.com 走国内镜像）。
