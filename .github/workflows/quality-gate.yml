@@ -20,6 +20,11 @@ jobs:
         with: { python-version: "3.11" }
       - name: Install
         run: cd backend && pip install -e ".[dev]"
+      # 依赖漏声明（如 python-multipart）会让 FastAPI 在注册路由时就抛错，
+      # 表现为 9 个测试文件 collection error + exit 2，定位成本很高。
+      # 单独一步先导入 app，把「装少了包」和「测试真的挂了」区分开。
+      - name: 导入自检（依赖完整性）
+        run: cd backend && python -c "from app.main import app; print('导入 OK, routes =', len(app.routes))"
       - name: Lint
         run: cd backend && ruff check app || true
       - name: Smoke + E2E 测试（含最小闭环 pytest）

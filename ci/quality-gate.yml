@@ -1,6 +1,9 @@
-# 企业 AI 智能体中台 · CI 质量门禁
+# 企业 AI 智能体中台 · CI 质量门禁（GitHub Actions）
 # 对应：第36章 RAG 召回门禁(Recall@100≥0.95) + 第37章 客观评测(不依赖 LLM-as-judge)
 # 门禁不通过则非零退出 → 阻断合并/灰度（第20章演化联动）。
+#
+# 触发：push 到 main / 任意 PR。
+# 触发方式：把本仓库推到 GitHub 后，该文件即自动生效（无需额外配置）。
 name: quality-gate
 
 on:
@@ -17,9 +20,14 @@ jobs:
         with: { python-version: "3.11" }
       - name: Install
         run: cd backend && pip install -e ".[dev]"
+      # 依赖漏声明（如 python-multipart）会让 FastAPI 在注册路由时就抛错，
+      # 表现为 9 个测试文件 collection error + exit 2，定位成本很高。
+      # 单独一步先导入 app，把「装少了包」和「测试真的挂了」区分开。
+      - name: 导入自检（依赖完整性）
+        run: cd backend && python -c "from app.main import app; print('导入 OK, routes =', len(app.routes))"
       - name: Lint
         run: cd backend && ruff check app || true
-      - name: Smoke test
+      - name: Smoke + E2E 测试（含最小闭环 pytest）
         run: cd backend && pytest -q
 
   rag-recall-gate:
