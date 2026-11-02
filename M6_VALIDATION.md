@@ -15,10 +15,17 @@ docker compose version
 两条都正常输出即 OK。没有就去装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，装完**重启一次**让 WSL2/守护进程就绪。
 
 **安装要点（Windows）**
-1. 下载 Docker Desktop 安装包，双击安装，保持勾选 "Use WSL 2 instead of Hyper-V"。
-2. 若提示缺少 WSL2，按提示装 WSL2 更新包（`wsl --update` 或微软商店），再重启。
-3. 启动 Docker Desktop，等左下角鲸鱼图标变绿、显示 "Engine running"。
-4. **新开一个 PowerShell 窗口**（旧窗口 PATH 不会刷新），再执行上面的 `docker --version`。
+
+> **Windows 11 家庭版可以用 Docker Desktop**，只是必须走 WSL2 后端（官方支持，不需要 Hyper-V）。
+> 若下载页找不到合适版本，直接用官方直链：
+> `https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe`
+
+1. 下载上面的安装包（约 600MB），**右键 → 以管理员身份运行**。
+2. 安装选项保持 "Use WSL 2 instead of Hyper-V"（家庭版只有这一项可用）。
+3. 若提示缺少 WSL2：管理员 PowerShell 执行 `wsl --install --no-distribution`，然后重启。
+4. 启动 Docker Desktop，接受协议、可跳过登录（Skip）。
+5. 等左下角鲸鱼图标变绿、显示 "Engine running"。
+6. **新开一个 PowerShell 窗口**（旧窗口 PATH 不会刷新），再执行上面的 `docker --version`。
 
 > 安装需要管理员权限；如果公司电脑受限装不了，就走 B 路线（pip litellm），或者换一台能装的机器。
 
@@ -168,3 +175,47 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
 - **litellm 起不来**：`:latest` 偶发不兼容，可在 compose 里把 `litellm/litellm:latest` 固定到某个版本标签。
 - **MinIO 桶不存在**：应用首次调用会自动 `make_bucket`，无需手动建。
 - **PG 表没建**：确认 `./infra/init` 已挂载到 `/docker-entrypoint-initdb.d`；只有**首次**建库时执行，已存在的数据卷不会重复执行。
+
+---
+
+## 附录：实在装不了 Docker？原生三件套替代
+
+无需 Docker，三个组件直接以 Windows 原生程序运行，效果等价（都连 127.0.0.1 默认端口）。
+
+### ① PostgreSQL 便携版（无需管理员）
+1. 下载 EDB 的 Windows x86-64 binaries zip（`https://www.enterprisedb.com/download-postgresql-binaries`），解压到 `D:\pgsql`。
+2. 初始化并启动：
+```powershell
+$env:Path += ";D:\pgsql\bin"
+initdb -D D:\pgdata -U app --auth=trust -E UTF8
+pg_ctl -D D:\pgdata -o "-p 5432" -l D:\pg.log start
+createdb -U app aiplat
+psql -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\01_acl.sql
+psql -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\02_persistence.sql
+```
+> `--auth=trust` 表示本地免密，psycopg2 填的密码会被忽略，正好适配默认配置。
+
+### ② MinIO 单文件版
+1. 下载 `https://dl.min.io/server/minio/release/windows-amd64/minio.exe`，放到 `D:\minio\`。
+2. 启动：
+```powershell
+$env:MINIO_ROOT_USER="minioadmin"; $env:MINIO_ROOT_PASSWORD="minioadmin"
+D:\minio\minio.exe server D:\minio-data --console-address ":9001"
+```
+
+### ③ LiteLLM（pip）
+```powershell
+cd D:\enterprise-ai-platform\backend
+.\.venv\Scripts\python.exe -m pip install "litellm[proxy]"
+$env:DASHSCOPE_API_KEY="sk-你的密钥"
+.\.venv\Scripts\litellm.exe --config app\services\model_gateway\litellm_config.yaml --host 127.0.0.1 --port 4000
+```
+
+### 验证
+三个窗口分别跑着 PG / MinIO / LiteLLM 后，新开一个终端：
+```powershell
+cd D:\enterprise-ai-platform\backend
+$env:LLM_DEFAULT_MODEL="qwen-plus"
+.\.venv\Scripts\python.exe scripts\validate_m6.py
+```
+三项都应 `[PASS]`。
