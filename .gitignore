@@ -23,3 +23,7 @@ build/
 .idea/
 .vscode/
 .DS_Store
+
+# local runtime artifacts
+logs/
+pytest_live.log
