@@ -63,6 +63,10 @@ services:
       # 第25章模型网关：本地/私有模型与公有云密钥在此注入，业务侧通过 model_id 透明路由
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      # 新版 LiteLLM 默认要求鉴权：本地开发用 unsafe 开关免密；
+      # 生产请设 LITELLM_MASTER_KEY（后端同名环境变量透传 Authorization）。
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
+      LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY: ${LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY:-true}
 
 volumes:
   pgdata:

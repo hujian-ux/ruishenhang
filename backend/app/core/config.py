@@ -26,6 +26,9 @@ class Settings:
     REDIS_URL = _env("REDIS_URL", "redis://127.0.0.1:6379/0")
 
     LITELLM_BASE_URL = _env("LITELLM_BASE_URL", "http://127.0.0.1:4000")
+    # 可选：LiteLLM 代理主密钥（新版代理默认要求鉴权）。本地开发可留空，
+    # 并给 litellm 设 LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true。
+    LITELLM_MASTER_KEY = _env("LITELLM_MASTER_KEY", "")
     # M6：对话默认路由的 model_id（LiteLLM model_list 里的一项）；探活通过走真生成，否则 stub
     LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "gpt-4o-mini")
 

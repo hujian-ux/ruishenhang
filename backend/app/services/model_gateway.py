@@ -11,6 +11,13 @@ import httpx
 
 from app.core.config import settings
 
+
+def _headers() -> dict:
+    """LiteLLM 鉴权头：配了主密钥就透传，否则为空（本地开发免鉴权）。"""
+    key = getattr(settings, "LITELLM_MASTER_KEY", "")
+    return {"Authorization": f"Bearer {key}"} if key else {}
+
+
 # 内存注册表（M1 接入 PostgreSQL models 表；此处为单体骨架默认种子）
 _REGISTRY = {
     "gpt-4o-mini": {"model_id": "gpt-4o-mini", "vendor": "openai", "adapter": "openai_compatible",
@@ -41,7 +48,8 @@ async def chat(model_id: str, messages: list[dict]) -> str:
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.post(f"{settings.LITELLM_BASE_URL}/v1/chat/completions",
-                             json={"model": model_id, "messages": messages})
+                             json={"model": model_id, "messages": messages},
+                             headers=_headers())
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
     except Exception:
@@ -75,7 +83,8 @@ def chat_sync(model_id: str, messages: list[dict], timeout: float = 15.0) -> str
         return _stub_answer(model_id, messages)
     try:
         r = httpx.post(f"{settings.LITELLM_BASE_URL}/v1/chat/completions",
-                       json={"model": model_id, "messages": messages}, timeout=timeout)
+                       json={"model": model_id, "messages": messages},
+                       headers=_headers(), timeout=timeout)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
     except Exception:

@@ -104,7 +104,9 @@ cd D:\enterprise-ai-platform\backend
 # 终端 C：起 litellm 代理（读同一份模型配置）
 $env:DASHSCOPE_API_KEY="sk-你的通义千问密钥"
 $env:LLM_DEFAULT_MODEL="qwen-plus"
-.\.venv\Scripts\python.exe -m litellm --config app\services\model_gateway\litellm_config.yaml --host 127.0.0.1 --port 4000
+# 新版 Litellm 默认要求鉴权；本地开发开这个开关即免密
+$env:LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY="true"
+.\.venv\Scripts\litellm.exe --config app\services\model_gateway\litellm_config.yaml --host 127.0.0.1 --port 4000
 ```
 
 然后新开一个终端跑验证脚本（此时 PG/MinIO 会 SKIP，LiteLLM 一项应 PASS 且显示"真实LLM生成"）：
@@ -172,7 +174,9 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
   若 ghcr 不通，可临时改成 `litellm/litellm:latest`（Docker Hub），或走第 3.1 节 pip 方式。
 - **`..\.venv\Scripts\python.exe` 报"无法识别"**：venv 在 `backend\.venv`，在 `backend` 目录下要用 **`.\.venv\Scripts\python.exe`**（单点不是双点）。
 - **端口被占用**：5432/9000/9001/4000/6379 被本机其他服务占了 → 改 `docker-compose.yml` 左侧端口映射。
-- **litellm 起不来**：`:latest` 偶发不兼容，可在 compose 里把 `litellm/litellm:latest` 固定到某个版本标签。
+- **litellm 起不来**：新版 LiteLLM 默认要求鉴权，报 `UnsafeMasterKeyError`。
+  本地开发加环境变量 `LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true` 即可；
+  生产则设 `LITELLM_MASTER_KEY`（后端同名环境变量会自动透传 `Authorization`）。
 - **MinIO 桶不存在**：应用首次调用会自动 `make_bucket`，无需手动建。
 - **PG 表没建**：确认 `./infra/init` 已挂载到 `/docker-entrypoint-initdb.d`；只有**首次**建库时执行，已存在的数据卷不会重复执行。
 
@@ -208,6 +212,7 @@ D:\minio\minio.exe server D:\minio-data --console-address ":9001"
 cd D:\enterprise-ai-platform\backend
 .\.venv\Scripts\python.exe -m pip install "litellm[proxy]"
 $env:DASHSCOPE_API_KEY="sk-你的密钥"
+$env:LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY="true"
 .\.venv\Scripts\litellm.exe --config app\services\model_gateway\litellm_config.yaml --host 127.0.0.1 --port 4000
 ```
 
