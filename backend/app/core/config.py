@@ -26,6 +26,8 @@ class Settings:
     REDIS_URL = _env("REDIS_URL", "redis://127.0.0.1:6379/0")
 
     LITELLM_BASE_URL = _env("LITELLM_BASE_URL", "http://127.0.0.1:4000")
+    # M6：对话默认路由的 model_id（LiteLLM model_list 里的一项）；探活通过走真生成，否则 stub
+    LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "gpt-4o-mini")
 
     # 决策：中文 Embedding 选 bge（bge-m3，维度 1024）
     EMBEDDING_MODEL = _env("EMBEDDING_MODEL", "bge-m3")

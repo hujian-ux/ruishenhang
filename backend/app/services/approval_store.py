@@ -5,7 +5,9 @@
 """
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from app.services import pg_store
 
 _TICKETS: Dict[str, Dict[str, Any]] = {}
 
@@ -22,6 +24,10 @@ class ForbiddenDecider(Exception):
     """决策人无权审批该单据（如跨部门）。"""
 
 
+def _persist(t: Dict[str, Any]) -> None:
+    pg_store.upsert("approval_tickets", t["approval_id"], t)
+
+
 def create_ticket(agent_id: str, requester_id: str, dept_id: str) -> Dict[str, Any]:
     approval_id = "apr_" + uuid.uuid4().hex[:12]
     ticket = {
@@ -36,6 +42,7 @@ def create_ticket(agent_id: str, requester_id: str, dept_id: str) -> Dict[str, A
         "decided_at": None,
     }
     _TICKETS[approval_id] = ticket
+    _persist(ticket)
     return ticket
 
 
@@ -65,7 +72,20 @@ def decide(approval_id: str, decision: str, decider_id: str, decider_role: str,
     t["decided_by"] = decider_id
     t["comment"] = comment
     t["decided_at"] = time.time()
+    _persist(t)
     return t
+
+
+def load_from_pg() -> int:
+    """启动时从 PG 载回审批单；PG 不可达时为空操作。"""
+    n = 0
+    for payload in pg_store.load_all("approval_tickets"):
+        try:
+            _TICKETS[payload["approval_id"]] = payload
+            n += 1
+        except Exception:
+            continue
+    return n
 
 
 def pending_list(dept_id: str | None = None) -> List[Dict[str, Any]]:

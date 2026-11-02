@@ -1,16 +1,29 @@
 """企业 AI 智能体中台 · 后端单体入口（先单体后拆容器）。
 
-挂载 openapi.yaml 的 8 个 path 路由；网关中间件统一注入 X-Caller-Context
+挂载 openapi.yaml 的 10 个 path 路由；网关中间件统一注入 X-Caller-Context
 并承载第18章单一过滤点；所有下游路由信任 caller 上下文。
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.middleware import GatewayMiddleware
 from app.routers import agents, approval, auth, invoke, kb, models, rag, selection, usage
+from app.services import approval_store, pg_store, session_store
 
-app = FastAPI(title="企业 AI 智能体中台", version="0.3.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """M6：PG 就绪时把会话/审批单载回内存（重启不丢）；不可达时静默用内存。"""
+    session_store.load_from_pg()
+    approval_store.load_from_pg()
+    pg_store._connect()  # 触发建表/探活（一次性）
+    yield
+
+
+app = FastAPI(title="企业 AI 智能体中台", version="0.4.0", lifespan=lifespan)
 
 # 网关中间件：身份注入 + 单一过滤点前置（拆容器后整体迁到 api-gateway）
 app.add_middleware(GatewayMiddleware)

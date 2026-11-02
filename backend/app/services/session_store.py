@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from app.models.caller import CallerContext
+from app.services import pg_store
 
 # 会话上下文窗口：注入生成器的最大轮次（用户+助手各算一 turn）
 MAX_CONTEXT_TURNS = 6
@@ -17,8 +18,25 @@ MAX_SESSION_TURNS = 40
 _SESSIONS: Dict[str, Dict[str, Any]] = {}
 
 
+def load_from_pg() -> int:
+    """启动时从 PG 载回会话（重启不丢记忆）；PG 不可达时为空操作。"""
+    n = 0
+    for payload in pg_store.load_all("agent_sessions"):
+        try:
+            _SESSIONS[payload["session_id"]] = payload
+            n += 1
+        except Exception:
+            continue
+    return n
+
+
 class SessionAccessError(Exception):
     """会话归属校验失败：非本人访问。"""
+
+
+def _persist(sess: Dict[str, Any]) -> None:
+    """写穿 PG（离线/不可达时静默跳过，内存为主存）。"""
+    pg_store.upsert("agent_sessions", sess["session_id"], sess)
 
 
 def create_session(agent_id: str, caller: CallerContext, session_id: Optional[str] = None) -> Dict[str, Any]:
@@ -33,6 +51,7 @@ def create_session(agent_id: str, caller: CallerContext, session_id: Optional[st
         "created_at": time.time(),
     }
     _SESSIONS[sid] = sess
+    _persist(sess)
     return sess
 
 
@@ -63,6 +82,7 @@ def append_turn(session_id: str, role: str, content: str) -> None:
     sess["turns"].append({"role": role, "content": content, "ts": time.time()})
     if len(sess["turns"]) > MAX_SESSION_TURNS:
         sess["turns"] = sess["turns"][-MAX_SESSION_TURNS:]
+    _persist(sess)
 
 
 def history_of(session_id: str) -> List[Dict[str, Any]]:

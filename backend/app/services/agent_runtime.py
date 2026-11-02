@@ -9,7 +9,8 @@ LangGraph 为可选依赖；未安装时退化为确定性 stub，保证可运�
 from typing import Any, Dict, List, Optional
 
 from app.models.caller import CallerContext
-from app.services import knowledge, session_store
+from app.services import knowledge, model_gateway, session_store
+from app.core.config import settings
 
 
 def build_graph():
@@ -32,10 +33,17 @@ def build_graph():
         turn_no = 1 + sum(1 for t in state.get("history") or [] if t["role"] == "user")
         # 会话记忆：最近 N 轮对话摘要进生成上下文
         mem = session_store.build_context({"turns": state.get("history") or []}, max_turns=2)
-        answer = (f"[第{turn_no}轮|基于 {len(state.get('hits', []))} 条授权片段作答] "
-                  f"{state['input']} → {ctx or '暂无授权知识'}")
-        if mem:
-            answer += f" ‖记忆上下文: {mem.replace(chr(10), ' / ')}"
+        # M6：真实 LLM 生成（LiteLLM 探活通过时），否则确定性 stub
+        prompt = (f"你是企业知识助手，仅基于授权片段回答。\n"
+                  f"授权片段：{ctx or '暂无'}\n"
+                  + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
+                  + f"用户问题：{state['input']}")
+        answer = model_gateway.chat_sync(settings.LLM_DEFAULT_MODEL, [
+            {"role": "system", "content": "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"},
+            {"role": "user", "content": prompt},
+        ])
+        if not answer.startswith("[stub"):
+            answer = f"[第{turn_no}轮|LLM生成] {answer}"
         return {"answer": answer}
 
     g = StateGraph(dict)
@@ -62,13 +70,23 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                 "tool_calls": [{"tool": "rag_retrieve", "authorized": True},
                                {"tool": "session_memory", "authorized": True}]}
     except RuntimeError:
-        # 骨架 stub：不依赖 LangGraph 也能演示「记忆→检索→生成」链路
+        # 骨架 stub：不依赖 LangGraph 也能演示「记忆→检索→生成」链路（LLM 接入见 model_gateway）
         query = session_store.rewritten_query(user_input, history)
         hits, filtered = knowledge.retrieve(query, caller, top_k=6)
         ctx = "；".join(h["title"] for h in hits)
         turn_no = 1 + sum(1 for t in history if t["role"] == "user")
-        answer = f"[stub|第{turn_no}轮] {user_input} → {ctx or '暂无授权知识'}"
-        if query != user_input:
+        mem = session_store.build_context({"turns": history}, max_turns=2)
+        prompt = (f"你是企业知识助手，仅基于授权片段回答。\n"
+                  f"授权片段：{ctx or '暂无'}\n"
+                  + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
+                  + f"用户问题：{user_input}")
+        answer = model_gateway.chat_sync(settings.LLM_DEFAULT_MODEL, [
+            {"role": "system", "content": "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"},
+            {"role": "user", "content": prompt},
+        ])
+        if not answer.startswith("[stub"):
+            answer = f"[stub|第{turn_no}轮|LLM生成] {answer}"
+        elif query != user_input:
             answer += f" ‖query改写: {query}"
         return {"answer": answer,
                 "citations": [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]} for h in hits],
