@@ -3,11 +3,22 @@
 > 目标：在本机起好 PostgreSQL / 对象存储 / LiteLLM 三底座，
 > 验证「会话·审批单写穿 PG 重启不丢」「知识文档落对象存储可回读」「智能体真实 LLM 生成」。
 >
-> **本机已实测状态（2026-11-02）**：
-> - PostgreSQL 16.4 便携版已装在 `D:\pgsql`，数据目录 `D:\pgdata`，`aiplat` 库 7 张表已建好 → **PASS**
-> - 对象存储：MinIO 官方已下架免授权 Windows 二进制（下载 410 / 运行报 "No license"），改用 S3 兼容服务 moto 兜底 → **PASS**（API 完全一致）
-> - LiteLLM 代理：可起、可探活 → **PASS**；`真实LLM生成` 需你自己的 `DASHSCOPE_API_KEY`
+> **本机已实测状态（2026-11-02，三项全 PASS · 3/3）**：
+> - PostgreSQL 16.4 便携版已装在 `D:\pgsql`，数据目录 `D:\pgdata`，`aiplat` 库 7 张表已建好
+>   → **PASS**：写穿后新进程 `load_from_pg` 载回 10 条会话 + 10 张审批单，含目标记录
+> - 对象存储：MinIO 官方已下架免授权 Windows 二进制（下载 410 / 运行报 "No license"），
+>   改用 S3 兼容服务 moto 兜底 → **PASS**：文档原文上传后回读一致（`object_store.py` 一行未改）
+> - LiteLLM 代理 → **PASS**：`qwen-plus` 真实 LLM 生成，答案非 stub（`[第1轮|LLM生成] 知识库混合检索的原理…`）
 > - Docker Desktop 在本机守护进程起不来（VM 无法启动），故 Docker 路线暂不可用，走下面的"路线 A"
+>
+> **实测输出（原文摘录）**：
+> ```
+> [PASS] PG 写穿 + 重启载回会话/审批单: RESTART agent_sessions 载回 10 条（含目标=True）
+>        RESTART approval_tickets 载回 10 条（含目标=True） → 重启载回成功
+> [PASS] MinIO 文档原文上传 + 回读一致: 写入 minio://kb-files/val/kb_sample.txt；回读一致=是
+> [PASS] LiteLLM 可达 + 智能体调用（真/伪生成判别）: 模型=qwen-plus；真实LLM生成：…
+> [ALL PASS] 三项底座全部真实生效：3/3 通过。
+> ```
 
 ---
 

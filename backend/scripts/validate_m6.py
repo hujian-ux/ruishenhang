@@ -27,19 +27,25 @@ def banner(title: str) -> None:
     print("=" * 66)
 
 
+_RESULTS: list[tuple[str, object]] = []
+
+
 def check(name: str, fn):
     try:
         ok, detail = fn()
     except Exception as e:  # noqa: BLE001
         print(f"[FAIL] {name}: 异常 {e!r}")
+        _RESULTS.append((name, False))
         return False
     if ok is None:
         print(f"[SKIP] {name}: {detail}")
+        _RESULTS.append((name, None))
         return None
     if ok:
         print(f"[PASS] {name}: {detail}")
     else:
         print(f"[FAIL] {name}: {detail}")
+    _RESULTS.append((name, ok))
     return ok
 
 
@@ -123,7 +129,17 @@ def main() -> None:
     check("LiteLLM 可达 + 智能体调用（真/伪生成判别）", llm_test)
 
     banner("结论")
-    print("SKIP = 对应底座未启动（接口仍可用，仅内存兜底）；PASS/FAIL = 真实底座生效验证。")
+    n_pass = sum(1 for _, r in _RESULTS if r is True)
+    n_fail = sum(1 for _, r in _RESULTS if r is False)
+    n_skip = sum(1 for _, r in _RESULTS if r is None)
+    if n_fail:
+        print(f"[FAIL] 共 {len(_RESULTS)} 项：PASS {n_pass} / FAIL {n_fail} / SKIP {n_skip}。先修 FAIL 项。")
+    elif n_skip:
+        print(f"[OK] 共 {len(_RESULTS)} 项：PASS {n_pass} / SKIP {n_skip}（底座未启动，接口仍可用、仅内存兜底）。")
+        print("     起齐三底座后重跑，即可得到真实持久化 / 对象存储 / 真 LLM 生成的完整证明。")
+    else:
+        print(f"[ALL PASS] 三项底座全部真实生效：{n_pass}/{len(_RESULTS)} 通过。")
+        print("           PG 写穿重启不丢会话与审批单 · 文档原文可回读 · 智能体真实 LLM 生成。")
     print("要跑出【真实 LLM 生成】：在 .env 或终端设置 DASHSCOPE_API_KEY（通义千问）或")
     print("OPENAI_API_KEY，并把 LLM_DEFAULT_MODEL 设为 qwen-plus / gpt-4o-mini，再重跑本脚本。")
 
