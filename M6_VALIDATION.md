@@ -179,6 +179,9 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
   生产则设 `LITELLM_MASTER_KEY`（后端同名环境变量会自动透传 `Authorization`）。
 - **调用 500，日志 `'ascii' codec can't encode characters`**：`DASHSCOPE_API_KEY` 里有中文
   （多半是没替换占位文字）。换成阿里云百炼控制台复制的真实 ASCII 密钥（`sk-` + 一串字母数字），重启 litellm。
+- **`docker compose up` 报 `500 Internal Server Error ... /v1.xx/images/create`**：多为镜像加速器失效
+  或 Docker 引擎异常。先 Docker Desktop → Troubleshoot → Restart；仍不行就清空 `registry-mirrors`
+  再 `docker pull postgres:16`；反复不行则改用附录的原生三件套（不再依赖镜像仓库）。
 - **compose 的 litellm 与 pip 版抢 4000 端口**：只起 PG 和 MinIO 即可——
   `docker compose up -d postgres minio`，LLM 继续用 pip 版。
 - **MinIO 桶不存在**：应用首次调用会自动 `make_bucket`，无需手动建。
