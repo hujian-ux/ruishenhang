@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, setToken } from "./api/client";
 import { AgentsPage } from "./pages/Agents";
+import { ChatPage } from "./pages/Chat";
 
 const STYLE = `
 :root{--navy:#0a2540;--blue:#1565c0;--accent:#2d7ff9;--bg:#f6f8fb;--card:#fff;--line:#dbe6f2;--ink:#1f2d3d;--muted:#5b7185;}
@@ -69,7 +70,7 @@ function RetrievePage() {
 
 export function App() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<"agents" | "models" | "retrieve">("agents");
+  const [tab, setTab] = useState<"agents" | "chat" | "models" | "retrieve">("agents");
 
   useEffect(() => {
     api.login().then((r) => { setToken(r.data.token); setReady(true); }).catch(() => setReady(true));
@@ -81,12 +82,14 @@ export function App() {
       <div className="side">
         <h1>企业 AI 智能体中台</h1>
         <div className={"nav " + (tab === "agents" ? "on" : "")} onClick={() => setTab("agents")}>选型 / 建智能体</div>
+        <div className={"nav " + (tab === "chat" ? "on" : "")} onClick={() => setTab("chat")}>智能体对话（会话记忆）</div>
         <div className={"nav " + (tab === "models" ? "on" : "")} onClick={() => setTab("models")}>模型注册表</div>
         <div className={"nav " + (tab === "retrieve" ? "on" : "")} onClick={() => setTab("retrieve")}>召回演示</div>
       </div>
       <div className="main">
         {!ready && <div className="hint">正在签发 dev token …</div>}
         {ready && tab === "agents" && <AgentsPage />}
+        {ready && tab === "chat" && <ChatPage />}
         {ready && tab === "models" && <ModelsPage />}
         {ready && tab === "retrieve" && <RetrievePage />}
       </div>

@@ -72,7 +72,8 @@ cd web && npm install && npm run dev
 ## 当前骨架已验证
 - `pytest`：31 项全过（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4 会话记忆×7 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证
 - 最小闭环端到端走查：`python scripts/e2e_walkthrough.py`（进程内串起 P0 三章，打印人读报告，无需起服务）
-- **前端 React 联调已验证**：`npm run build` 通过（TS 编译 + Vite 打包 150KB/gzip 49KB）；选型向导改为异步调后端 `/selection/recommend`（本地规则兜底），`node web/scripts/contract_check.mjs` 复刻浏览器 fetch 链路（login→models→选型→召回→注册）全部通过；Vite dev server 经 `/api` 代理打到真实后端（127.0.0.1:8080），根页面 200、代理接口返回完整选型数据。
+- **前端 React 联调已验证**：`npm run build` 通过（TS 编译 + Vite 打包 150KB/gzip 49KB）；选型向导改为异步调后端 `/selection/recommend`（本地规则兜底），`node web/scripts/contract_check.mjs` 复刻浏览器 fetch 链路（login→models→选型→召回→注册→**M4 对话/会话记忆**）全部通过；Vite dev server 经 `/api` 代理打到真实后端（127.0.0.1:8080），根页面 200、代理接口返回完整选型数据。
+- **前端智能体对话页（M4）**：`web/src/pages/Chat.tsx` —— 多轮聊天 + 会话记忆可视化（轮次数/query 改写标记/会话记忆 JSON 查看）；智能体下拉从 `/agents` 实时拉取。
 - `docker-compose.yml` YAML 合法；`web/package.json` / `tsconfig.json` 合法
 - 注意：重客户端（qdrant/sqlalchemy/minio/redis/sentence-transformers/langgraph）为懒加载，
   未安装时提供确定性 stub，保证骨架可导入、可演示**单一过滤点**逻辑。

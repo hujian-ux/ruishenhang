@@ -34,6 +34,14 @@ export const api = {
     req<any>("POST", "/selection/recommend", {
       input_type: inputType, deterministic, need,
     }),
+  listAgents: () => req<{ code: number; data: { agents: any[] } }>("GET", "/agents"),
+  // M4 会话记忆：session_id 传入续聊，缺省新建
+  invokeAgent: (agentId: string, input: string, sessionId?: string) =>
+    req<any>("POST", "/agent/invoke", {
+      agent_id: agentId, input, stream: false, ...(sessionId ? { session_id: sessionId } : {}),
+    }),
+  getSession: (sessionId: string) =>
+    req<any>("GET", `/agent/sessions/${sessionId}`),
 };
 
 // 第35章选型规则（本地兜底，与后端 selection/framework.py 同源；后端不可达时使用）

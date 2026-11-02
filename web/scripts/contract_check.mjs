@@ -55,6 +55,29 @@ async function main() {
   assert(ag.data.status === "pending_review", `智能体状态=${ag.data.status}（第35章待发布评审）`);
   assert(ag.data.registered_by === "u_1024", `registered_by 服务端强制=${ag.data.registered_by}`);
 
+  // 6) M4 智能体调用 + 会话记忆
+  const agentId = ag.data.agent_id;
+  const inv1 = await fetch(`${BASE}/agent/invoke`, {
+    method: "POST", headers: H,
+    body: JSON.stringify({ agent_id: agentId, input: "五一活动方案有哪些", stream: false }),
+  });
+  const inv1Body = await inv1.json();
+  assert(inv1.status === 200 && !!inv1Body.data.answer, "调用智能体首轮 (POST /agent/invoke) 返回答案");
+  const sid = inv1Body.data.session.session_id;
+  assert(inv1Body.data.session.turn_count === 2, "首轮自动建会话（turn_count=2）");
+
+  const inv2 = await fetch(`${BASE}/agent/invoke`, {
+    method: "POST", headers: H,
+    body: JSON.stringify({ agent_id: agentId, input: "预算多少", session_id: sid, stream: false }),
+  });
+  const inv2Body = await inv2.json();
+  assert(inv2.status === 200 && inv2Body.data.session.query_rewritten === true,
+    "第二轮记忆改写（query_rewritten=true，指代消解生效）");
+
+  const sess = await fetch(`${BASE}/agent/sessions/${sid}`, { headers: H });
+  const sessBody = await sess.json();
+  assert(sess.status === 200 && sessBody.data.turn_count === 4, `会话记忆查询 (GET /agent/sessions) turn_count=${sessBody.data?.turn_count}`);
+
   console.log("─".repeat(56));
   console.log(process.exitCode ? "契约验证存在失败项 ✗" : "前端联调契约全部通过 ✓（浏览器经 Vite 代理等价）");
 }
