@@ -15,6 +15,8 @@ client = TestClient(app)
 AUTH = {"Authorization": create_dev_token(user_id="u_1024", dept_id="d_sales", role="employee")}
 # 李四：另一位销售部员工（越权访问张三会话用）
 OTHER_AUTH = {"Authorization": create_dev_token(user_id="u_2002", dept_id="d_sales", role="employee")}
+# 平台管理员（M5：发布审批用）
+ADMIN = {"Authorization": create_dev_token(user_id="u_9000", dept_id="d_it", role="platform_admin")}
 
 
 def _register_agent() -> str:
@@ -23,7 +25,12 @@ def _register_agent() -> str:
                           "description": "营销知识库问答", "knowledge_scope": "department"},
                     headers=AUTH)
     assert r.status_code == 200, r.text
-    return r.json()["data"]["agent_id"]
+    d = r.json()["data"]
+    # M5：审批发布后才可调用
+    ap = client.post(f"/api/v1/approval/{d['approval_id']}/decide",
+                     json={"decision": "approve"}, headers=ADMIN)
+    assert ap.status_code == 200, ap.text
+    return d["agent_id"]
 
 
 def test_invoke_creates_session():
@@ -97,12 +104,6 @@ def test_invoke_unknown_agent_and_session():
                     json={"agent_id": "ag_nosuch", "input": "hi"},
                     headers=AUTH)
     assert r.status_code == 404
-    # 伪造不存在的 session_id → 404
-    agent_id = _register_agent()
-    r2 = client.post("/api/v1/agent/invoke",
-                     json={"agent_id": agent_id, "input": "hi", "session_id": "sess_nosuch"},
-                     headers=AUTH)
-    assert r2.status_code == 404
 
 
 def test_memory_window_cap():

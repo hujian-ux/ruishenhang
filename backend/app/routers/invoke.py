@@ -20,6 +20,10 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     agent = _AGENTS.get(req.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"智能体不存在：{req.agent_id}")
+    # M5 红线：评审通过（published）才可调用
+    if agent.get("status") != "published":
+        raise HTTPException(status_code=403,
+                            detail=f"智能体未发布（status={agent.get('status')}）：评审通过后才可调用（第35章红线）")
     try:
         sess = session_store.get_or_create(req.agent_id, caller, req.session_id)
     except session_store.SessionAccessError:

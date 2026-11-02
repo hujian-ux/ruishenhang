@@ -257,6 +257,43 @@ paths:
                   audit_id: "audit_77"
         '403':
           $ref: '#/components/responses/Forbidden'
+  /approval/pending:
+    get:
+      tags: [approval]
+      operationId: listPendingApprovals
+      summary: 待审列表（M5 工程态扩展）
+      description: >
+        platform_admin 返回全部待审单据；dept_admin 仅返回本部门发起的。
+        智能体注册时自动开单（注册响应含 approval_id），审批通过后智能体
+        pending_review → published（方可被 /agent/invoke 调用），驳回 → rejected。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 待审单据列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      tickets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            approval_id: { type: string }
+                            agent_id: { type: string }
+                            requester_id: { type: string }
+                            dept_id: { type: string }
+                            status: { type: string, enum: [pending, approved, rejected] }
+                            created_at: { type: number }
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /kb/documents:
     post:
       tags: [kb]

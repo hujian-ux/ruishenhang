@@ -36,7 +36,8 @@ export function AgentsPage() {
         model_id: form.model_id || undefined,
         selection_rationale: { recommended: result.adapter_type, landing_chapters: result.landing_chapters || "" },
       });
-      setCreated(`已创建，agent_id=${(r.data as any).agent_id}，状态=${(r.data as any).status}（第35章：待发布评审）`);
+      setCreated(`已创建，agent_id=${(r.data as any).agent_id}，状态=${(r.data as any).status}（第35章：待发布评审）`
+        + ` · 审批单 ${(r.data as any).approval_id} → 到「审批台」处理，通过后才能对话`);
     } catch (e: any) { setCreated("失败：" + e.message); }
   };
 

@@ -8,6 +8,7 @@ from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.models.schemas import AgentRegisterRequest, AgentRegisterResponse
 from app.selection import framework
+from app.services import approval_store
 
 router = APIRouter(prefix="/agents", tags=["agent"])
 
@@ -35,13 +36,17 @@ async def register_agent(req: AgentRegisterRequest, caller: CallerContext = Depe
     _AGENTS[agent_id] = {
         "agent_id": agent_id, "name": req.name, "adapter_type": req.adapter_type,
         "knowledge_scope": req.knowledge_scope, "model_id": req.model_id,
-        "registered_by": caller.userId, "status": "pending_review",
+        "registered_by": caller.userId, "dept_id": caller.deptId,
+        "status": "pending_review",
     }
+    # M5：注册即开审批单（第35章红线：评审通过才可发布/调用）
+    ticket = approval_store.create_ticket(agent_id, caller.userId, caller.deptId)
     return {
         "code": 0,
         "data": {
             "agent_id": agent_id,
             "status": "pending_review",  # 进入待发布评审（第35章红线）
+            "approval_id": ticket["approval_id"],
             "adapter_type": req.adapter_type,
             "registered_by": caller.userId,
             "selection": {"recommended": req.adapter_type, "landing_chapters": sel.get("chapters", "")},

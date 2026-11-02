@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, setToken } from "./api/client";
 import { AgentsPage } from "./pages/Agents";
 import { ChatPage } from "./pages/Chat";
+import { ApprovalPage } from "./pages/Approval";
 
 const STYLE = `
 :root{--navy:#0a2540;--blue:#1565c0;--accent:#2d7ff9;--bg:#f6f8fb;--card:#fff;--line:#dbe6f2;--ink:#1f2d3d;--muted:#5b7185;}
@@ -70,11 +71,17 @@ function RetrievePage() {
 
 export function App() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<"agents" | "chat" | "models" | "retrieve">("agents");
+  const [tab, setTab] = useState<"agents" | "chat" | "approval" | "models" | "retrieve">("agents");
+  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    api.login().then((r) => { setToken(r.data.token); setReady(true); }).catch(() => setReady(true));
-  }, []);
+  const doLogin = (code: string) => {
+    setReady(false);
+    api.login(code).then((r) => { setToken(r.data.token); setUser(r.data.user); setReady(true); })
+      .catch(() => setReady(true));
+  };
+
+  useEffect(() => { doLogin("dev"); }, []);
+  const isAdmin = user?.role === "platform_admin" || user?.role === "dept_admin";
 
   return (
     <div className="app">
@@ -83,13 +90,23 @@ export function App() {
         <h1>企业 AI 智能体中台</h1>
         <div className={"nav " + (tab === "agents" ? "on" : "")} onClick={() => setTab("agents")}>选型 / 建智能体</div>
         <div className={"nav " + (tab === "chat" ? "on" : "")} onClick={() => setTab("chat")}>智能体对话（会话记忆）</div>
+        <div className={"nav " + (tab === "approval" ? "on" : "")} onClick={() => setTab("approval")}>审批台（发布评审）</div>
         <div className={"nav " + (tab === "models" ? "on" : "")} onClick={() => setTab("models")}>模型注册表</div>
         <div className={"nav " + (tab === "retrieve" ? "on" : "")} onClick={() => setTab("retrieve")}>召回演示</div>
+        <div style={{ marginTop: 18, padding: "0 6px", fontSize: 11.5, color: "#9db8d9" }}>
+          当前身份：{user ? `${user.name}（${user.role}）` : "…"}
+          <div style={{ marginTop: 6 }}>
+            {isAdmin
+              ? <button className="btn" style={{ fontSize: 11.5, padding: "5px 9px" }} onClick={() => doLogin("dev")}>切回员工（张三）</button>
+              : <button className="btn" style={{ fontSize: 11.5, padding: "5px 9px", background: "#37474f" }} onClick={() => doLogin("dev_admin")}>切到管理员（王总）</button>}
+          </div>
+        </div>
       </div>
       <div className="main">
         {!ready && <div className="hint">正在签发 dev token …</div>}
         {ready && tab === "agents" && <AgentsPage />}
         {ready && tab === "chat" && <ChatPage />}
+        {ready && tab === "approval" && <ApprovalPage />}
         {ready && tab === "models" && <ModelsPage />}
         {ready && tab === "retrieve" && <RetrievePage />}
       </div>

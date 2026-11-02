@@ -55,8 +55,35 @@ async function main() {
   assert(ag.data.status === "pending_review", `智能体状态=${ag.data.status}（第35章待发布评审）`);
   assert(ag.data.registered_by === "u_1024", `registered_by 服务端强制=${ag.data.registered_by}`);
 
-  // 6) M4 智能体调用 + 会话记忆
+  // 6) M5 审批红线：未发布不可调用
   const agentId = ag.data.agent_id;
+  const approvalId = ag.data.approval_id;
+  const blocked = await fetch(`${BASE}/agent/invoke`, {
+    method: "POST", headers: H,
+    body: JSON.stringify({ agent_id: agentId, input: "hi", stream: false }),
+  });
+  assert(blocked.status === 403, `未发布 invoke 被拦（403：${(await blocked.json()).detail?.slice(0, 30)}…）`);
+
+  // 7) M5 审批流：员工无权审批 → 管理员通过 → 发布可调用
+  const empTry = await fetch(`${BASE}/approval/${approvalId}/decide`, {
+    method: "POST", headers: H, body: JSON.stringify({ decision: "approve" }),
+  });
+  assert(empTry.status === 403, "员工决策审批被拒（403）");
+
+  const adminLogin = await fetch(`${BASE}/auth/sso/callback`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "wecom", code: "dev_admin", device_id: "dev", state: "x" }),
+  }).then((r) => r.json());
+  assert(adminLogin.data.user.role === "platform_admin", "dev_admin 登录 → platform_admin（王总）");
+  const AH = { "Content-Type": "application/json", Authorization: adminLogin.data.token };
+
+  const ap = await fetch(`${BASE}/approval/${approvalId}/decide`, {
+    method: "POST", headers: AH, body: JSON.stringify({ decision: "approve", comment: "契约脚本评审" }),
+  }).then((r) => r.json());
+  assert(ap.data.status === "approved" && ap.data.agent_status === "published",
+    `审批通过 → 智能体 ${ap.data.agent_status}`);
+
+  // 8) M4 智能体调用 + 会话记忆（发布后）
   const inv1 = await fetch(`${BASE}/agent/invoke`, {
     method: "POST", headers: H,
     body: JSON.stringify({ agent_id: agentId, input: "五一活动方案有哪些", stream: false }),

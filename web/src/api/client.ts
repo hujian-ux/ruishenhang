@@ -16,13 +16,17 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}`);
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
+    throw new Error(detail);
+  }
   return res.json() as Promise<T>;
 }
 
 export const api = {
-  login: () => req<{ code: number; data: { token: string } }>("POST", "/auth/sso/callback", {
-    provider: "wecom", code: "dev", device_id: "dev", state: "x",
+  login: (code = "dev") => req<{ code: number; data: { token: string; user: any } }>("POST", "/auth/sso/callback", {
+    provider: "wecom", code, device_id: "dev", state: "x",
   }),
   listModels: () => req<{ code: number; data: { models: any[] } }>("GET", "/models"),
   retrieve: (q: string) => req<any>("POST", "/rag/retrieve", {
@@ -42,6 +46,10 @@ export const api = {
     }),
   getSession: (sessionId: string) =>
     req<any>("GET", `/agent/sessions/${sessionId}`),
+  // M5 审批流
+  pendingApprovals: () => req<{ code: number; data: { count: number; tickets: any[] } }>("GET", "/approval/pending"),
+  decideApproval: (approvalId: string, decision: "approve" | "reject", comment?: string) =>
+    req<any>("POST", `/approval/${approvalId}/decide`, { decision, comment }),
 };
 
 // 第35章选型规则（本地兜底，与后端 selection/framework.py 同源；后端不可达时使用）
