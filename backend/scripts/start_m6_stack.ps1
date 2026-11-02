@@ -125,6 +125,9 @@ if (Test-Port 4000) {
         Say "      WARN: no DASHSCOPE_API_KEY -> LLM call will fall back to stub"
     } elseif ($Key -match '[^\x20-\x7E]') {
         Say "      WARN: key has non-ASCII characters (Chinese?) -> will fail with 500"
+    } elseif ($Key -notmatch '^sk-[A-Za-z0-9]{8,}$') {
+        Say "      NOTE: key format differs from the usual Bailian API-KEY (sk- + 32 alnum)."
+        Say "            If generation fails with 401/403, re-copy it from bailian.console.aliyun.com -> API-KEY."
     }
     $env:DASHSCOPE_API_KEY = $Key
     $env:LLM_DEFAULT_MODEL = $Model
@@ -171,11 +174,29 @@ if (Test-Port 5432) {
         $ok = Wait-Port 5432 60
     }
     if (-not $ok) {
-        $pgCtl = Join-Path $PgsqlBin "pg_ctl.exe"
-        if ((Test-Path $pgCtl) -and (Test-Path $PgData)) {
-            Say "      native pg_ctl start (D:\pgsql + D:\pgdata)"
-            & $pgCtl -D $PgData -o "-p 5432" -l "D:\pg.log" start 2>&1 | Out-Null
-            $ok = Wait-Port 5432 30
+        $pgExe = Join-Path $PgsqlBin "postgres.exe"
+        if ((Test-Path $pgExe) -and (Test-Path $PgData)) {
+            # 上次异常退出会残留 postmaster.pid，postgres 会拒绝启动
+            $pidFile = Join-Path $PgData "postmaster.pid"
+            if (Test-Path $pidFile) {
+                $stale = (Get-Content $pidFile -TotalCount 1) -as [int]
+                if (-not (Get-Process -Id $stale -ErrorAction SilentlyContinue)) {
+                    Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+                    Say "      removed stale postmaster.pid"
+                }
+            }
+            # 直接用 postgres.exe：pg_ctl start 的输出管道会被子进程继承，
+            # 在 PowerShell 里 `| Out-Null` 会一直等 EOF 而看起来"卡死"（服务其实已起）。
+            Say "      native postgres.exe start (D:\pgsql + D:\pgdata)"
+            try {
+                Start-Process -FilePath $pgExe -ArgumentList @("-D", $PgData, "-p", "5432") `
+                    -RedirectStandardError (Join-Path $LogDir "pg.err.log") `
+                    -WindowStyle Hidden -ErrorAction Stop
+                $ok = Wait-Port 5432 40
+            } catch {
+                Say "      cannot launch from this shell: $($_.Exception.Message)"
+                Say "      fix: open a FRESH PowerShell window and run the script there"
+            }
         } elseif (-not (Test-Path $PgData)) {
             Say "      native PG not initialized. One-time setup (see M6_VALIDATION.md appendix):"
             Say "        download postgresql-16.x-windows-x64-binaries.zip, unzip to D:\pgsql"
