@@ -9,23 +9,26 @@ export function PilotPage({ isAdmin }: { isAdmin: boolean }) {
   const [repSource, setRepSource] = useState("");
   const [trend, setTrend] = useState<any>(null);
   const [hist, setHist] = useState<any[]>([]);
+  const [idx, setIdx] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
   const load = async () => {
     try {
-      const [s, e, t, h] = await Promise.all([
+      const [s, e, t, h, ix] = await Promise.all([
         api.getKbStats(),
         api.getEvalLatest(),
         api.getUsageTrend(14),
         api.getEvalHistory(14),
+        api.getKbIndex(),
       ]);
       setStats(s.data);
       setRep(e.data);
       setRepSource(e.source || "report");
       setTrend(t.data);
       setHist(h.data.rows);
+      setIdx(ix.data);
       setErr("");
     } catch (e: any) {
       setErr(e.message);
@@ -124,6 +127,49 @@ export function PilotPage({ isAdmin }: { isAdmin: boolean }) {
         ) : <div className="hint">加载中…</div>}
         {msg && <div className="ok">{msg}</div>}
         {err && <div className="hint" style={{ color: "#c62828", marginTop: 8 }}>{err}</div>}
+      </div>
+
+      <div className="card">
+        <h3>索引健康（M9 · 规模化后的第一诊断屏）</h3>
+        <div className="row" style={{ gap: 10 }}>
+          <div className="kpi">
+            <span>子块 / 文档</span>
+            <b>{idx?.children ?? 0}</b>
+            <i>{idx?.documents ?? 0} 篇 · 词表 {idx?.vocab ?? 0} · 均长 {idx?.avg_child_tokens ?? 0}</i>
+          </div>
+          <div className="kpi">
+            <span>最近一次查询</span>
+            <b style={{ color: (idx?.last_query_ms ?? 0) > 200 ? "#c62828" : "#0a2540" }}>
+              {idx?.last_query_ms != null ? `${idx.last_query_ms} ms` : "—"}
+            </b>
+            <i>累计 {idx?.query_count ?? 0} 次 · 建索引 {idx?.build_ms ?? 0} ms</i>
+          </div>
+          <div className="kpi">
+            <span>向量后端</span>
+            <b>{idx?.vector_store?.backend ?? "memory"}</b>
+            <i>
+              {idx?.vector_backend === "numpy" ? "numpy 矩阵" : "纯 Python 回退"} · 约{" "}
+              {Math.round((idx?.vec_bytes ?? 0) / 1048576)} MB
+            </i>
+          </div>
+          <div className="kpi">
+            <span>向量缓存命中</span>
+            <b>
+              {idx?.embed_cache?.hit_rate != null
+                ? `${(idx.embed_cache.hit_rate * 100).toFixed(0)}%`
+                : "—"}
+            </b>
+            <i>
+              {idx?.embed_cache?.entries ?? 0} 条 ·{" "}
+              {idx?.embed_cache?.available ? "已启用" : "未启用"}
+            </i>
+          </div>
+        </div>
+        <div className="hint" style={{ marginTop: 10 }}>
+          判读：① 查询延迟超过 200ms 说明语料已超内存矩阵的舒适区（该切 Qdrant）；
+          ② 缓存命中率只影响重启恢复速度，不影响在线延迟；
+          ③ tombstone 占比高时索引会自动压缩，不用手工干预。
+        </div>
       </div>
 
       <div className="card">

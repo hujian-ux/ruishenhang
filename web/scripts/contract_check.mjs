@@ -186,6 +186,17 @@ async function main() {
   assert(typeof stats.data.documents === "number" && stats.data.index_char_cap > 0,
     `语料画像 (GET /kb/stats) 篇数=${stats.data.documents} 索引上限=${stats.data.index_char_cap}`);
 
+  const idxHealth = await fetch(`${BASE}/kb/index`, { headers: H }).then((r) => r.json());
+  const ih = idxHealth.data || {};
+  assert(
+    typeof ih.children === "number" && typeof ih.documents === "number"
+      && typeof ih.vector_backend === "string" && ih.embed_cache && ih.vector_store,
+    `索引健康 (GET /kb/index) 子块=${ih.children} 文档=${ih.documents} 后端=${ih.vector_backend}`
+      + ` 缓存命中=${ih.embed_cache?.hit_rate} 查询p50=${ih.last_query_ms}`,
+  );
+  assert(ih.by_scope && typeof ih.by_scope === "object" && typeof ih.vocab === "number",
+    `索引分维 (GET /kb/index) scope=${Object.keys(ih.by_scope || {}).length} 类 vocab=${ih.vocab}`);
+
   const trend = await fetch(`${BASE}/usage/trend?days=7`, { headers: H }).then((r) => r.json());
   assert(trend.data.series.length === 7 && "budget_status" in trend.data,
     `成本曲线 (GET /usage/trend) 7 天连续 · 预算水位=${trend.data.budget_status} · 外推 ¥${trend.data.projected_month_cost}`);

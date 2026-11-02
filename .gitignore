@@ -34,3 +34,6 @@ backend/reports/
 # 浏览器自动化 / TS 增量构建缓存
 .playwright-cli/
 *.tsbuildinfo
+
+# 运行时数据（embedding 缓存 sqlite / qdrant 本地文件）
+backend/data/

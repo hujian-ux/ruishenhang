@@ -52,7 +52,7 @@ cd web && npm install && npm run dev
 - **触发方式**：把本仓库 `git remote add origin <你的GitHub地址>` 后 `git push -u origin main`，GitHub 即自动跑该工作流（需先在仓库 Secrets/环境装好 Python 3.11，无需其他配置）。
 
 ## 与蓝图的对应（契约同源）
-- **openapi.yaml（8 paths / 22 schemas）** ←→ `backend/app/routers/*` 一一映射
+- **openapi.yaml（24 paths / 24 schemas）** ←→ `backend/app/routers/*` 一一映射
 - **第18章 单一过滤点** ←→ `core/filter.py` + `core/middleware.py`（只在网关一处）
 - **第25章 模型网关** ←→ `services/model_gateway.py` + `litellm_config.yaml`
 - **第35章 选型** ←→ `selection/framework.py`（与原型「选型向导」结果一致，导出 JSON 对齐 `/agents`）
@@ -72,6 +72,7 @@ cd web && npm install && npm run dev
 | M6 基础设施接入 | 2 周 | ① 模型网关真生成（LiteLLM 探活+同步调用，离线 stub 兜底）② 会话/审批单 PG 写穿持久化（`pg_store`，重启载回）③ 知识文档 MinIO 对象存储（`object_store`，离线 memory 兜底）+ kb 列表/原文读回端点 | ✅ 6 项 M6 测试全过；compose up 后自动启用真设施，离线全链路不中断 |
 | M7 计量真实化 | 2 周 | 每次调用落一单账（token 真值优先/成本写账固化/真实 or stub 可判别）+ 五维聚合（dept/agent/model/user/day，RBAC 收敛）+ 配额红线（30 天超限 invoke 429）+ 知识库上传（三处一致、删了不再召回）+ 会话/模型管理页 | ✅ 9 项 M7 测试全过；`usage_records` 直查可对账 |
 | M8 试点就绪 | 2 周 | ① 批量语料导入（内容指纹去重/重跑幂等/失败逐条记录/索引只重建一次）② 知识库 PG 载回（重启不清零）③ 基线跑批（外部 golden 用标题反查、JSON+Markdown 报告、漂移历史）④ 成本曲线（逐日补零/月末外推/预算水位）⑤ 试点看板一屏 | ✅ 9 项 M8 测试全过；实测 250 篇导入 5.1 秒、重启仍 250 篇、加语料后 Recall@100 稳定 1.0 |
+| M9 规模化 | 2 周 | ① 向量存 (N,D) numpy 矩阵 + 倒排预筛 BM25（`knowledge.py` 重写）② 增量写入 + tombstone 删除（不再全量重建）③ embedding sqlite 持久缓存 ④ 向量后端可插拔（memory/qdrant，失败静默降级）⑤ `/kb/index` 索引健康屏 + 试点看板卡 ⑥ golden 多目标命中（`accept_titles` 同族等价）⑦ 压测基准脚本 | ✅ 8 项 M9 测试全过（总 72）；2720 篇/33712 子块 检索 p50 **17.71ms**；2720 篇 golden Recall@5/10/100 全 **1.0**、MRR **0.9659** |
 
 ## M8 试点怎么跑（最快路径）
 
@@ -95,8 +96,36 @@ SEED_DEMO_CORPUS=0 ./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127
 报告落 `backend/reports/`：`ingest_report.md`、`baseline.md`、`history.jsonl`（漂移）、`latest.json`（看板读它）。
 完整两周 SOP 见 `docs/M8_试点运行手册.md`；没有真实语料时可先 `scripts/gen_pilot_corpus.py` 生成模拟语料压测链路。
 
+## M9 规模化怎么验（2000+ 篇不塌）
+
+```bash
+cd D:/enterprise-ai-platform/backend
+
+# 1) 压测：全量导入 / 增量 / 检索延迟（输出 reports/index_bench_*.json）
+./.venv/Scripts/python.exe scripts/bench_index.py \
+  --dirs D:/pilot_corpus/docs D:/pilot_corpus_big/docs --inc 50 --repeat 10 \
+  --out reports/index_bench_scale.json
+
+# 2) 索引健康（进程内直查，不用起服务）
+./.venv/Scripts/python.exe -c "from app.services import knowledge; print(knowledge.index_health())"
+
+# 3) 规模化后端起服务后看一屏：GET /api/v1/kb/index（试点看板「索引健康」卡同源）
+VECTOR_BACKEND=memory EMBED_CACHE=1 ./.venv/Scripts/python.exe -m uvicorn app.main:app --port 8080
+```
+
+| 开关 | 默认 | 说明 |
+|------|------|------|
+| `VECTOR_BACKEND` | `memory` | `memory`（进程内 numpy）/ `qdrant` / `auto`（先试 qdrant，失败降级） |
+| `QDRANT_MODE` | `http` | `local` 用 qdrant-client 文件模式，不占端口也能验真实引擎 |
+| `EMBED_CACHE` | `1` | sqlite 单文件缓存（`data/embed_cache.db`），键 = model+dim+text sha1 |
+| `INDEX_MAX_CHILDREN` | `200000` | 子块容量上限（约 1000–2000 篇），超限前 `/kb/index` 的 `capacity_used_pct` 会先告警 |
+| `INDEX_COMPACT_RATIO` | `0.25` | tombstone 占比超此值自动压缩索引（删多写少时回收内存） |
+
+改造前后对比、规模化边界与降级策略见 `docs/M9_规模化报告.md`。
+
 ## 当前骨架已验证
-- `pytest`：64 项全过（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**
+- `pytest`：**72 项全过**（6 骨架 + M1×5 + M2×7 + M3×2 + 最小闭环 e2e×1 + M4×7 + M5×9 + M6×6 + M7×9 + M8×9 + M9×8 + 其它）；含 Recall 门禁与客观门禁阻断逻辑验证；**PG 在位与离线两种模式均通过**（`tests/conftest.py` 默认把 PG 指向不可达端口做隔离，`TEST_WITH_PG=1` 跑真 PG）
+- M9 规模化实机验证（2026-11-02，模拟语料）：220 篇/2686 子块 检索 p50 **133ms → 3.35ms**；2720 篇/33712 子块 p50 **17.71ms**、p95 21.1ms；增量写入 20 篇/批 **0.018s**（改造前 0.313s）；导入 **1100 篇/秒**；golden 补 `accept_titles` 后 Recall@5/10/100 全 1.0、MRR 0.9659（原 Recall@5 0.5909 的「坏例」经排查**全部是同族等价，真漏检 0 条**）
 - M8 实机验证（2026-11-02，模拟语料）：导入 220 篇 **5.1 秒（43 篇/秒）**；重跑整批 **全部判重、78 ms**；重启后端 `/kb/stats` 仍为 220 篇；加 30 篇后 250 篇、Recall@100 仍 1.0、Recall@10 仍 0.8864
 - 最小闭环端到端走查：`python scripts/e2e_walkthrough.py`（进程内串起 P0 三章，打印人读报告，无需起服务）
 - **前端 React 联调已验证**：`npm run build` 通过（TS 编译 + Vite 打包 150KB/gzip 49KB）；选型向导改为异步调后端 `/selection/recommend`（本地规则兜底），`node web/scripts/contract_check.mjs` 复刻浏览器 fetch 链路（login→models→选型→召回→注册→**M4 对话/会话记忆**）全部通过；Vite dev server 经 `/api` 代理打到真实后端（127.0.0.1:8080），根页面 200、代理接口返回完整选型数据。

@@ -217,6 +217,16 @@ def normalize_golden(entries: list[dict]) -> tuple[list[dict], list[dict]]:
             "expected_doc_id": doc_id,
             "viewer": e.get("viewer") or _default_viewer(doc_id, e.get("tenant_id") or "t_demo"),
         }
+        # 多目标（M9）：同一族文档往往都能回答同一个问题（「渠道政策怎么执行」
+        # 对 2026-041 / 2026-025 都成立），只标一个 doc_id 会把「召回到同族另一篇」
+        # 算成漏检，让指标系统性偏低。allow 里任一命中即算召回。
+        accept = []
+        for t in (e.get("accept_titles") or []):
+            did = knowledge.find_by_title(str(t))
+            if did and did != doc_id and did not in accept:
+                accept.append(did)
+        if accept:
+            item["accept_doc_ids"] = accept
         scope = e.get("scope") or (knowledge.meta_of(doc_id) or {}).get("scope")
         if scope:
             item["scope"] = scope
@@ -264,7 +274,10 @@ def compute_metrics(golden: list[dict], ks: tuple[int, ...] = METRIC_KS) -> dict
         hits, _ = knowledge.retrieve(g["query"], caller, top_k=max_k)
         ids = [h["doc_id"] for h in hits]
         target = g["expected_doc_id"]
-        rank = ids.index(target) + 1 if target in ids else 0
+        # 多目标命中：取所有可接受文档里排名最靠前的那一个
+        targets = [target] + list(g.get("accept_doc_ids") or [])
+        ranks = [ids.index(t) + 1 for t in targets if t in ids]
+        rank = min(ranks) if ranks else 0
         scope = g.get("scope") or "unknown"
         s = by_scope.setdefault(scope, {"queries": 0, "hits": {k: 0 for k in ks}, "rr": 0.0})
         s["queries"] += 1

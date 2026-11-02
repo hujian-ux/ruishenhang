@@ -55,6 +55,29 @@ class Settings:
     # 重排层 cross-encoder（第36章 W2）；未安装时退化为启发式打分
     RERANK_MODEL = _env("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 
+    # M9 规模化：Embedding 结果持久化缓存（sqlite 单文件）。
+    # 重启载回 5000 篇时，命中缓存 = 不重算向量；真 bge 模型下这是分钟级 vs 秒级的差别。
+    # 缓存键含模型名与维度，换模型自然失效，不会串味。
+    EMBED_CACHE = _env("EMBED_CACHE", "1") == "1"
+    EMBED_CACHE_PATH = _env("EMBED_CACHE_PATH", "data/embed_cache.db")
+    # 批量写入的落盘节流（条数）：攒够再一次性提交，避免每条一个事务
+    EMBED_CACHE_FLUSH_EVERY = int(_env("EMBED_CACHE_FLUSH_EVERY", "500"))
+
+    # M9 向量后端：memory（numpy 内存矩阵，默认）| qdrant | auto（远程可达则用 qdrant）
+    # 本地没装 Docker 也能验证 qdrant 路径：QDRANT_MODE=local 用 qdrant-client 的文件模式，
+    # 跑的是真实 Qdrant 引擎，只是不占端口。生产切远程只改 QDRANT_MODE=http。
+    VECTOR_BACKEND = _env("VECTOR_BACKEND", "memory")
+    QDRANT_MODE = _env("QDRANT_MODE", "http")
+    QDRANT_PATH = _env("QDRANT_PATH", "data/qdrant")
+    QDRANT_COLLECTION = _env("QDRANT_COLLECTION", "kb_chunks")
+    QDRANT_TIMEOUT_S = float(_env("QDRANT_TIMEOUT_S", "1.0"))
+
+    # M9 规模化：索引内存上限保护。超过该子块数时检索自动收窄候选
+    # （向量全扫仍保留，BM25 只走倒排候选），避免单机被超大语料拖垮。
+    INDEX_MAX_CHILDREN = int(_env("INDEX_MAX_CHILDREN", "200000"))
+    # tombstone 占比超过该比例时压缩索引（删除多、增量少时回收内存）
+    INDEX_COMPACT_RATIO = float(_env("INDEX_COMPACT_RATIO", "0.25"))
+
     CALLER_SIGNING_SECRET = _env("CALLER_SIGNING_SECRET", "dev-only-change-me")
     DEFAULT_TENANT = _env("DEFAULT_TENANT", "t_demo")
 

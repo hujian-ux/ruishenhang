@@ -149,6 +149,19 @@ async def kb_stats(caller: CallerContext = Depends(get_caller)):
     return {"code": 0, "data": kb_store.stats()}
 
 
+@router.get("/index")
+async def kb_index(caller: CallerContext = Depends(get_caller)):
+    """索引健康（M9 规模化）：规模 / 构建耗时 / 查询延迟 / 向量后端 / 缓存命中。
+
+    试点排障第一眼看的接口——「为什么今天回答变慢」「重启后多久能恢复」
+    都能在这一屏回答，不用翻日志。
+    """
+    from app.services import knowledge, vector_store
+    data = knowledge.index_health()
+    data["vector_store"] = vector_store.stats()
+    return {"code": 0, "data": data}
+
+
 @router.get("/documents")
 async def list_documents(caller: CallerContext = Depends(get_caller)):
     """当前用户可见的文档（复用第18章过滤语义）。"""

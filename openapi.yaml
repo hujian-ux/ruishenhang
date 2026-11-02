@@ -841,6 +841,63 @@ paths:
                   pg_available: true
                   pg_persisted: true
 
+  /kb/index:
+    get:
+      tags: [kb]
+      operationId: getKbIndex
+      summary: 索引健康（M9，规模化后第一诊断屏）
+      description: >
+        规模（父文档 / 子块 / 已分配容量 / tombstone / 词表）+ 构建耗时 +
+        最近一次查询延迟 + embedding 缓存命中 + 向量后端。试点排障第一眼看的接口：
+        「为什么今天回答变慢」「重启后多久能恢复」都在这一屏回答。
+        `vector_store.backend` 为 memory 表示跑在进程内 numpy 矩阵；
+        切 qdrant 时 `available=false` 会自动降级回 memory 并在 `error` 里写明原因。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 索引健康画像
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  documents: 2720
+                  children: 33712
+                  children_allocated: 33712
+                  tombstones: 0
+                  vocab: 3652
+                  avg_child_tokens: 33.16
+                  chars: 788792
+                  depts: 1
+                  by_scope: {department: 2720}
+                  demo_documents: 0
+                  build_ms: 0.0
+                  vector_backend: numpy
+                  vec_bytes: 138084352
+                  last_query_ms: 17.71
+                  query_count: 36
+                  max_children: 200000
+                  capacity_used_pct: 0.16856
+                  embed_cache:
+                    enabled: true
+                    available: true
+                    entries: 33712
+                    hits: 33712
+                    misses: 0
+                    hit_rate: 1.0
+                    pending: 0
+                    errors: 0
+                  vector_store:
+                    requested: memory
+                    backend: memory
+                    available: false
+                    points: null
+                    mode: http
+                    error: null
+
   /usage/trend:
     get:
       tags: [usage]

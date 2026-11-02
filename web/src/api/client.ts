@@ -92,6 +92,7 @@ export const api = {
     return uploadFile("/kb/documents/bulk", form);
   },
   getKbStats: () => req<{ code: number; data: any }>("GET", "/kb/stats"),
+  getKbIndex: () => req<{ code: number; data: any }>("GET", "/kb/index"),
 
   // ── M8 试点：成本曲线 + 基线评测 ──
   getUsageTrend: (days = 14) => req<{ code: number; data: any }>("GET", `/usage/trend?days=${days}`),
