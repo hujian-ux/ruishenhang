@@ -1,12 +1,89 @@
 # M6 基础设施实机验证指南
 
-> 目标：在本机用 `docker compose` 起好 PostgreSQL / MinIO / LiteLLM 三底座，
-> 验证「会话·审批单写穿 PG 重启不丢」「知识文档落 MinIO 可回读」「智能体真实 LLM 生成」。
-> 沙箱无 Docker，本验证**必须在你本机**执行。
+> 目标：在本机起好 PostgreSQL / 对象存储 / LiteLLM 三底座，
+> 验证「会话·审批单写穿 PG 重启不丢」「知识文档落对象存储可回读」「智能体真实 LLM 生成」。
+>
+> **本机已实测状态（2026-11-02）**：
+> - PostgreSQL 16.4 便携版已装在 `D:\pgsql`，数据目录 `D:\pgdata`，`aiplat` 库 7 张表已建好 → **PASS**
+> - 对象存储：MinIO 官方已下架免授权 Windows 二进制（下载 410 / 运行报 "No license"），改用 S3 兼容服务 moto 兜底 → **PASS**（API 完全一致）
+> - LiteLLM 代理：可起、可探活 → **PASS**；`真实LLM生成` 需你自己的 `DASHSCOPE_API_KEY`
+> - Docker Desktop 在本机守护进程起不来（VM 无法启动），故 Docker 路线暂不可用，走下面的"路线 A"
 
 ---
 
-## 0. 前置：本机装好 Docker Desktop
+## 0. 路线 A（推荐，已实测通过）：一键脚本 + 原生三件套
+
+### 0.1 一条命令跑完启动 + 验证
+
+**必须在一个"全新打开的 PowerShell 窗口"里执行**（旧窗口可能带重复的代理环境变量，会导致启动失败）：
+
+```powershell
+cd D:\enterprise-ai-platform\backend
+.\scripts\start_m6_stack.cmd -Key "sk-你的百炼真实密钥"
+```
+
+脚本做四件事（已在跑的会跳过，可反复执行）：
+1. 起 LiteLLM（127.0.0.1:4000），带你的密钥；
+2. 起 PostgreSQL（原生 `pg_ctl`，`D:\pgsql` + `D:\pgdata`；Docker 可用时优先 Docker）；
+3. 起对象存储（有 MinIO 镜像用 MinIO，否则自动起 S3 兼容的 moto，127.0.0.1:9000）；
+4. 等端口就绪后跑 `validate_m6.py`，打印三项 PASS/SKIP/FAIL。
+
+停止全部：`.\scripts\start_m6_stack.cmd -Stop`
+
+### 0.2 本次实测输出（假 key 情况下）
+
+```
+[PASS] PG 写穿 + 重启载回会话/审批单: RESTART agent_sessions 载回 5 条（含目标=True）
+[PASS] MinIO 文档原文上传 + 回读一致: 写入 minio://kb-files/val/kb_sample.txt；回读一致=是
+[PASS] LiteLLM 可达 + 智能体调用（真/伪生成判别）: 模型=qwen-plus；调用失败→stub回退
+```
+
+换成**你的真实密钥**后，第三项会变成 `真实LLM生成：<一段通顺中文>`。
+
+> 执行策略报错 `running scripts is disabled`：用 `.cmd` 包装器（上面的命令）即可，它内部已带
+> `-ExecutionPolicy Bypass`；不要直接双击 `.ps1`。
+
+### 0.3 这三个底座是怎么装上的（换机器时照抄）
+
+**PostgreSQL（便携版，无需管理员、无需 Docker）**
+
+```powershell
+# 1) 下载 16.x Windows x64 binaries zip（约 338MB）
+curl.exe -L -o D:\pgdl\pg16.zip https://get.enterprisedb.com/postgresql/postgresql-16.4-1-windows-x64-binaries.zip
+
+# 2) 解压后把内层 pgsql 目录挪到 D:\pgsql
+Expand-Archive -Path D:\pgdl\pg16.zip -DestinationPath D:\pgdl\extract -Force
+Move-Item D:\pgdl\extract\pgsql D:\pgsql
+
+# 3) 初始化数据目录（trust = 本地免密，正好匹配后端默认 app/dev）
+D:\pgsql\bin\initdb.exe -D D:\pgdata -U app --auth=trust -E UTF8 --locale=C
+
+# 4) 起服务 + 建库 + 导表
+D:\pgsql\bin\pg_ctl.exe -D D:\pgdata -o "-p 5432" -l D:\pg.log start
+D:\pgsql\bin\createdb.exe -h 127.0.0.1 -p 5432 -U app aiplat
+D:\pgsql\bin\psql.exe -h 127.0.0.1 -p 5432 -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\01_acl.sql
+D:\pgsql\bin\psql.exe -h 127.0.0.1 -p 5432 -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\02_persistence.sql
+```
+
+**对象存储：为什么不用 MinIO 二进制**
+
+- `https://dl.min.io/server/minio/release/windows-amd64/minio.exe` 现在返回 **410 Gone**；
+- 官方新地址 `.../aistor/minio/release/windows-amd64/minio.exe` 能下，但版本为 **AIStor**，启动后所有 S3 操作报
+  `Access denied. No license is installed` —— 需要商业授权，免费用不了。
+- 因此本机验证用 **moto**（Python 写的 S3 兼容服务，Apache-2.0）：
+  ```powershell
+  .\.venv\Scripts\python.exe -m pip install "moto[server]"
+  .\.venv\Scripts\python.exe -m moto.server -H 127.0.0.1 -p 9000
+  ```
+  `object_store.py` 走的是标准 S3 协议（minio-py），对 minio / moto 完全一致，链路等价。
+  等你 Docker 修好或拿到 MinIO 授权，把 9000 让给真 MinIO 即可，代码零改动。
+
+---
+
+## 0B. 路线 B（可选）：Docker Desktop 完整路线
+
+> 本机 Docker Desktop 守护进程当前起不来（`Docker Desktop is unable to start`），这条路线留作备用；
+> 换机器或 Docker 修好后可用，效果与路线 A 等价。
 
 ```powershell
 docker --version
@@ -186,33 +263,46 @@ docker compose down        # 停底座（数据在卷里保留，下次 up 还�
   `docker compose up -d postgres minio`，LLM 继续用 pip 版。
 - **MinIO 桶不存在**：应用首次调用会自动 `make_bucket`，无需手动建。
 - **PG 表没建**：确认 `./infra/init` 已挂载到 `/docker-entrypoint-initdb.d`；只有**首次**建库时执行，已存在的数据卷不会重复执行。
+- **`running scripts is disabled on this system`**：PowerShell 默认禁止跑 .ps1。改用 `.cmd` 包装器
+  `.\scripts\start_m6_stack.cmd -Key sk-xxx`（内部已带 `-ExecutionPolicy Bypass`），
+  或在当前窗口执行 `Set-ExecutionPolicy -Scope Process Bypass`。
+- **启动报 `Item has already been added. Key in dictionary: 'HTTPS_PROXY'`**：这个 PowerShell 窗口里
+  同时存在 `HTTPS_PROXY` 和 `https_proxy` 两个环境变量（代理工具常见），Windows PowerShell 5.1 的
+  `Start-Process` 会炸。**从开始菜单新开一个 PowerShell 窗口**再跑脚本即可。
+- **`minio.exe` 报 `Access denied. No license is installed`**：下到的是 AIStor 商业版。改用 S3 兼容的
+  moto（见附录 ②），或装 Docker 用 `minio/minio` 镜像。
+- **想停掉底座**：`.\scripts\start_m6_stack.cmd -Stop`（停 litellm / moto / PG，Docker 版同时停容器）。
 
 ---
 
-## 附录：实在装不了 Docker？原生三件套替代
+## 附录：原生三件套（无 Docker 时，已实测）
 
-无需 Docker，三个组件直接以 Windows 原生程序运行，效果等价（都连 127.0.0.1 默认端口）。
+三个组件以 Windows 原生程序运行，端口与 Docker 版一致（127.0.0.1:5432 / 9000 / 4000），代码零改动。
 
-### ① PostgreSQL 便携版（无需管理员）
-1. 下载 EDB 的 Windows x86-64 binaries zip（`https://www.enterprisedb.com/download-postgresql-binaries`），解压到 `D:\pgsql`。
-2. 初始化并启动：
+### ① PostgreSQL 便携版（无需管理员）— 已实测
+
 ```powershell
 $env:Path += ";D:\pgsql\bin"
-initdb -D D:\pgdata -U app --auth=trust -E UTF8
+initdb -D D:\pgdata -U app --auth=trust -E UTF8 --locale=C
 pg_ctl -D D:\pgdata -o "-p 5432" -l D:\pg.log start
-createdb -U app aiplat
-psql -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\01_acl.sql
-psql -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\02_persistence.sql
+createdb -h 127.0.0.1 -U app aiplat
+psql -h 127.0.0.1 -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\01_acl.sql
+psql -h 127.0.0.1 -U app -d aiplat -f D:\enterprise-ai-platform\infra\init\02_persistence.sql
 ```
-> `--auth=trust` 表示本地免密，psycopg2 填的密码会被忽略，正好适配默认配置。
+> `--auth=trust` 本地免密，psycopg2 填的密码会被忽略，正好适配默认配置；
+> `--locale=C` 避免中文 Windows 下 initdb 编码报错。建完应有 7 张表。
 
-### ② MinIO 单文件版
-1. 下载 `https://dl.min.io/server/minio/release/windows-amd64/minio.exe`，放到 `D:\minio\`。
-2. 启动：
+### ② 对象存储 — MinIO 免费二进制已下架，用 S3 兼容服务替代
+
 ```powershell
-$env:MINIO_ROOT_USER="minioadmin"; $env:MINIO_ROOT_PASSWORD="minioadmin"
-D:\minio\minio.exe server D:\minio-data --console-address ":9001"
+cd D:\enterprise-ai-platform\backend
+.\.venv\Scripts\python.exe -m pip install "moto[server]"
+.\.venv\Scripts\python.exe -m moto.server -H 127.0.0.1 -p 9000
 ```
+> 旧地址 `dl.min.io/server/minio/...` 返回 410；新地址是 AIStor 版，无授权会报
+> `Access denied. No license is installed`。
+> moto 是标准 S3 协议服务，`object_store.py`（minio-py）对其与真 MinIO 行为一致。
+> 有 Docker 或拿到 MinIO 授权后，直接让它占 9000 端口即可切换，代码不用改。
 
 ### ③ LiteLLM（pip）
 ```powershell
@@ -222,12 +312,11 @@ $env:DASHSCOPE_API_KEY="sk-你的密钥"
 $env:LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY="true"
 .\.venv\Scripts\litellm.exe --config app\services\model_gateway\litellm_config.yaml --host 127.0.0.1 --port 4000
 ```
+> 新版 LiteLLM 无主密钥会拒绝启动；`LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true` 是本地免密开关。
+> 若改用主密钥方案：litellm 与后端两侧都设同一个 `LITELLM_MASTER_KEY`，后端会自动带 `Authorization`。
 
-### 验证
-三个窗口分别跑着 PG / MinIO / LiteLLM 后，新开一个终端：
+### 验证（推荐用一键脚本，省去开三个窗口）
 ```powershell
 cd D:\enterprise-ai-platform\backend
-$env:LLM_DEFAULT_MODEL="qwen-plus"
-.\.venv\Scripts\python.exe scripts\validate_m6.py
+.\scripts\start_m6_stack.cmd -Key "sk-你的密钥"
 ```
-三项都应 `[PASS]`。
