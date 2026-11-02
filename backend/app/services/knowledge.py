@@ -20,20 +20,54 @@ from app.core.filter import single_filter
 from app.models.caller import CallerContext
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Embedding：bge 懒加载，否则确定性伪向量（与 bge-m3 维度对齐，仅骨架/CI 用）
+# Embedding：bge 懒加载（单例缓存），否则确定性伪向量（与 bge-m3 维度对齐，CI/离线用）。
+# 安全阀：加载失败一次即永久回退，绝不反复重试（避免测试/演示被网络下载挂住）。
 # ─────────────────────────────────────────────────────────────────────────────
-def embed(text: str) -> list[float]:
-    try:  # 生产路径
-        from sentence_transformers import SentenceTransformer  # type: ignore
-        _m = SentenceTransformer(settings.EMBEDDING_MODEL)
-        return _m.encode(text, normalize_embeddings=True).tolist()
+_st_model = None
+_st_failed = False
+_ce_model = None
+_ce_failed = False
+
+
+def _get_ce_model():
+    """单例加载 CrossEncoder；未开关/已失败/加载异常均返回 None。"""
+    global _ce_model, _ce_failed
+    if _ce_model is not None or _ce_failed or not settings.USE_LOCAL_EMBEDDING:
+        return _ce_model
+    try:
+        from sentence_transformers import CrossEncoder  # type: ignore
+        _ce_model = CrossEncoder(settings.RERANK_MODEL)
     except Exception:
-        dim = settings.EMBEDDING_DIM
-        vec = [0.0] * dim
-        for i, ch in enumerate(text.encode("utf-8")):
-            vec[(ch + i) % dim] += 1.0
-        norm = math.sqrt(sum(v * v for v in vec)) or 1.0
-        return [v / norm for v in vec]
+        _ce_failed = True
+    return _ce_model
+
+
+def _get_st_model():
+    """单例加载 SentenceTransformer；未开关/已失败/加载异常均返回 None。"""
+    global _st_model, _st_failed
+    if _st_model is not None or _st_failed or not settings.USE_LOCAL_EMBEDDING:
+        return _st_model
+    try:
+        from sentence_transformers import SentenceTransformer  # type: ignore
+        _st_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+    except Exception:
+        _st_failed = True  # 一次失败永久回退，不阻塞调用方
+    return _st_model
+
+
+def embed(text: str) -> list[float]:
+    m = _get_st_model()
+    if m is not None:
+        try:
+            return m.encode(text, normalize_embeddings=True).tolist()
+        except Exception:
+            pass
+    dim = settings.EMBEDDING_DIM
+    vec = [0.0] * dim
+    for i, ch in enumerate(text.encode("utf-8")):
+        vec[(ch + i) % dim] += 1.0
+    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+    return [v / norm for v in vec]
 
 
 def _tokenize(text: str) -> set[str]:
@@ -182,23 +216,24 @@ RRF_K = 60
 
 
 def rerank(query: str, candidates: list[dict]) -> list[tuple[dict, float]]:
-    """重排层（第36章 W2）：cross-encoder 优先，否则 heuristic（词重叠+向量）。"""
+    """重排层（第36章 W2）：cross-encoder（须显式开关）否则 heuristic（词重叠+向量）。"""
     qtoks = _tokenize(query)
     qvec = embed(query)
-    try:  # 生产路径
-        from sentence_transformers import CrossEncoder  # type: ignore
-        model = CrossEncoder(getattr(settings, "RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"))
-        pairs = [(query, c["text"]) for c in candidates]
-        scores = model.predict(pairs)
-        return [(c, float(s)) for c, s in zip(candidates, scores)]
-    except Exception:
-        scored = []
-        for c in candidates:
-            overlap = len(qtoks & c["_toks"]) / (len(qtoks | c["_toks"]) or 1)
-            cos = max(0.0, _cosine(qvec, c["_vec"]))
-            scored.append((c, 0.6 * overlap + 0.4 * cos))
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored
+    ce = _get_ce_model()
+    if ce is not None:
+        try:
+            pairs = [(query, c["text"]) for c in candidates]
+            scores = ce.predict(pairs)
+            return [(c, float(s)) for c, s in zip(candidates, scores)]
+        except Exception:
+            pass
+    scored = []
+    for c in candidates:
+        overlap = len(qtoks & c["_toks"]) / (len(qtoks | c["_toks"]) or 1)
+        cos = max(0.0, _cosine(qvec, c["_vec"]))
+        scored.append((c, 0.6 * overlap + 0.4 * cos))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
 
 
 def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple[list[dict], int]:

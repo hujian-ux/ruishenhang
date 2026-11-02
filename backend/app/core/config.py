@@ -30,6 +30,9 @@ class Settings:
     LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "gpt-4o-mini")
 
     # 决策：中文 Embedding 选 bge（bge-m3，维度 1024）
+    # 真实模型开关：默认 0（确定性伪向量，离线/CI 稳定，不会触发 HF 下载）。
+    # 开 1 时本地须已缓存模型（或设 HF_ENDPOINT=https://hf-mirror.com 走国内镜像）。
+    USE_LOCAL_EMBEDDING = _env("USE_LOCAL_EMBEDDING", "0") == "1"
     EMBEDDING_MODEL = _env("EMBEDDING_MODEL", "bge-m3")
     EMBEDDING_DIM = int(_env("EMBEDDING_DIM", "1024"))
     # 重排层 cross-encoder（第36章 W2）；未安装时退化为启发式打分
