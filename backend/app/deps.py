@@ -14,3 +14,8 @@ def get_caller(request: Request, x_caller_context: str | None = Header(default=N
     if caller is None:
         raise HTTPException(status_code=401, detail="unauthorized: missing caller context")
     return caller
+
+
+def get_trace_id(request: Request) -> str:
+    """M13：取请求级 trace_id（AuditTraceMiddleware 注入），用于审计串联。"""
+    return getattr(request.state, "trace_id", "no-trace")

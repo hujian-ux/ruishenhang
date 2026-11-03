@@ -11,10 +11,10 @@ M8 试点化（本文件变薄，逻辑下沉 services/kb_store.py）：
 """
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.deps import get_caller
+from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import KbDocumentRequest, KbDocumentResponse, KbIngestRequest
-from app.services import ingest_jobs, kb_store, object_store
+from app.services import audit, ingest_jobs, kb_store, object_store
 
 router = APIRouter(prefix="/kb", tags=["kb"])
 
@@ -217,14 +217,19 @@ async def list_documents(caller: CallerContext = Depends(get_caller)):
 
 
 @router.get("/documents/{doc_id}/content")
-async def get_document_content(doc_id: str, caller: CallerContext = Depends(get_caller)):
+async def get_document_content(doc_id: str, caller: CallerContext = Depends(get_caller),
+                              trace_id: str = Depends(get_trace_id)):
     """取文档原文（权限校验后从对象存储读回，验证写读闭环）。"""
     d = kb_store.readable(doc_id, caller)
     if not d:
         if kb_store.get(doc_id):
+            audit.record("download", caller, target=doc_id, result="error:forbidden", trace_id=trace_id)
             raise HTTPException(status_code=403, detail="forbidden: 无权访问该文档")
+        audit.record("download", caller, target=doc_id, result="error:not_found", trace_id=trace_id)
         raise HTTPException(status_code=404, detail=f"文档不存在：{doc_id}")
     content = object_store.get_text(d["object_key"]) or d["content"]
+    audit.record("download", caller, target=doc_id, result="ok",
+                 meta={"title": d.get("title"), "chars": len(content)}, trace_id=trace_id)
     return {"code": 0, "data": {"doc_id": doc_id, "title": d["title"], "content": content,
                                 "storage": d["storage"], "chars": len(content)}}
 

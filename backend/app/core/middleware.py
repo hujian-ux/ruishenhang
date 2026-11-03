@@ -3,9 +3,21 @@
 单体阶段，网关逻辑即本中间件；拆容器后，本逻辑整体迁到独立 api-gateway 服务，
 下游契约（X-Caller-Context 头）保持不变。
 """
+import uuid
+
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.security import decode_token, encode_caller_context
+
+
+class AuditTraceMiddleware(BaseHTTPMiddleware):
+    """M13：为每个请求生成 trace_id，供审计与日志串联（检索/生成/下载/审批）。"""
+
+    async def dispatch(self, request, call_next):
+        request.state.trace_id = uuid.uuid4().hex[:16]
+        response = await call_next(request)
+        response.headers["X-Trace-Id"] = request.state.trace_id
+        return response
 
 
 class GatewayMiddleware(BaseHTTPMiddleware):

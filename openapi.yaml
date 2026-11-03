@@ -1143,6 +1143,28 @@ paths:
         '403':
           description: 员工无权触发跑批
 
+  /audit/logs:
+    get:
+      tags: [audit]
+      operationId: getAuditLogs
+      summary: 审计日志查询（M13：RBAC 收敛，与计量解耦）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: action
+          in: query
+          description: 过滤动作 retrieve/generate/download/approval
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100, maximum: 1000 }
+      responses:
+        '200':
+          description: 按身份收敛后的审计记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+
 components:
   securitySchemes:
     bearerAuth:

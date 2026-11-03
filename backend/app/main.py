@@ -9,8 +9,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.middleware import GatewayMiddleware
-from app.routers import agents, approval, auth, eval as eval_router, invoke, kb, models, rag, selection, usage
+from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
+from app.routers import agents, approval, audit, auth, eval as eval_router, invoke, kb, models, rag, selection, usage
 from app.services import approval_store, kb_store, pg_store, session_store, usage_store
 
 
@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="企业 AI 智能体中台", version="0.8.0", lifespan=lifespan)
 
+# 审计 trace 中间件：每个请求生成 trace_id（须在网关之前，最先执行）
+app.add_middleware(AuditTraceMiddleware)
 # 网关中间件：身份注入 + 单一过滤点前置（拆容器后整体迁到 api-gateway）
 app.add_middleware(GatewayMiddleware)
 app.add_middleware(
@@ -46,6 +48,7 @@ app.include_router(kb.router, prefix=settings.API_PREFIX)
 app.include_router(models.router, prefix=settings.API_PREFIX)
 app.include_router(usage.router, prefix=settings.API_PREFIX)
 app.include_router(approval.router, prefix=settings.API_PREFIX)
+app.include_router(audit.router, prefix=settings.API_PREFIX)  # M13：审计日志查询
 app.include_router(eval_router.router, prefix=settings.API_PREFIX)  # M8：基线评测最近报告
 
 

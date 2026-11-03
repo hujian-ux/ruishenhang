@@ -11,17 +11,18 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.config import settings
-from app.deps import get_caller
+from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import AgentInvokeRequest
 from app.routers.agents import _AGENTS
-from app.services import agent_runtime, session_store, usage_store
+from app.services import agent_runtime, audit, session_store, usage_store
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 @router.post("/invoke")
-async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(get_caller)):
+async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(get_caller),
+                      trace_id: str = Depends(get_trace_id)):
     agent = _AGENTS.get(req.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"智能体不存在：{req.agent_id}")
@@ -90,6 +91,10 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             "quota": usage_store.quota_status(caller),
         },
     }
+    audit.record("generate", caller, target=req.agent_id, result="ok",
+                 meta={"session_id": sess["session_id"], "turn_no": result.get("turn_no", 1),
+                       "model_id": rec["model_id"], "real": rec["real"]},
+                 trace_id=trace_id)
 
 
 @router.get("/sessions")

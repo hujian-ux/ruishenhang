@@ -6,11 +6,11 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 
-from app.deps import get_caller
+from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import ApprovalDecisionRequest, ApprovalDecisionResponse
 from app.routers.agents import _AGENTS
-from app.services import approval_store
+from app.services import approval_store, audit
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -25,6 +25,7 @@ async def decide(
     approval_id: str = PathParam(...),
     req: ApprovalDecisionRequest = None,
     caller: CallerContext = Depends(get_caller),
+    trace_id: str = Depends(get_trace_id),
 ):
     _require_admin(caller)
     if req is None or req.decision not in ("approve", "reject"):
@@ -34,15 +35,20 @@ async def decide(
             approval_id, req.decision, caller.userId, caller.role, caller.deptId, req.comment,
         )
     except approval_store.TicketNotFound:
+        audit.record("approval", caller, target=approval_id, result="error:not_found", trace_id=trace_id)
         raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
     except approval_store.DuplicateDecision:
+        audit.record("approval", caller, target=approval_id, result="error:duplicate", trace_id=trace_id)
         raise HTTPException(status_code=409, detail="该审批单已决策（终态不可改）")
     except approval_store.ForbiddenDecider:
+        audit.record("approval", caller, target=approval_id, result="error:forbidden", trace_id=trace_id)
         raise HTTPException(status_code=403, detail="dept_admin 仅可审批本部门发起的单据")
     # 智能体状态同步迁移（第35章红线：评审通过才发布）
     agent = _AGENTS.get(ticket["agent_id"])
     if agent:
         agent["status"] = "published" if ticket["status"] == "approved" else "rejected"
+    audit.record("approval", caller, target=approval_id, result=ticket["status"],
+                 meta={"agent_id": ticket["agent_id"], "decision": req.decision}, trace_id=trace_id)
     return {
         "code": 0,
         "data": {

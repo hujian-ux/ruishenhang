@@ -19,6 +19,8 @@ dependencies = [
     "qdrant-client>=1.9",     # 向量检索（第36章）
     "minio>=7.2",             # 文件网关（第23章）
     "redis>=5.0",             # 语义缓存（第40章）
+    # M12 真实身份：OIDC/JWT 校验（RS256，JWKS 自动拉取）。不配 issuer 时只走 dev 分支，CI 不受影响。
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]

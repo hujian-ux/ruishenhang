@@ -89,5 +89,18 @@ class Settings:
     CALLER_SIGNING_SECRET = _env("CALLER_SIGNING_SECRET", "dev-only-change-me")
     DEFAULT_TENANT = _env("DEFAULT_TENANT", "t_demo")
 
+    # M12 真实身份（企业 SSO / OIDC）。全部留空 = 不启用，仅 dev token 可用（测试/演示）。
+    # 对接任意 IdP（钉钉/飞书/微信企业号/Keycloak）：填 issuer 即可，
+    # 本平台用标准 discovery + JWKS 验签，无需写死各厂商 SDK。
+    OIDC_ENABLED = _env("OIDC_ENABLED", "0") == "1"
+    OIDC_ISSUER = _env("OIDC_ISSUER", "")          # 例：https://keycloak.xxx/realms/ruishenxing
+    OIDC_AUDIENCE = _env("OIDC_AUDIENCE", "")       # 本平台在 IdP 注册的 client_id
+    OIDC_DISCOVERY_TIMEOUT = float(_env("OIDC_DISCOVERY_TIMEOUT", "3.0"))
+    # claim 映射（不同 IdP 字段名不同，按你的 IdP 调整）
+    OIDC_USER_CLAIM = _env("OIDC_USER_CLAIM", "preferred_username")  # 无则回退 sub
+    OIDC_DEPT_CLAIM = _env("OIDC_DEPT_CLAIM", "dept")
+    OIDC_ROLE_CLAIM = _env("OIDC_ROLE_CLAIM", "role")  # 期望 employee|dept_admin|platform_admin
+    OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
+
 
 settings = Settings()
