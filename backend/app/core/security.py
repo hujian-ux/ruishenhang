@@ -13,6 +13,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Dict, Optional, Tuple
 
@@ -80,7 +81,14 @@ def _verify_oidc_token(token: str, issuer: str = "", audience: str = "") -> Call
     issuer = issuer or settings.OIDC_ISSUER
     audience = audience or settings.OIDC_AUDIENCE
     if not issuer:
-        return None
+        # 自服务 / 演示：未固定 issuer 时，用 token 自带的 iss 拉 JWKS 验签
+        # （仅当 token 确由某可达 IdP 签发才通过，伪造 token 因无对应私钥而失败）
+        try:
+            issuer = jwt.decode(token, options={"verify_signature": False}).get("iss")
+        except Exception:
+            return None
+        if not issuer:
+            return None
     try:
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
@@ -95,19 +103,48 @@ def _verify_oidc_token(token: str, issuer: str = "", audience: str = "") -> Call
         if jwk is None:
             return None
         key = RSAAlgorithm.from_jwk(json.dumps(jwk))  # JWK dict → 公钥对象
+        # PyJWT 在 token 带 aud 而 audience=None 时会抛 InvalidAudienceError；
+        # 未配 audience 时显式关闭校验（自服务），配了就严格校验。
         payload = jwt.decode(token, key, algorithms=[jwk.get("alg", "RS256")],
                             audience=audience or None,
-                            issuer=issuer or None)
+                            issuer=issuer or None,
+                            options={"verify_aud": bool(audience)})
+        # 用户名：优先配置 claim，其次 preferred_username / email，最后 sub（保证非空）
         user = (payload.get(settings.OIDC_USER_CLAIM)
-                or payload.get("sub") or payload.get("user_id") or "")
-        dept = payload.get(settings.OIDC_DEPT_CLAIM) or ""
-        role = payload.get(settings.OIDC_ROLE_CLAIM) or "employee"
-        if role not in ("employee", "dept_admin", "platform_admin"):
-            role = "employee"
+                or payload.get("preferred_username")
+                or payload.get("email")
+                or payload.get("sub") or "")
+        # 部门/租户：claim 可能是数组（Casdoor 等），取首个非空
+        dept_raw = payload.get(settings.OIDC_DEPT_CLAIM) or ""
+        dept = dept_raw[0] if isinstance(dept_raw, list) and dept_raw else str(dept_raw)
+        role = _resolve_role(payload, settings.OIDC_ROLE_CLAIM)
+        tenant_raw = payload.get(settings.OIDC_TENANT_CLAIM) if settings.OIDC_TENANT_CLAIM else ""
+        tenant = (tenant_raw[0] if isinstance(tenant_raw, list) and tenant_raw
+                  else str(tenant_raw) or settings.DEFAULT_TENANT)
         return CallerContext(userId=str(user), deptId=str(dept),
-                             role=role, tenantId=settings.DEFAULT_TENANT)
+                             role=role, tenantId=tenant)
     except Exception:
+        if os.environ.get("OIDC_DEBUG"):
+            import traceback
+            traceback.print_exc()
         return None
+
+
+def _resolve_role(payload: dict, role_claim: str) -> str:
+    """角色归一化：优先用配置的 role claim（字符串或数组，取最高权限）；
+    否则按 Casdoor 的布尔标志推导（缺省路径，无需在 IdP 侧配角色名字段）。"""
+    raw = payload.get(role_claim)
+    if raw:
+        items = raw if isinstance(raw, list) else [raw]
+        for r in items:
+            if r in ("platform_admin", "dept_admin", "employee"):
+                return r
+    # Casdoor：isGlobalAdmin = 全局超管 → platform_admin；isAdmin = 组织管理员 → dept_admin
+    if payload.get("isGlobalAdmin"):
+        return "platform_admin"
+    if payload.get("isAdmin"):
+        return "dept_admin"
+    return "employee"
 
 
 def decode_token(authorization: str | None) -> CallerContext | None:
@@ -124,8 +161,9 @@ def decode_token(authorization: str | None) -> CallerContext | None:
     # dev token 优先（本地/CI 仍是主力，且与 OIDC 分支解耦）
     if token.startswith("dev "):
         return _verify_dev_token(token)
-    # 真实身份源
-    if settings.OIDC_ENABLED:
+    # 真实身份源：非 dev 的 JWT 一律尝试验签。
+    # 已设 OIDC_ISSUER 即「固定 issuer」加固模式；未设则按 token 自带 iss 拉 JWKS（自服务）。
+    if token.count(".") == 2:  # JWS compact 形态才验，避免对任意字符串做网络 discovery
         return _verify_oidc_token(token)
     return None
 

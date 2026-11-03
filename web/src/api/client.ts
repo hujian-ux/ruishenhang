@@ -40,9 +40,25 @@ async function uploadFile(path: string, form: FormData): Promise<any> {
 }
 
 export const api = {
+  // 开发模式（dev token）：本地/演示用；生产走下方 OIDC
   login: (code = "dev") => req<{ code: number; data: { token: string; user: any } }>("POST", "/auth/sso/callback", {
     provider: "wecom", code, device_id: "dev", state: "x",
   }),
+
+  // ── M12 OIDC：后端代换码（避开浏览器 CORS）+ 可选一键写入 Casdoor ──
+  oidcExchange: (body: {
+    issuer: string; client_id: string; redirect_uri: string; code: string; code_verifier: string;
+  }) => req<{ code: number; data: { id_token: string; expires_in: number; user: any } }>(
+    "POST", "/auth/oidc/exchange", body,
+  ),
+  oidcProvision: (body: {
+    issuer: string; admin_user: string; admin_password: string;
+    owner?: string; app_name?: string;
+    wecom?: { corp_id: string; secret: string; agent_id: string };
+    dingtalk?: { corp_id: string; secret: string; agent_id: string };
+  }) => req<{ code: number; msg: string; steps?: string[]; providers?: any[]; detail?: any }>(
+    "POST", "/auth/oidc/provision", body,
+  ),
   listModels: () => req<{ code: number; data: { models: any[] } }>("GET", "/models"),
   retrieve: (q: string) => req<any>("POST", "/rag/retrieve", {
     query: q, kb_scope: "all", top_k: 6, tenant_id: "t_demo",

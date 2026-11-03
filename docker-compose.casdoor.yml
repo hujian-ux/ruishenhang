@@ -1,0 +1,48 @@
+# Casdoor 本地部署（自托管、免费、原生接企业微信/钉钉）
+# 用途：作为本平台 M12 真实身份的标准 OIDC 中间件。
+# 启动： docker compose -f docker-compose.casdoor.yml up -d
+# 停止： docker compose -f docker-compose.casdoor.yml down
+# 管理后台： http://127.0.0.1:8000   （组织 built-in / 用户 admin / 密码 123，首次登录务必改密码）
+# OIDC 端点（M12 的 OIDC_ISSUER 填 http://127.0.0.1:8000）：
+#   discovery : http://127.0.0.1:8000/.well-known/openid-configuration
+#   jwks      : http://127.0.0.1:8000/.well-known/jwks
+# 注意：仅把 casdoor 的 8000 发布到本机；数据库跑在 compose 内部网络，不与本机 PostgreSQL 冲突。
+
+version: "3.8"
+
+services:
+  casdoor-db:
+    image: postgres:16
+    container_name: casdoor-db
+    environment:
+      POSTGRES_DB: casdoor
+      POSTGRES_USER: casdoor
+      POSTGRES_PASSWORD: casdoor_pwd
+    volumes:
+      - casdoor-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casdoor"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  casdoor:
+    image: casbin/casdoor:v3.108.0
+    container_name: casdoor
+    depends_on:
+      casdoor-db:
+        condition: service_healthy
+    environment:
+      RUNNING_IN_DOCKER: "true"
+      DB_DRIVER: postgres
+      DB_HOST: casdoor-db
+      DB_PORT: "5432"
+      DB_NAME: casdoor
+      DB_USER: casdoor
+      DB_PASSWORD: casdoor_pwd
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  casdoor-db-data:

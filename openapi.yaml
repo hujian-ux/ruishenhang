@@ -70,6 +70,73 @@ paths:
                   need_stepup: false
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /auth/oidc/health:
+    get:
+      tags: [auth]
+      operationId: oidcHealth
+      summary: OIDC 配置自检（issuer 可达 / JWKS 可拉）
+      responses:
+        '200':
+          description: 健康度
+          content:
+            application/json:
+              example: { enabled: true, ok: true, issuer: "http://127.0.0.1:8000" }
+  /auth/oidc/exchange:
+    post:
+      tags: [auth]
+      operationId: oidcExchange
+      summary: 后端代前端用授权码换 id_token（PKCE，避开浏览器 CORS）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                issuer: { type: string }
+                client_id: { type: string }
+                redirect_uri: { type: string }
+                code: { type: string }
+                code_verifier: { type: string }
+      responses:
+        '200':
+          description: 换码成功，返回 id_token（前端作为 Authorization 头发给网关）
+          content:
+            application/json:
+              example:
+                code: 0
+                data:
+                  id_token: "<jwt>"
+                  expires_in: 3600
+                  user: { userId: "u_1024", name: "张三", deptId: "d_sales", role: "employee" }
+        '400':
+          description: 未配置 issuer/client_id 或 IdP 未返回 id_token
+        '401':
+          description: id_token 验签失败
+  /auth/oidc/provision:
+    post:
+      tags: [auth]
+      operationId: oidcProvision
+      summary: 实验性：把企业微信/钉钉资料一键写入 Casdoor（建 IdP + 关联应用）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [issuer, admin_user, admin_password]
+              properties:
+                issuer: { type: string }
+                admin_user: { type: string }
+                admin_password: { type: string }
+                owner: { type: string, default: built-in }
+                app_name: { type: string, default: app-built-in }
+                wecom: { type: object }
+                dingtalk: { type: object }
+      responses:
+        '200':
+          description: 写入结果（code=0 成功；code=1 失败并附 steps 便于排错）
   /rag/retrieve:
     post:
       tags: [rag]

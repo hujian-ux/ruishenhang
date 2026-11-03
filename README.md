@@ -52,7 +52,7 @@ cd web && npm install && npm run dev
 - **触发方式**：把本仓库 `git remote add origin <你的GitHub地址>` 后 `git push -u origin main`，GitHub 即自动跑该工作流（需先在仓库 Secrets/环境装好 Python 3.11，无需其他配置）。
 
 ## 与蓝图的对应（契约同源）
-- **openapi.yaml（27 paths / 24 schemas）** ←→ `backend/app/routers/*` 一一映射
+- **openapi.yaml（31 paths / 24 schemas）** ←→ `backend/app/routers/*` 一一映射
 - **第18章 单一过滤点** ←→ `core/filter.py` + `core/middleware.py`（只在网关一处）
 - **第25章 模型网关** ←→ `services/model_gateway.py` + `litellm_config.yaml`
 - **第35章 选型** ←→ `selection/framework.py`（与原型「选型向导」结果一致，导出 JSON 对齐 `/agents`）
@@ -75,11 +75,11 @@ cd web && npm install && npm run dev
 | M9 规模化 | 2 周 | ① 向量存 (N,D) numpy 矩阵 + 倒排预筛 BM25（`knowledge.py` 重写）② 增量写入 + tombstone 删除（不再全量重建）③ embedding sqlite 持久缓存 ④ 向量后端可插拔（memory/qdrant，失败静默降级）⑤ `/kb/index` 索引健康屏 + 试点看板卡 ⑥ golden 多目标命中（`accept_titles` 同族等价）⑦ 压测基准脚本 | ✅ 8 项 M9 测试全过（总 72）；2720 篇/33712 子块 检索 p50 **17.71ms**；2720 篇 golden Recall@5/10/100 全 **1.0**、MRR **0.9659** |
 | M10 多租户规模化 | 2 周 | ① 候选阶段按身份预筛（同一份 `visible_fields`，第18章判权不复制）+ BM25 idf 粗排截断 3000 ② 异步导入任务 `/kb/ingest`（≤20000 篇/任务，进度/取消/列表）③ 对象存储 8 路并发写 ④ 索引读写加锁 ⑤ 多租户压测脚本 `bench_multitenant.py` | ✅ 7 项 M10 测试全过（总 79）；2485 篇/3 部门 × 6 身份**泄露 0、空结果 0、Recall@10 全 1.0**；p50 46ms→**19ms**；**1 万篇/122k 子块 p50 31.9ms** |
 | M11 真实模型与真服务 | 1 周 | ① Qdrant Windows 原生二进制起真服务（不依赖 Docker），验 `QDRANT_MODE=http` 全链路 ② 接真实 bge-m3（1024 维，hf-mirror 离线下载）③ 批量编码 + query 走缓存 | ✅ 挖出并修掉 3 个真 bug（含一个让 Recall@100 跌到 0.948 跌破门禁、一个静默丢 97.6% 向量）；真实向量 Recall@5 0.9206→**0.9802**；缓存让检索 244ms→**10.5ms**、重导 303.6s→**4.5s** |
-| M12 真实身份（企业 SSO/OIDC） | 3 天 | 身份认证从「dev token 单点」升级为**可插拔**：`security.decode_token` 增加 OIDC/JWT 校验分支（标准 discovery + JWKS 验签 RS256，对接任意 IdP 无需写死 SDK）；下游 `X-Caller-Context` 契约不变、零改动 | ✅ `test_m12_oidc.py` 6 项全过（claims→CallerContext 映射、过期/audience/签名拒绝、dev token 在 OIDC 开启时仍可用、生产环境拒绝 dev token）；未配 IdP 时只认 dev token，CI 不受影响 |
+| M12 真实身份（企业 SSO/OIDC） | 3 天 | 身份认证从「dev token 单点」升级为**可插拔**：`security.decode_token` 增加 OIDC/JWT 校验分支（标准 discovery + JWKS 验签 RS256，对接任意 IdP 无需写死 SDK）；下游 `X-Caller-Context` 契约不变、零改动。**已选定 Casdoor 作中间件**（Apache-2.0 开源、自托管免费、原生接企业微信/钉钉）；已附 `docker-compose.casdoor.yml` + `docs/M12_Casdoor接入指南.md`。**前端已内置**：登录页（OIDC 授权码 + PKCE）、`/callback` 换码、`/setup` 自助连接页（填企微/钉钉资料 + 复制 Casdoor 清单 + 可选一键写入）；后端新增 `GET /auth/oidc/health`、`POST /auth/oidc/exchange`（后端代换码，避开 CORS）、`POST /auth/oidc/provision`（实验） | ✅ `test_m12_oidc.py` 6 项全过（claims→CallerContext 映射、过期/audience/签名拒绝、dev token 在 OIDC 开启时仍可用、生产环境拒绝 dev token）；前端 `tsc + vite build` 通过；未配 IdP 时只认 dev token，CI 不受影响 |
 | M13 审计日志 | 2 天 | 新建 `audit` 模块（PG 落库 + SQLite 兜底，与计量解耦），`AuditTraceMiddleware` 生成 trace_id；在检索/生成/下载原文/审批决策四类动作落审计；`GET /audit/logs` 按 RBAC 收敛查询 | ✅ `test_m13_audit.py` 6 项全过（存储兜底、员工/部门/平台三级隔离、敏感字段脱敏）；跨请求 trace 可串联 |
 | M14 第二部门真实语料试点 | 2 天 | 固化「导入双部门→评估→跨域隔离校验」SOP（同一索引按 caller 可见性预筛，非分库存）；`scripts/pilot_second_dept.py` 一键跑通，真实数据到位直接换目录 | ✅ 实跑：双部门各 200 篇共 400 篇、隔离计数正确；第二部门 Recall@100=1.0、过滤正确率 1.0；**跨域泄露探针 Recall@5=0.0（零泄露）**；门禁 PASS。注：@5/MRR 低为伪向量下限，真实 bge-m3 下 M11 已验 @5=0.98 |
 
-> 接口数：openapi **28 paths / 24 schemas**。测试累计 **91 passed**（M0–M14）。
+> 接口数：openapi **31 paths / 24 schemas**。测试累计 **91 passed**（M0–M14）。
 
 ## M8 试点怎么跑（最快路径）
 

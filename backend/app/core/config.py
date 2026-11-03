@@ -90,16 +90,27 @@ class Settings:
     DEFAULT_TENANT = _env("DEFAULT_TENANT", "t_demo")
 
     # M12 真实身份（企业 SSO / OIDC）。全部留空 = 不启用，仅 dev token 可用（测试/演示）。
-    # 对接任意 IdP（钉钉/飞书/微信企业号/Keycloak）：填 issuer 即可，
-    # 本平台用标准 discovery + JWKS 验签，无需写死各厂商 SDK。
+    # 已选定 Casdoor 作为标准 OIDC 中间件（Apache-2.0 开源、自托管免费、原生接企业微信/钉钉）。
+    # 对接方式：填 issuer 即可，本平台用标准 discovery + JWKS 验签（RS256），无需写死各厂商 SDK。
+    # Casdoor 默认部署：后端/OIDC 在 8000 端口，issuer 即其访问地址（如 http://127.0.0.1:8000）。
     OIDC_ENABLED = _env("OIDC_ENABLED", "0") == "1"
-    OIDC_ISSUER = _env("OIDC_ISSUER", "")          # 例：https://keycloak.xxx/realms/ruishenxing
-    OIDC_AUDIENCE = _env("OIDC_AUDIENCE", "")       # 本平台在 IdP 注册的 client_id
+    OIDC_ISSUER = _env("OIDC_ISSUER", "")          # 例：http://127.0.0.1:8000（Casdoor 地址，须与 token 的 iss 完全一致）
+    OIDC_AUDIENCE = _env("OIDC_AUDIENCE", "")       # 本平台在 Casdoor 注册的 Application 的 Client ID（验签时的 aud）
+    # 中转换码端点用：向后端 Casdoor 换码时填的 client_id（未填则回退 OIDC_AUDIENCE）
+    OIDC_CLIENT_ID = _env("OIDC_CLIENT_ID", "")
+    # 前端回调地址（需与 Casdoor 应用登记的 Redirect URLs 完全一致）。前端也可在 Setup 页/请求里覆盖。
+    OIDC_REDIRECT_URI = _env("OIDC_REDIRECT_URI", "http://127.0.0.1:5173/callback")
     OIDC_DISCOVERY_TIMEOUT = float(_env("OIDC_DISCOVERY_TIMEOUT", "3.0"))
     # claim 映射（不同 IdP 字段名不同，按你的 IdP 调整）
-    OIDC_USER_CLAIM = _env("OIDC_USER_CLAIM", "preferred_username")  # 无则回退 sub
-    OIDC_DEPT_CLAIM = _env("OIDC_DEPT_CLAIM", "dept")
-    OIDC_ROLE_CLAIM = _env("OIDC_ROLE_CLAIM", "role")  # 期望 employee|dept_admin|platform_admin
+    # 用户名：优先下面字段，其次 preferred_username / email，最后 sub（保证非空）
+    OIDC_USER_CLAIM = _env("OIDC_USER_CLAIM", "preferred_username")
+    # 部门/组织：Casdoor 把组织名放在 affiliation 字段，故默认取它；其它 IdP 改成自己的部门字段
+    OIDC_DEPT_CLAIM = _env("OIDC_DEPT_CLAIM", "affiliation")
+    # 角色：若 IdP 直接下发 employee|dept_admin|platform_admin 字符串/数组则用之；
+    #       否则按 Casdoor 布尔标志推导（isGlobalAdmin→platform_admin，isAdmin→dept_admin）。
+    OIDC_ROLE_CLAIM = _env("OIDC_ROLE_CLAIM", "role")
+    # 租户（可选）：留空则回退 DEFAULT_TENANT；Casdoor 多组织可映射到 organization 字段
+    OIDC_TENANT_CLAIM = _env("OIDC_TENANT_CLAIM", "")
     OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
 
 
