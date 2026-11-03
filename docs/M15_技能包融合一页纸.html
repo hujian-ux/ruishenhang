@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M15 · 115 个技能包融合一页纸</title>
+<style>
+  :root{
+    --ink:#0d2136; --ink2:#3d5a7a; --ink3:#6b88a6;
+    --line:#d8e3ef; --bg:#f4f8fc; --card:#fff;
+    --brand:#185fa5; --brand-l:#e6f1fb; --brand-d:#0c447c;
+    --ok:#0f6e56; --warn:#854f0b; --danger:#a32d2d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:36px 28px 64px}
+  header{border-bottom:3px solid var(--brand);padding-bottom:18px;margin-bottom:26px}
+  .kicker{font-size:12px;letter-spacing:.14em;color:var(--brand);font-weight:600;text-transform:uppercase}
+  h1{font-size:27px;margin:8px 0 6px;letter-spacing:-.01em;font-weight:700}
+  .sub{color:var(--ink2);font-size:14px}
+  .meta{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+  .pill{background:var(--brand-l);color:var(--brand-d);border:1px solid #c3ddf5;
+    border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600}
+  h2{font-size:17px;margin:34px 0 12px;padding-left:11px;border-left:4px solid var(--brand);font-weight:700}
+  h2 .n{color:var(--brand);font-size:13px;margin-right:7px;font-weight:700}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:14px}
+  .lead{background:var(--brand-d);color:#eaf3fb;border:none;border-radius:10px;padding:20px 24px;margin-bottom:8px}
+  .lead b{color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:4px 0}
+  th{background:#edf4fb;color:var(--brand-d);text-align:left;padding:9px 11px;
+    border-bottom:2px solid #cddff0;font-weight:600;font-size:12.5px}
+  td{padding:9px 11px;border-bottom:1px solid #e8eff6;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:#eef3f9;border:1px solid #dde8f3;border-radius:4px;padding:1px 5px;
+    font-family:Consolas,"Courier New",monospace;font-size:12.5px;color:#155e91}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:15px 17px}
+  .kpi .v{font-size:25px;font-weight:700;color:var(--brand-d);line-height:1.2}
+  .kpi .v small{font-size:13px;font-weight:600;color:var(--ink3)}
+  .kpi .l{font-size:12px;color:var(--ink2);margin-top:3px}
+  .t3{display:inline-block;font-size:11.5px;font-weight:700;border-radius:4px;padding:1px 7px}
+  .t-ok{background:#e1f5ee;color:var(--ok)}
+  .t-warn{background:#faeeda;color:var(--warn)}
+  .t-bad{background:#fcebeb;color:var(--danger)}
+  .t-p0{background:#fcebeb;color:var(--danger)}
+  .t-p1{background:#faeeda;color:var(--warn)}
+  .t-p2{background:#f1efE8;color:#5f5e5a}
+  ul.tight{margin:6px 0 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .note{font-size:12.5px;color:var(--ink3);margin-top:8px}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 2px}
+  .step{background:var(--brand-l);border:1px solid #c3ddf5;border-radius:8px;
+    padding:8px 13px;font-size:12.5px;color:var(--brand-d);font-weight:600}
+  .arw{color:#9bb6d0;font-weight:700}
+  footer{margin-top:38px;padding-top:14px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">企业 AI 智能体中台 · M15</div>
+  <h1>115 个解决方案技能包，已融合进平台</h1>
+  <div class="sub">从「一堆写得很好的 prompt 文档」到「平台里可管、可审、可计量、各自按流程执行的智能体」</div>
+  <div class="meta">
+    <span class="pill">98 passed</span>
+    <span class="pill">openapi 33 paths</span>
+    <span class="pill">commit 65a400d</span>
+    <span class="pill">已推送 · CI 运行中</span>
+  </div>
+</header>
+
+<div class="lead">
+  <b>一句话：能融，而且已经融进去了 —— 但不是「把文档复制进平台」那么简单。</b><br>
+  技能包是执行手册，而平台原来的智能体只有一个「名字 + 类型 + 状态」，
+  <b>装不下技能包的灵魂（提示词）</b>。先补齐 4 个平台缺口，再批量导入。
+</div>
+
+<h2><span class="n">01</span>资产盘点（实测）</h2>
+
+<div class="grid">
+  <div class="kpi"><div class="v">115<small> 个</small></div><div class="l">skill.md 技能包</div></div>
+  <div class="kpi"><div class="v">62<small> 个</small></div><div class="l">办公角色（HR/行政/财务/销售）</div></div>
+  <div class="kpi"><div class="v">53<small> 个</small></div><div class="l">行业方案（制造/零售/跨境）</div></div>
+  <div class="kpi"><div class="v">9.7<small> MB</small></div><div class="l">含 166 xlsx 交付物样例</div></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+<table>
+  <tr><th style="width:22%">板块</th><th style="width:10%">数量</th><th style="width:16%">中位正文</th><th>判断</th></tr>
+  <tr><td>制造业</td><td>21</td><td>993 字</td><td>流程完整，含公式与判定漏斗</td></tr>
+  <tr><td>跨境电商</td><td>17</td><td>960 字</td><td>实战细节多（证据包/利润立项）</td></tr>
+  <tr><td>零售</td><td>15</td><td>997 字</td><td>偏生成类，规则相对少</td></tr>
+  <tr><td><b>办公角色 · HR</b></td><td>20</td><td><b>1408 字</b></td><td><span class="t3 t-ok">办公类最实</span> 流程写在手册原文里</td></tr>
+  <tr><td>办公角色 · 行政</td><td>15</td><td>381 字</td><td>结构齐但内容浅，需补规则</td></tr>
+  <tr><td>办公角色 · 销售</td><td>15</td><td>436 字</td><td>同上</td></tr>
+  <tr><td>办公角色 · 财务</td><td>12</td><td>317 字</td><td>同上，量价分离公式可用</td></tr>
+</table>
+<div class="note">115/115 都有 frontmatter（name + description），零例外 —— 这是能机器化导入的前提。</div>
+</div>
+
+<h2><span class="n">02</span>平台侧的 4 个真缺口（都做了实证，不是推测）</h2>
+
+<div class="card">
+<table>
+  <tr><th style="width:20%">缺口</th><th style="width:38%">实证</th><th>后果</th></tr>
+  <tr>
+    <td><b>提示词无处安放</b></td>
+    <td>注册后落库字段只有 <code>agent_id/name/adapter_type/scope/status</code>，连 <code>description</code> 都丢了</td>
+    <td>115 个包全变成同一个默认助手，行为一样</td>
+  </tr>
+  <tr>
+    <td><b>运行时写死提示词</b></td>
+    <td><code>agent_runtime.SYSTEM_PROMPT</code> 是模块级常量，<code>run_agent</code> 只拿 agent_id 查状态</td>
+    <td>就算存进去也不生效</td>
+  </tr>
+  <tr>
+    <td><b>智能体只在内存</b></td>
+    <td><code>_AGENTS: dict = {}</code>，无 PG 写穿</td>
+    <td>重启 115 个包全蒸发</td>
+  </tr>
+  <tr>
+    <td><b>批量导入不可治理</b></td>
+    <td>每次注册都开一张审批单</td>
+    <td>115 张单淹没审批台，人工无法逐条看</td>
+  </tr>
+</table>
+<div class="note">
+  另有一条<b>不该改</b>的设计：未发布的智能体 invoke 返回 403（第35章红线）。这条不为批量导入放宽，
+  而是给批量导入一张「批次单」—— 红线照旧，只是可治理。
+</div>
+</div>
+
+<h2><span class="n">03</span>融合链路（已跑通）</h2>
+
+<div class="card">
+  <div class="flow">
+    <span class="step">skill.md</span><span class="arw">→</span>
+    <span class="step">解析：剥序号 + 别名归一</span><span class="arw">→</span>
+    <span class="step">POST /agents/import</span><span class="arw">→</span>
+    <span class="step">1 张批次审批单</span><span class="arw">→</span>
+    <span class="step">整批 published</span><span class="arw">→</span>
+    <span class="step">按各自 system_prompt 执行</span>
+  </div>
+  <div class="note">
+    调用时按该技能包自己的「角色 → 适用场景 → 输入契约 → 工作流程 → 产出契约 → 硬规则」执行；
+    计量照常落账、审计照常留痕。96 个判为纯生成（输入由用户给），19 个判为 RAG 类（确实要查制度库）。
+  </div>
+</div>
+
+<h2><span class="n">04</span>实测结果</h2>
+
+<div class="card">
+<table>
+  <tr><th style="width:44%">验证项</th><th>结果</th></tr>
+  <tr><td>115 个一次导入</td><td><span class="t3 t-ok">成功</span> 合并成 1 张批次审批单</td></tr>
+  <tr><td>审批前调用</td><td><span class="t3 t-ok">403</span> 红线有效，未因批量而放宽</td></tr>
+  <tr><td>批次审批通过</td><td><span class="t3 t-ok">migrated = 115</span> 一次决策整批发布</td></tr>
+  <tr><td>审批后调用</td><td><span class="t3 t-ok">200</span> skill_applied = true（提示词真的进了运行时）</td></tr>
+  <tr><td>分类目录</td><td>制造 21 / 零售 15 / 跨境 17 / 办公 62（四职能分列，不串味）</td></tr>
+  <tr><td>幂等重导入</td><td><span class="t3 t-ok">跳过</span> 同来源不生成第二个智能体</td></tr>
+  <tr><td>测试 / 契约</td><td>91 → <b>98 passed</b>（新增 7 项）；openapi 31 → <b>33 paths</b></td></tr>
+</table>
+<div class="note">
+  诚实说明：当前输出是 <code>[stub]</code> 回显，因为本机 LLM 未启用。
+  「提示词确实进了运行时」已验证，但<b>输出质量尚未在真模型上验证</b> —— 这是下一步第一件事。
+</div>
+</div>
+
+<h2><span class="n">05</span>质量分层：不是 115 个都能直接上生产</h2>
+
+<div class="card">
+<table>
+  <tr><th style="width:26%">梯度</th><th style="width:12%">数量</th><th>说明</th></tr>
+  <tr><td>结构齐（4 项信号以上）</td><td><b>40</b></td><td>有流程有契约，可先拿去做真模型试点</td></tr>
+  <tr><td>补规则后可用</td><td><b>61</b></td><td>缺硬规则，跑起来容易「说得好听、落不了地」</td></tr>
+  <tr><td>需人工重写</td><td><b>14</b></td><td>缺流程也缺契约</td></tr>
+</table>
+<div class="note">
+  <b>两个必须说清的事实：</b>
+  ① HR 20 个被判 usable 不是质量差 —— 它的流程写在「作业手册原文」里、没单列章节，结构信号抓不到；抽样读下来 HR 是办公类里最实的。
+  ② <b>硬规则只有 17/115</b> —— 这是最该补的一项。技能包的价值恰恰是「不让你说空话」，而平台的价值主张是「可审计、可复核」。没有硬规则的包，跑出来仍是漂亮废话。
+</div>
+</div>
+
+<h2><span class="n">06</span>还差什么（按优先级）</h2>
+
+<div class="card">
+<table>
+  <tr><th style="width:9%">优先级</th><th style="width:26%">事项</th><th>为什么</th></tr>
+  <tr>
+    <td><span class="t3 t-p0">P0</span></td>
+    <td><b>文件进出</b></td>
+    <td>技能包的本质是 <b>xlsx 进、xlsx 出</b>。现在 <code>/agent/invoke</code> 只吃 <code>input: str</code>，费用台账里那 20 列数据根本进不来。需加 <code>input_files</code>（复用已有 MinIO）+ 产出物写回 + 下载链接。</td>
+  </tr>
+  <tr>
+    <td><span class="t3 t-p1">P1</span></td>
+    <td><b>166 个 xlsx 交付物做 few-shot</b></td>
+    <td>每个方案都带「原始数据 + 交付物」成对样例，这是最好的 few-shot。塞进 system_prompt 后输出会从「看起来对」变成「格式真的对」，性价比最高。</td>
+  </tr>
+  <tr>
+    <td><span class="t3 t-p1">P1</span></td>
+    <td><b>补硬规则（17/115）</b></td>
+    <td>优先补办公 62 个：每个补 3–5 条可判定红线，如「分母必须写明」「无记录不得估算」「问题必须落到唯一责任人+时限」。</td>
+  </tr>
+  <tr>
+    <td><span class="t3 t-p2">P2</span></td>
+    <td>审批台折叠批次单</td>
+    <td>批次单含 115 个 agent_ids，需折叠展示 + 整批通过/驳回按钮。</td>
+  </tr>
+</table>
+</div>
+
+<h2><span class="n">07</span>现在就可用</h2>
+
+<div class="card">
+<ul class="tight">
+  <li>前端新增「技能包目录」页：按行业/职能筛选、搜索、状态标，点卡片即可按该技能包执行。</li>
+  <li>命令行：<code>python scripts/import_solutions.py --dry-run</code> 只看统计；<code>--apply</code> 真正导入；<code>--board 04_角色</code> 只导办公那 62 个。</li>
+  <li>导入后到「审批台」整批通过，即可在目录页逐个使用。</li>
+</ul>
+</div>
+
+<h2><span class="n">08</span>建议顺序</h2>
+
+<div class="lead" style="background:#0f6e56">
+  <b>先补文件进出（P0）→ 拿「经营复盘」+「报销单合规预审」两个包做真模型端到端试点 → 再铺开 115 个。</b><br>
+  不要一次性全量验收。这两个包一个偏行业、一个偏办公，跑通就说明链路对；跑不通，85 个包也一样不通。
+</div>
+
+<footer>
+  <span>企业 AI 智能体中台 · M15 技能包融合</span>
+  <span>2026-11-03 · 98 passed / 33 paths</span>
+</footer>
+
+</div>
+</body>
+</html>
