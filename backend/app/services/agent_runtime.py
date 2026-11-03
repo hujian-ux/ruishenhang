@@ -23,6 +23,7 @@ class _AgentState(TypedDict, total=False):
     query_rewritten: bool
     answer: str
     usage: dict
+    file_ctx: str        # M16：附件解析出的结构化上下文（表格画像 + 样本）
 
 
 SYSTEM_PROMPT = "企业AI智能体中台知识助手，只基于授权片段作答，不编造。"
@@ -51,20 +52,33 @@ def _call_llm(prompt: str, system_prompt: str | None = None) -> Dict[str, Any]:
     }
 
 
-def _compose_prompt(user_input: str, ctx: str, mem: str, skill: bool) -> str:
-    """技能包（skill=True）走「按流程执行」口径，默认助手走「仅据片段作答」口径。"""
+def _compose_prompt(user_input: str, ctx: str, mem: str, skill: bool,
+                    file_ctx: str = "") -> str:
+    """技能包（skill=True）走「按流程执行」口径，默认助手走「仅据片段作答」口径。
+
+    M16：file_ctx 是附件解析出的表格上下文。放在任务输入之前，并显式允许模型
+    引用附件里的数字——但只允许引用附件里真实存在的，避免它"看着表头补数据"。
+    """
     if skill:
         # 技能包：输入由用户提供，检索片段仅作可选参考，不得覆盖技能包的输入契约
         parts = []
+        if file_ctx:
+            parts.append(file_ctx)
         if ctx:
             parts.append(f"可参考的企业授权片段（仅在技能包输入契约需要时使用）：{ctx}")
         if mem:
             parts.append(f"对话记忆：{mem.replace(chr(10), ' / ')}")
         parts.append(f"本次任务输入：\n{user_input}")
-        parts.append("请严格按技能包规定的工作流程与产出契约执行；缺失输入列清单，不得臆造。")
+        if file_ctx:
+            parts.append("执行要求：按技能包的产出契约输出；凡引用数据必须来自上方附件，"
+                         "不得臆造行或列。结论中要落成可导出的表格（markdown 表格或 json 数组），"
+                         "表头与附件列名保持一致。")
+        else:
+            parts.append("请严格按技能包规定的工作流程与产出契约执行；缺失输入列清单，不得臆造。")
         return "\n\n".join(parts)
-    return (f"你是企业知识助手，仅基于授权片段回答。\n"
-            f"授权片段：{ctx or '暂无'}\n"
+    return (f"你是企业知识助手，仅基于授权片段与用户附件回答。\n"
+            + (f"{file_ctx}\n" if file_ctx else "")
+            + f"授权片段：{ctx or '暂无'}\n"
             + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
             + f"用户问题：{user_input}")
 
@@ -98,7 +112,7 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True):
         # 会话记忆：最近 N 轮对话摘要进生成上下文
         mem = session_store.build_context({"turns": state.get("history") or []}, max_turns=2)
         # M6：真实 LLM 生成（LiteLLM 探活通过时），否则确定性 stub
-        prompt = _compose_prompt(state["input"], ctx, mem, skill)
+        prompt = _compose_prompt(state["input"], ctx, mem, skill, state.get("file_ctx") or "")
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
         if not answer.startswith("[stub"):
@@ -117,18 +131,21 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True):
 def run_agent(agent_id: str, user_input: str, caller: CallerContext,
               history: Optional[List[Dict[str, Any]]] = None,
               system_prompt: Optional[str] = None,
-              adapter_type: str = "") -> Dict[str, Any]:
+              adapter_type: str = "",
+              file_context: str = "") -> Dict[str, Any]:
     """运行智能体：多轮编排（记忆可选）。history 为该会话既有轮次。
 
     M15：system_prompt 为该智能体（技能包）的执行提示词；adapter_type 决定是否检索。
     未传 system_prompt 时行为与 M0–M14 完全一致（平台默认知识助手）。
+    M16：file_context 为附件解析后的结构化上下文（tabular.to_prompt_context 产出）。
     """
     history = history or []
     use_retrieval = adapter_type in RETRIEVAL_ADAPTERS if adapter_type else True
     skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
     try:
         app = build_graph(system_prompt, use_retrieval)
-        result = app.invoke({"input": user_input, "caller": caller, "history": history})
+        result = app.invoke({"input": user_input, "caller": caller, "history": history,
+                             "file_ctx": file_context})
         citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]}
                      for h in result.get("hits", [])]
         return {"answer": result["answer"], "citations": citations,
@@ -145,7 +162,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         ctx = "；".join(h["title"] for h in hits)
         turn_no = 1 + sum(1 for t in history if t["role"] == "user")
         mem = session_store.build_context({"turns": history}, max_turns=2)
-        prompt = _compose_prompt(user_input, ctx, mem, skill)
+        prompt = _compose_prompt(user_input, ctx, mem, skill, file_context)
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
         if not answer.startswith("[stub"):

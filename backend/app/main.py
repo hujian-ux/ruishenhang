@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
-from app.routers import agents, approval, audit, auth, eval as eval_router, invoke, kb, models, rag, selection, usage
-from app.services import agent_store, approval_store, kb_store, pg_store, session_store, usage_store
+from app.routers import agents, approval, audit, auth, eval as eval_router, files, invoke, kb, models, rag, selection, usage
+from app.services import agent_store, approval_store, file_store, kb_store, pg_store, session_store, usage_store
 
 
 @asynccontextmanager
@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
     usage_store.load_from_pg()   # M7：重启后账单不清零
     kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
     agent_store.load_from_pg()   # M15：注册的智能体/技能包重启不清零
+    file_store.load_from_pg()    # M16：上传件与产出物重启后仍可下载
     pg_store._connect()  # 触发建表/探活（一次性）
     yield
 
@@ -44,6 +45,7 @@ app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(rag.router, prefix=settings.API_PREFIX)
 app.include_router(agents.router, prefix=settings.API_PREFIX)
 app.include_router(invoke.router, prefix=settings.API_PREFIX)  # M4: /agent/invoke + 会话记忆
+app.include_router(files.router, prefix=settings.API_PREFIX)   # M16: 文件进出（上传/下载/产出物）
 app.include_router(selection.router, prefix=settings.API_PREFIX)
 app.include_router(kb.router, prefix=settings.API_PREFIX)
 app.include_router(models.router, prefix=settings.API_PREFIX)

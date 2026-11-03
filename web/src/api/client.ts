@@ -75,10 +75,34 @@ export const api = {
   importAgents: (body: { items: any[]; batch_name?: string; batch_approval?: boolean }) =>
     req<any>("POST", "/agents/import", body),
   // M4 会话记忆：session_id 传入续聊，缺省新建
-  invokeAgent: (agentId: string, input: string, sessionId?: string) =>
+  // M16 文件进出：fileIds 为已上传附件的 file_id（先调 uploadAgentFile）
+  invokeAgent: (agentId: string, input: string, sessionId?: string, fileIds?: string[]) =>
     req<any>("POST", "/agent/invoke", {
-      agent_id: agentId, input, stream: false, ...(sessionId ? { session_id: sessionId } : {}),
+      agent_id: agentId, input, stream: false,
+      ...(sessionId ? { session_id: sessionId } : {}),
+      ...(fileIds && fileIds.length ? { file_ids: fileIds } : {}),
     }),
+
+  // ── M16 文件进出（P0）：xlsx 上传 → 按技能包执行 → 产出物下载 ──
+  uploadAgentFile: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return uploadFile("/agent/files", form) as Promise<{
+      code: number; data: {
+        file_id: string; filename: string; size: number; kind: string;
+        meta: { parse_ok: boolean; parse_error?: string; sheets?: number; rows?: number; store?: string };
+        preview: { ok: boolean; sheet_count?: number; total_rows?: number;
+                   sheets?: { name: string; rows: number; cols: number; headers: string[] }[] };
+        download_url: string; object_store_available: boolean;
+      };
+    }>;
+  },
+  listAgentFiles: (kind = "", runId = "") =>
+    req<{ code: number; data: { files: any[]; count: number; stats: any } }>(
+      "GET", `/agent/files?kind=${kind}${runId ? `&run_id=${runId}` : ""}`,
+    ),
+  deleteAgentFile: (fileId: string) => req<any>("DELETE", `/agent/files/${fileId}`),
+
   getSession: (sessionId: string) =>
     req<any>("GET", `/agent/sessions/${sessionId}`),
   // M5 审批流
@@ -137,6 +161,28 @@ export const api = {
   toggleModel: (modelId: string, status: "active" | "inactive") =>
     req<any>("PATCH", `/models/${modelId}`, { status }),
 };
+
+// 下载必须带鉴权头，所以不能直接用 <a href>（浏览器不会补 Authorization）。
+// 这里走 fetch→blob→临时链接，保证「谁能下」由后端 RBAC 决定，而不是靠隐藏地址。
+export async function downloadAgentFile(fileId: string, filename: string) {
+  const res = await fetch(`${BASE}/agent/files/${fileId}`, {
+    headers: token ? { Authorization: token } : {},
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "download.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // 第35章选型规则（本地兜底，与后端 selection/framework.py 同源；后端不可达时使用）
 export function recommendLocal(inputType: string, deterministic: boolean, need: string): any {

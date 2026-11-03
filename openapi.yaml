@@ -222,6 +222,175 @@ paths:
                       authorized: true
         '403':
           $ref: '#/components/responses/Forbidden'
+  /agent/files:
+    post:
+      tags: [files]
+      operationId: uploadAgentFile
+      summary: 上传技能包输入件（M16 文件进出）
+      description: |
+        multipart 上传 xlsx/xlsm/csv/tsv/txt/md/json，单文件上限 20MB。
+        上传即解析并回结构预览（表头/列画像/样本）；解析失败不拒收，
+        而是把 parse_ok=false 与原因回给前端，执行时由模型明确告知用户。
+        同一用户重复上传同一文件（sha256 相同）复用原记录。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/AgentFile'
+                      - type: object
+                        properties:
+                          preview:
+                            type: object
+                            description: 表格结构预览（ok/sheet_count/total_rows/sheets）
+                          object_store_available:
+                            type: boolean
+        '413':
+          description: 文件超过 20MB
+        '415':
+          description: 不支持的文件类型
+    get:
+      tags: [files]
+      operationId: listAgentFiles
+      summary: 可见文件列表（M16）
+      description: 默认仅本人；部门管理员可见本部门、平台管理员全量。产出物可按 run_id 精确定位。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [upload, artifact]
+        - name: run_id
+          in: query
+          schema:
+            type: string
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 文件列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    type: object
+                    properties:
+                      files:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AgentFile'
+                      count:
+                        type: integer
+                      stats:
+                        type: object
+  /agent/files/stats:
+    get:
+      tags: [files]
+      operationId: agentFilesStats
+      summary: 文件存储健康度（M16）
+      description: 文件量与字节数 + 对象存储是否在线（MinIO 不可达时走内存兜底）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 存储统计
+          content:
+            application/json:
+              schema:
+                type: object
+  /agent/files/{file_id}:
+    get:
+      tags: [files]
+      operationId: downloadAgentFile
+      summary: 下载原件或产出物（M16）
+      description: |
+        后端代理下载（带鉴权），不是对象存储预签名直链——避免把 MinIO 端口暴露给浏览器。
+        无权与不存在统一返回 404，避免靠枚举探测他人文件。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 文件字节流
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: 文件不存在或无权访问
+    delete:
+      tags: [files]
+      operationId: deleteAgentFile
+      summary: 删除文件（M16，仅上传者本人或平台管理员）
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已删除
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /agent/files/{file_id}/preview:
+    get:
+      tags: [files]
+      operationId: previewAgentFile
+      summary: 表格结构预览（M16）
+      description: 回表头、列画像（类型/空值率/唯一值数）与前 20 行，用于执行前核对口径。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 结构预览
+          content:
+            application/json:
+              schema:
+                type: object
   /agent/sessions:
     get:
       tags: [agent]
@@ -1457,6 +1626,46 @@ components:
         session_id:
           type: string
           description: 会话记忆（M4）：传入则续聊既有会话，缺省新建；会话仅创建者本人可见
+        file_ids:
+          type: array
+          items:
+            type: string
+          description: |
+            文件进出（M16）：先 POST /agent/files 上传拿 file_id，再在此引用。
+            后端会把附件解析成「列画像 + 样本行」注入上下文（不是整表塞进 prompt），
+            执行后自动生成 xlsx 产出物，地址见响应 data.artifacts。
+    AgentFile:
+      type: object
+      description: 文件元信息（M16）。字节流在对象存储，这里只回元信息与下载地址。
+      properties:
+        file_id:
+          type: string
+        kind:
+          type: string
+          enum: [upload, artifact]
+          description: upload=用户上传的输入件；artifact=技能包执行生成的产出物
+        filename:
+          type: string
+        size:
+          type: integer
+        content_type:
+          type: string
+        sha256:
+          type: string
+        agent_id:
+          type: string
+          description: 产出物所属智能体（上传件为空）
+        run_id:
+          type: string
+          description: 产出物所属本次执行（上传件为空）
+        created_at:
+          type: number
+        meta:
+          type: object
+          description: 上传件含 parse_ok/sheets/rows/store；产出物含 input_files/table_count
+        download_url:
+          type: string
+          description: 下载地址（后端代理、带鉴权，不是对象存储直链）
     SessionMemory:
       type: object
       required: [code, data]

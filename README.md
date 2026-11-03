@@ -80,7 +80,9 @@ cd web && npm install && npm run dev
 | M14 第二部门真实语料试点 | 2 天 | 固化「导入双部门→评估→跨域隔离校验」SOP（同一索引按 caller 可见性预筛，非分库存）；`scripts/pilot_second_dept.py` 一键跑通，真实数据到位直接换目录 | ✅ 实跑：双部门各 200 篇共 400 篇、隔离计数正确；第二部门 Recall@100=1.0、过滤正确率 1.0；**跨域泄露探针 Recall@5=0.0（零泄露）**；门禁 PASS。注：@5/MRR 低为伪向量下限，真实 bge-m3 下 M11 已验 @5=0.98 |
 | M15 技能包融合（方案库接入） | 3 天 | 把 `D:\workbuddy_解决方案` 的 **115 个 prompt-as-skill 技能包**接进平台：`agent_store`（内存+PG 写穿，保留 system_prompt/分类/输入产出契约）、`agent_runtime` 按 agent 加载提示词（不再全局写死）、`POST /agents/import` 批量导入**合并一张批次审批单**、`GET /agents/catalog` 分类目录、前端 `Skills.tsx` 目录页。红线不放宽：未 published 仍 403 | ✅ `test_m15_skills.py` 7 项全过（字段不丢、批次单唯一、审批前403/审批后 `skill_applied=true`、目录不串行业、幂等重导入、跨部门隔离、global 可见）；全量 **98 passed**；前端 `tsc + vite build` 通过。实测：115 个一次导入 → 1 张批次单 → 一次审批迁移 115 个。详见 `docs/M15_技能包融合方案.md` |
 
-> 接口数：openapi **33 paths / 26 schemas**。测试累计 **98 passed**（M0–M15）。
+| M16 文件进出（P0） | 3 天 | 技能包本质是 **xlsx 进 → xlsx 出**，而 invoke 原来只吃 `input: str`，20 列的台账根本进不来。新增：`POST /agent/files` 上传（上传即解析，回表头/列画像/样本）、`invoke.file_ids` 引用附件、`tabular`（标题行识别 + 列类型/空值率 + 预算内压缩，不把整表塞 prompt）、`artifact`（答案里的 markdown 表/JSON 数组 → 多 sheet xlsx，永远有「执行结论」页）、`GET /agent/files/{id}` 后端代理下载（带鉴权，不暴露 MinIO）、`file_store`（内存+PG 写穿，重启仍可下载） | ✅ `test_m16_files.py` 17 项全过（标题行干扰下表头仍准、损坏文件降级不崩、全链路上传→执行→产出物→下载、跨部门 404、产出物生成器多表/JSON/兜底）；全量 **115 passed**；前端 `tsc + vite build` 通过。真实对象存储路径已验（`store: minio`，S3 协议往返）；顺带修掉两处旧 bug：`pg_store._KEY_COL` 漏 `agents` 导致 M15 写穿 PG 静默失效、`invoke` 的 `audit.record("generate")` 写在 `return` 之后是从不可达代码 |
+
+> 接口数：openapi **37 paths / 27 schemas**。测试累计 **115 passed**（M0–M16）。
 
 ## M8 试点怎么跑（最快路径）
 

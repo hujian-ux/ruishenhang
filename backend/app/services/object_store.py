@@ -14,6 +14,8 @@ _lock = threading.Lock()
 
 # 离线兜底：对象键 → 文本内容（生产由 MinIO 承担）
 _FALLBACK: Dict[str, str] = {}
+# M16：二进制兜底（xlsx 产出物 / 上传件）。MinIO 不可达时也能跑通完整链路。
+_FALLBACK_BYTES: Dict[str, bytes] = {}
 
 
 def _get_client():
@@ -83,3 +85,51 @@ def delete_text(key: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M16 · 二进制对象（P0 文件进出）：上传的 xlsx 输入件 + 产出的 xlsx 产出物
+# ─────────────────────────────────────────────────────────────────────────────
+def put_bytes(key: str, data: bytes, content_type: str = "application/octet-stream",
+              metadata: Dict[str, str] | None = None) -> str:
+    """写入二进制对象；返回存储位置（minio://bucket/key 或 memory://key）。"""
+    c = _get_client()
+    if c:
+        try:
+            import io as _io
+            c.put_object(settings.MINIO_BUCKET, key, _io.BytesIO(data), len(data),
+                         content_type=content_type, metadata=metadata or None)
+            return f"minio://{settings.MINIO_BUCKET}/{key}"
+        except Exception:
+            pass
+    _FALLBACK_BYTES[key] = data
+    return f"memory://{key}"
+
+
+def get_bytes(key: str) -> bytes | None:
+    """读取二进制对象；不存在返回 None（调用方据此回 404，而不是返回空文件）。"""
+    c = _get_client()
+    if c:
+        try:
+            resp = c.get_object(settings.MINIO_BUCKET, key)
+            try:
+                return resp.read()
+            finally:
+                resp.close()
+                resp.release_conn()
+        except Exception:
+            pass
+    return _FALLBACK_BYTES.get(key)
+
+
+def delete_object(key: str) -> bool:
+    """删除二进制对象（内存兜底与 MinIO 同时清）。"""
+    hit = _FALLBACK_BYTES.pop(key, None) is not None
+    c = _get_client()
+    if not c:
+        return hit
+    try:
+        c.remove_object(settings.MINIO_BUCKET, key)
+        return True
+    except Exception:
+        return hit

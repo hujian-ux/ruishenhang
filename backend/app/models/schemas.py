@@ -2,7 +2,7 @@
 
 仅定义脚手架阶段所需字段；业务扩展字段后续按契约补充，不破坏现有结构。
 """
-from typing import Any, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 # ── auth ──
@@ -49,6 +49,9 @@ class AgentInvokeRequest(BaseModel):
     input: str
     stream: bool = True
     session_id: Optional[str] = None  # M4 会话记忆：传入则续聊，缺省新建会话
+    # M16 文件进出：先 POST /agent/files 上传拿 file_id，再在这里引用；
+    # 产出物由后端生成 xlsx 并通过 data.artifacts 返回下载地址。
+    file_ids: List[str] = Field(default_factory=list)
 
 class Citation(BaseModel):
     doc_id: str

@@ -50,6 +50,12 @@ def _ensure_tables() -> None:
                 payload JSONB NOT NULL,
                 updated_at TIMESTAMPTZ DEFAULT now()
             );
+            -- M16：文件进出（上传的输入件与产出的 xlsx，bin 走对象存储，元信息在 PG）
+            CREATE TABLE IF NOT EXISTS agent_files (
+                file_id TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
             CREATE TABLE IF NOT EXISTS usage_records (
                 id BIGSERIAL PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
@@ -104,7 +110,15 @@ def available() -> bool:
     return _connect() is not None
 
 
-_KEY_COL = {"agent_sessions": "session_id", "approval_tickets": "approval_id"}
+# 白名单：不在表里的 table 会被 upsert 静默拒绝（返回 False）。
+# M15 曾漏加 agents —— 建了表、save() 也调了 upsert，但白名单没放行，
+# 「智能体写穿 PG」实际只落到内存，重启即丢。新增持久化表务必同时加这里。
+_KEY_COL = {
+    "agent_sessions": "session_id",
+    "approval_tickets": "approval_id",
+    "agents": "agent_id",
+    "agent_files": "file_id",
+}
 
 
 def upsert(table: str, key: str, payload: Dict[str, Any]) -> bool:
