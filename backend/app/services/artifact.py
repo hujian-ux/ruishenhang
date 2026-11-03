@@ -28,6 +28,17 @@ SEP_ROW_RE = re.compile(r"^\s*\|?[\s:\-\|]+\|?\s*$")
 TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 FENCE_JSON_RE = re.compile(r"```(?:json)?\s*\n(.*?)```", re.S)
 
+# 行内 markdown：Word/Excel/PPT/PDF 都不认，原样写进去就是显示一堆星号
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_MD_TOKENS_RE = re.compile(r"(\*\*|__|\*|`|~~)")
+
+
+def strip_md(s: str) -> str:
+    """去掉 `**粗体**`、`` `代码` ``、`[文字](链接)` 这些行内标记，只留文字。"""
+    if not isinstance(s, str) or not s:
+        return s if isinstance(s, str) else str(s)
+    return _MD_TOKENS_RE.sub("", _MD_LINK_RE.sub(r"\1", s)).strip()
+
 
 def _clean_sheet_name(name: str, fallback: str) -> str:
     n = ILLEGAL_SHEET_CHARS.sub("", (name or "").strip())
@@ -68,7 +79,9 @@ def extract_tables(answer: str) -> List[Dict[str, Any]]:
                 rows.append(_split_cells(lines[j]))
                 j += 1
             if headers and rows:
-                tables.append({"title": last_heading, "headers": headers, "rows": rows,
+                tables.append({"title": last_heading,
+                               "headers": [strip_md(h) for h in headers],
+                               "rows": [[strip_md(c) for c in r] for r in rows],
                                "kind": "markdown"})
             i = j
             continue
@@ -190,7 +203,7 @@ def _write_conclusion_sheet(wb, answer: str, meta: Dict[str, Any],
     ws.append(["分析正文"])
     ws.cell(row=ws.max_row, column=1).font = blue
     for kind, text in _answer_paragraphs(answer):
-        ws.append(["", text])
+        ws.append(["", strip_md(text)])
         cell = ws.cell(row=ws.max_row, column=2)
         cell.alignment = Alignment(wrap_text=True, vertical="top")
         cell.font = Font(bold=(kind == "h"), size=10 if kind == "p" else 11,
@@ -249,9 +262,79 @@ def build_xlsx(answer: str, meta: Dict[str, Any],
     return buf.getvalue()
 
 
-def artifact_name(agent_name: str, source_name: str = "") -> str:
+def artifact_name(agent_name: str, source_name: str = "", fmt: str = "xlsx") -> str:
     """产出物文件名：`技能包名_源文件名_20261103-2210.xlsx`（去非法字符）。"""
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     a = re.sub(r"[\\/:*?\"<>|\s]+", "", agent_name or "产出物")[:24] or "产出物"
     s = re.sub(r"[\\/:*?\"<>|\s]+", "", (source_name or "").rsplit(".", 1)[0])[:24]
-    return f"{a}_{s}_{stamp}.xlsx" if s else f"{a}_{stamp}.xlsx"
+    ext = (fmt or "xlsx").lower()
+    return f"{a}_{s}_{stamp}.{ext}" if s else f"{a}_{stamp}.{ext}"
+
+
+# ───────────── M17：多格式产出物（Word / PPT / HTML / PDF / xlsx）─────────────
+# 一次调用可以同时要多种格式：财务要 xlsx 核数、老板要 pptx 汇报、
+# 归档要 pdf、发群要 html —— 都从同一份答案渲染，不重复调模型（省 token 也是省时间）。
+SUPPORTED_FORMATS = ("xlsx", "docx", "pptx", "html", "pdf")
+
+MEDIA_TYPES = {
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "html": "text/html; charset=utf-8",
+    "pdf": "application/pdf",
+}
+
+# 技能包产出契约里的关键词 → 推荐格式（auto 时用）
+_FORMAT_HINTS = {
+    "ppt": "pptx", "幻灯片": "pptx", "汇报": "pptx", "路演": "pptx",
+    "word": "docx", "文档": "docx", "报告": "docx", "说明书": "docx",
+    "pdf": "pdf", "盖章": "pdf", "归档": "pdf",
+    "html": "html", "网页": "html",
+}
+
+
+def normalize_formats(fmts: Optional[List[str]], outputs_contract: str = "") -> List[str]:
+    """把请求里的格式规格收敛成去重后的合法列表。
+
+    - 空 → 沿用旧行为 xlsx（不改变 M16 已有调用方）
+    - "auto" → 按技能包产出契约猜，猜不到默认 xlsx
+    - 未知格式直接丢弃；全被丢弃时回退 xlsx（宁可给表，不可给空）
+    """
+    got: List[str] = []
+    for f in fmts or []:
+        v = (f or "").strip().lower().lstrip(".")
+        if v == "auto":
+            v = _guess_format(outputs_contract)
+        if v in SUPPORTED_FORMATS and v not in got:
+            got.append(v)
+    return got or ["xlsx"]
+
+
+def _guess_format(contract: str) -> str:
+    text = (contract or "").lower()
+    for kw, fmt in _FORMAT_HINTS.items():
+        if kw in text:
+            return fmt
+    return "xlsx"
+
+
+def build(fmt: str, answer: str, meta: Dict[str, Any],
+          input_summary: Optional[List[List[str]]] = None,
+          raw_sheet: Optional[Dict[str, Any]] = None) -> bytes:
+    """按格式生成产出物字节流（统一入口，路由层不用关心渲染分支）。"""
+    fmt = (fmt or "xlsx").lower()
+    if fmt == "xlsx":
+        return build_xlsx(answer, meta, input_summary, raw_sheet)
+    if fmt == "docx":
+        from app.services import renderers
+        return renderers.build_docx(answer, meta, input_summary)
+    if fmt == "pptx":
+        from app.services import renderers
+        return renderers.build_pptx(answer, meta, input_summary)
+    if fmt == "pdf":
+        from app.services import renderers
+        return renderers.build_pdf(answer, meta, input_summary)
+    if fmt == "html":
+        from app.services import renderers
+        return renderers.build_html(answer, meta, input_summary).encode("utf-8")
+    raise ValueError(f"不支持的产出格式：{fmt}（支持 {'/'.join(SUPPORTED_FORMATS)}）")

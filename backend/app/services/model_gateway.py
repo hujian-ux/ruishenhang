@@ -1,10 +1,16 @@
-"""模型网关（第25章）：可插拔模型注册表 + LiteLLM 路由。
+"""模型网关（第25章）：可插拔模型注册表 + 双通道真实模型接入。
 
-业务侧仅通过 model_id 透明调用，不感知底层厂商。新增模型只需实现 ModelAdapter
-并登记到 Registry，业务代码无需改动（契约 /models 已定义注册接口）。
-M6：chat_sync 同步调用（供 agent_runtime 编排节点使用）+ 探活缓存；
-LiteLLM 代理不可达时回退确定性 stub，测试与离线演示不受影响。
+业务侧仅通过 model_id 透明调用，不感知底层厂商与接入方式：
+
+- `LLM_PROVIDER=litellm`：经 LiteLLM 代理（多厂商统一账单，生产推荐）
+- `LLM_PROVIDER=direct`：直连厂商 OpenAI 兼容端点（单厂商起步最快，不起额外容器）
+  内置 zhipu / dashscope / openai / deepseek / moonshot 端点预设，换厂商只改环境变量。
+
+M6：`chat_sync` 同步调用（供 agent_runtime 编排节点使用）+ 探活缓存。
+M17：真模型失败时**不再静默吞掉**——结果里带 `error`，响应里回显 `llm.real`，
+     并把 `LLM_STRICT=1` 作为验收/生产的开关：宁可直接报错，也不要拿 stub 冒充模型。
 """
+import json
 import time
 
 import httpx
@@ -12,15 +18,89 @@ import httpx
 from app.core.config import settings
 
 
+class LLMUnavailable(Exception):
+    """真模型不可用且 LLM_STRICT=1 —— 由调用方转成 502，不允许回退 stub。
+
+    刻意**不继承 RuntimeError**：agent_runtime 用 `except RuntimeError` 兜
+    「LangGraph 没装」的降级路径，若本异常也是 RuntimeError，会被误捕并重跑一遍，
+    真模型故障就被伪装成骨架降级了。
+    """
+
+
+# ── 厂商预设：直连通道只需要 base_url + key ──
+# 全部是 OpenAI 兼容的 /chat/completions 端点，故一套代码通吃。
+PROVIDER_PRESETS = {
+    "zhipu": {"base_url": "https://open.bigmodel.cn/api/paas/v4",
+              "key_env": "ZHIPU_API_KEY", "label": "智谱 GLM"},
+    "dashscope": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                  "key_env": "DASHSCOPE_API_KEY", "label": "阿里通义千问"},
+    "openai": {"base_url": "https://api.openai.com/v1",
+               "key_env": "OPENAI_API_KEY", "label": "OpenAI"},
+    "deepseek": {"base_url": "https://api.deepseek.com/v1",
+                 "key_env": "DEEPSEEK_API_KEY", "label": "DeepSeek"},
+    "moonshot": {"base_url": "https://api.moonshot.cn/v1",
+                 "key_env": "MOONSHOT_API_KEY", "label": "月之暗面 Kimi"},
+}
+
+
+def _direct_key() -> str:
+    """直连密钥：显式 LLM_API_KEY 优先，其次按厂商读惯用环境变量名。"""
+    if settings.LLM_API_KEY:
+        return settings.LLM_API_KEY
+    import os
+    preset = PROVIDER_PRESETS.get(settings.LLM_VENDOR, {})
+    return os.environ.get(preset.get("key_env", ""), "")
+
+
 def _headers() -> dict:
-    """LiteLLM 鉴权头：配了主密钥就透传，否则为空（本地开发免鉴权）。"""
+    """鉴权头：直连通道用厂商 key，litellm 通道用代理主密钥。"""
+    if settings.LLM_PROVIDER == "direct":
+        key = _direct_key()
+        return {"Content-Type": "application/json",
+                "Authorization": f"Bearer {key}"} if key else {"Content-Type": "application/json"}
     key = getattr(settings, "LITELLM_MASTER_KEY", "")
     return {"Authorization": f"Bearer {key}"} if key else {}
 
 
+def _endpoint() -> str:
+    """chat/completions 完整 URL（两条通道的唯一差异点）。"""
+    if settings.LLM_PROVIDER == "direct":
+        base = (settings.LLM_BASE_URL
+                or PROVIDER_PRESETS.get(settings.LLM_VENDOR, {}).get("base_url", "")).rstrip("/")
+        return f"{base}/chat/completions"
+    return f"{settings.LITELLM_BASE_URL.rstrip('/')}/v1/chat/completions"
+
+
+def access_mode() -> dict:
+    """当前接入方式的可读摘要（健康检查/验收报告要能一眼看出跑的是哪条通道）。"""
+    if settings.LLM_PROVIDER == "direct":
+        preset = PROVIDER_PRESETS.get(settings.LLM_VENDOR, {})
+        return {"provider": "direct", "vendor": settings.LLM_VENDOR,
+                "vendor_label": preset.get("label", settings.LLM_VENDOR),
+                "base_url": _endpoint().rsplit("/chat/completions", 1)[0],
+                "key_configured": bool(_direct_key()),
+                "key_hint": preset.get("key_env", "")}
+    return {"provider": "litellm", "vendor": "litellm",
+            "vendor_label": "LiteLLM 代理",
+            "base_url": settings.LITELLM_BASE_URL,
+            "key_configured": bool(getattr(settings, "LITELLM_MASTER_KEY", "")),
+            "key_hint": "LITELLM_MASTER_KEY"}
+
+
 # 内存注册表（M1 接入 PostgreSQL models 表；此处为单体骨架默认种子）
 # 单价单位：元 / 1k tokens（CNY），落账时按调用时的单价固化，改价不影响历史账单。
+# 智谱牌价为 2025 年官网/公开价格页口径（GLM-4.6 官方 $0.60/$2.20 每百万 tokens，
+# 按 7.2 汇率折算），属参考牌价 —— 真实合同价用 MODEL_PRICES_JSON 覆盖，不发版。
 _REGISTRY = {
+    "glm-4.6": {"model_id": "glm-4.6", "vendor": "zhipu", "adapter": "openai_compatible",
+                "capabilities": ["chat", "stream", "long_output"], "context_window": 200000,
+                "status": "active", "price_per_1k_prompt": 0.0043, "price_per_1k_completion": 0.0158},
+    "glm-4-plus": {"model_id": "glm-4-plus", "vendor": "zhipu", "adapter": "openai_compatible",
+                   "capabilities": ["chat", "stream"], "context_window": 128000,
+                   "status": "active", "price_per_1k_prompt": 0.0036, "price_per_1k_completion": 0.0036},
+    "glm-4-flash": {"model_id": "glm-4-flash", "vendor": "zhipu", "adapter": "openai_compatible",
+                    "capabilities": ["chat", "stream"], "context_window": 128000,
+                    "status": "active", "price_per_1k_prompt": 0.0, "price_per_1k_completion": 0.0},
     "gpt-4o-mini": {"model_id": "gpt-4o-mini", "vendor": "openai", "adapter": "openai_compatible",
                     "capabilities": ["chat", "stream"], "context_window": 128000,
                     "status": "active", "price_per_1k_prompt": 0.0011, "price_per_1k_completion": 0.0044},
@@ -37,6 +117,27 @@ _REGISTRY = {
                "capabilities": ["embed"], "context_window": 8192,
                "status": "active", "price_per_1k_prompt": 0.0, "price_per_1k_completion": 0.0},
 }
+
+
+def _apply_price_override() -> None:
+    """允许用 MODEL_PRICES_JSON 覆盖牌价，例如：
+    {"glm-4.6": [0.004, 0.014]}（单位 元/1k tokens，[输入, 输出]）。
+    合同价与牌价常常不同，计费表不能写死在代码里等发版。
+    """
+    raw = getattr(settings, "MODEL_PRICES_JSON", "") or ""
+    if not raw:
+        return
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return
+    for mid, pair in (data or {}).items():
+        if mid in _REGISTRY and isinstance(pair, (list, tuple)) and len(pair) == 2:
+            _REGISTRY[mid]["price_per_1k_prompt"] = float(pair[0])
+            _REGISTRY[mid]["price_per_1k_completion"] = float(pair[1])
+
+
+_apply_price_override()
 
 
 def list_models(status: str = "active") -> list[dict]:
@@ -73,17 +174,46 @@ def register_model(req: dict) -> dict:
     return {"model_id": mid, "status": "active", "registered_by": "platform_admin"}
 
 
+def _payload(model_id: str, messages: list[dict], **kw) -> dict:
+    """统一请求体。max_tokens 给小了，技能包的多张表会被截断成半张。"""
+    body = {
+        "model": model_id,
+        "messages": messages,
+        "temperature": kw.get("temperature", settings.LLM_TEMPERATURE),
+        "max_tokens": kw.get("max_tokens", settings.LLM_MAX_TOKENS),
+    }
+    # GLM-4.5/4.6 默认混合思考：财务归因要稳定输出结构化表格，关掉思考更快更可复现。
+    if model_id.startswith(("glm-4.6", "glm-4.5")) and getattr(settings, "LLM_DISABLE_THINKING", True):
+        body["thinking"] = {"type": "disabled"}
+    return body
+
+
+def _extract(body: dict) -> tuple[str, dict]:
+    """从响应取正文与用量。思考型模型偶尔把正文放在 reasoning_content，
+    正文为空时兜底，否则会拿到空字符串还以为成功。"""
+    msg = (body.get("choices") or [{}])[0].get("message") or {}
+    text = msg.get("content") or ""
+    if not text.strip() and msg.get("reasoning_content"):
+        text = msg["reasoning_content"]
+    u = body.get("usage") or {}
+    usage = {
+        "prompt_tokens": int(u.get("prompt_tokens") or 0),
+        "completion_tokens": int(u.get("completion_tokens") or 0),
+    }
+    return text, usage
+
+
 async def chat(model_id: str, messages: list[dict]) -> str:
-    """经 LiteLLM 网关调用（第25章）。失败回退本地 stub，保证可演示。"""
+    """经网关调用（第25章）。失败时按 LLM_STRICT 决定抛错或回退 stub。"""
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.post(f"{settings.LITELLM_BASE_URL}/v1/chat/completions",
-                             json={"model": model_id, "messages": messages},
-                             headers=_headers())
+        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT_S) as c:
+            r = await c.post(_endpoint(), json=_payload(model_id, messages), headers=_headers())
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
-    except Exception:
-        return f"[stub:{model_id}] 回复内容（LiteLLM 未连接时为骨架回退）"
+            return _extract(r.json())[0]
+    except Exception as exc:
+        if settings.LLM_STRICT:
+            raise LLMUnavailable(f"模型调用失败：{type(exc).__name__}: {exc}") from exc
+        return f"[stub:{model_id}] 回复内容（真模型未连接时为骨架回退）"
 
 
 # ── M6：同步调用 + 探活缓存（agent_runtime 编排节点用） ──
@@ -93,12 +223,20 @@ _PROBE_TTL = 30.0  # 秒
 
 
 def llm_available(force: bool = False) -> bool:
-    """LiteLLM 代理探活（带 30s 缓存，避免每轮对话都探测）。"""
+    """探活（30s 缓存，避免每轮对话都探测）。
+
+    - litellm 通道：打 /health/liveliness（代理本身有健康端点）
+    - direct 通道：不做无谓的 token 消耗，只校验密钥是否配置；
+      真正可用性由调用结果判定（失败会带 error 上抛，不静默）
+    """
     global _last_probe, _probe_ok
     now = time.time()
     if not force and now - _last_probe < _PROBE_TTL:
         return _probe_ok
     _last_probe = now
+    if settings.LLM_PROVIDER == "direct":
+        _probe_ok = bool(_direct_key())
+        return _probe_ok
     try:
         r = httpx.get(f"{settings.LITELLM_BASE_URL}/health/liveliness", timeout=1.5)
         _probe_ok = (r.status_code == 200)
@@ -107,41 +245,84 @@ def llm_available(force: bool = False) -> bool:
     return _probe_ok
 
 
-def chat_sync(model_id: str, messages: list[dict], timeout: float = 15.0) -> str:
-    """同步调用 LLM；不可达/失败回退确定性 stub（回答带 [stub] 标记便于识别）。"""
+def chat_sync(model_id: str, messages: list[dict], timeout: float = 0) -> str:
+    """同步调用 LLM；不可达/失败时按 LLM_STRICT 抛错或回退确定性 stub。"""
     return chat_sync_ex(model_id, messages, timeout)["text"]
 
 
-def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 15.0) -> dict:
+def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 0,
+                 max_tokens: int | None = None, temperature: float | None = None) -> dict:
     """同步调用并**回传真实 token 用量**（第25章计量数据源）。
 
-    返回 {text, real, model_id, usage{prompt_tokens,completion_tokens}, latency_ms}；
-    real=False 表示走了 stub 回退，此时 usage 为空，由调用方按文本估算（仍要落账）。
+    返回 {text, real, model_id, usage{prompt_tokens,completion_tokens}, latency_ms, error}；
+    real=False 表示走了 stub 回退（或真模型失败），此时 error 写明原因，
+    调用方要把 error 透到响应里 —— 「看起来跑了」比「跑失败」更危险。
     """
     t0 = time.time()
+    kw = {}
+    if max_tokens:
+        kw["max_tokens"] = max_tokens
+    if temperature is not None:
+        kw["temperature"] = temperature
+    to = timeout or settings.LLM_TIMEOUT_S
+
     if not llm_available():
+        err = ("未配置模型密钥（LLM_API_KEY / 厂商环境变量）" if settings.LLM_PROVIDER == "direct"
+               else "LiteLLM 代理不可达")
+        if settings.LLM_STRICT:
+            raise LLMUnavailable(err)
         return {"text": _stub_answer(model_id, messages), "real": False,
-                "model_id": model_id, "usage": {},
+                "model_id": model_id, "usage": {}, "error": err,
                 "latency_ms": int((time.time() - t0) * 1000)}
     try:
-        r = httpx.post(f"{settings.LITELLM_BASE_URL}/v1/chat/completions",
-                       json={"model": model_id, "messages": messages},
-                       headers=_headers(), timeout=timeout)
-        r.raise_for_status()
+        r = httpx.post(_endpoint(), json=_payload(model_id, messages, **kw),
+                       headers=_headers(), timeout=to)
+        if r.status_code >= 400:
+            # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
         body = r.json()
-        text = body["choices"][0]["message"]["content"] or ""
-        u = body.get("usage") or {}
-        usage = {
-            "prompt_tokens": int(u.get("prompt_tokens") or 0),
-            "completion_tokens": int(u.get("completion_tokens") or 0),
-        }
-        return {"text": text, "real": not text.startswith("[stub"),
-                "model_id": body.get("model") or model_id, "usage": usage,
+        text, usage = _extract(body)
+        if not text.strip():
+            raise RuntimeError("响应正文为空（可能被 max_tokens 截断或触发内容策略）")
+        return {"text": text, "real": True,
+                "model_id": body.get("model") or model_id, "usage": usage, "error": "",
                 "latency_ms": int((time.time() - t0) * 1000)}
-    except Exception:
+    except Exception as exc:
+        msg = f"{type(exc).__name__}: {exc}"
+        if settings.LLM_STRICT:
+            raise LLMUnavailable(msg) from exc
         return {"text": _stub_answer(model_id, messages), "real": False,
-                "model_id": model_id, "usage": {},
+                "model_id": model_id, "usage": {}, "error": msg,
                 "latency_ms": int((time.time() - t0) * 1000)}
+
+
+def probe(model_id: str = "", timeout: float = 30.0) -> dict:
+    """真实生成探活：花 1 次极短调用换取确定结论（给运维与验收脚本用）。
+
+    与 llm_available 的区别：那个只判断"通道是否配置好"，这个判断"模型是否真能答"。
+    """
+    mid = model_id or settings.LLM_DEFAULT_MODEL
+    t0 = time.time()
+    info = access_mode()
+    try:
+        r = httpx.post(_endpoint(),
+                       json=_payload(mid, [{"role": "user", "content": "只回复两个字：通了"}],
+                                     max_tokens=16, temperature=0),
+                       headers=_headers(), timeout=timeout)
+        ok = r.status_code == 200
+        text = ""
+        if ok:
+            try:
+                text = _extract(r.json())[0][:20]
+            except Exception:
+                text = ""
+        return {"ok": ok, "model_id": mid, "status_code": r.status_code,
+                "reply": text, "error": "" if ok else r.text[:300],
+                "latency_ms": int((time.time() - t0) * 1000), **info}
+    except Exception as exc:
+        return {"ok": False, "model_id": mid, "status_code": 0, "reply": "",
+                "error": f"{type(exc).__name__}: {exc}",
+                "latency_ms": int((time.time() - t0) * 1000), **info}
 
 
 def _stub_answer(model_id: str, messages: list[dict]) -> str:

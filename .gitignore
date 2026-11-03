@@ -37,3 +37,6 @@ backend/reports/
 
 # 运行时数据（embedding 缓存 sqlite / qdrant 本地文件）
 backend/data/
+
+# M17 离线装包缓存（pip 走代理取不到 index 时的轮子暂存目录）
+backend/wheels/

@@ -25,6 +25,13 @@ dependencies = [
     # tabular.parse 在缺包时会降级成 ok=False 而不是崩，但「表格真的能解析」是要断言的，
     # 所以必须进主依赖，否则 CI 干净环境里 M16 用例会挂。
     "openpyxl>=3.1",
+    # M17 多格式产出物：Word / PPT / PDF。
+    # HTML 自己拼字符串（不引 markdown 库），少一个依赖少一处渲染差异。
+    # reportlab 4.x 把 rlPyCairo 列成硬依赖，但它只在 cairo 后端用到；
+    # 离线/内网安装时报错就先 `pip install --no-deps reportlab`（见 docs/M17）。
+    "python-docx>=1.1",       # Word
+    "python-pptx>=0.6.23",    # PPT
+    "reportlab>=4.0",         # PDF（platypus 直绘，不依赖 Office/LibreOffice）
 ]
 
 [project.optional-dependencies]

@@ -16,9 +16,20 @@ type Turn = {
   artifacts?: any[];       // 助手轮：本次产出物
   runId?: string;
   skillApplied?: boolean;
+  llmReal?: boolean;       // M17：这轮到底是真模型还是 stub 回退
+  llmError?: string;
 };
 
 const ACCEPT = ".xlsx,.xlsm,.csv,.tsv,.txt,.md,.markdown,.json";
+
+// M17 产出格式：后端一次渲染多种，模型只调一次。默认 xlsx，保持旧习惯。
+const FORMATS: { key: string; label: string; hint: string }[] = [
+  { key: "xlsx", label: "Excel", hint: "多 sheet 明细表，财务核数" },
+  { key: "docx", label: "Word", hint: "分章正文 + 表格，归档签批" },
+  { key: "pptx", label: "PPT", hint: "汇报骨架，给老板讲" },
+  { key: "pdf", label: "PDF", hint: "A4 直绘，盖章归档" },
+  { key: "html", label: "HTML", hint: "单文件，发群发客户" },
+];
 
 function kb(n: number) {
   return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`;
@@ -36,6 +47,7 @@ export function ChatPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dlBusy, setDlBusy] = useState("");
+  const [formats, setFormats] = useState<string[]>(["xlsx"]);
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -77,13 +89,15 @@ export function ChatPage() {
     setBusy(true); setErr(""); setInput("");
     setTurns((t) => [...t, { role: "user", content: text || "（已上传附件，请按技能包执行）", files: fileNames }]);
     try {
-      const r = await api.invokeAgent(agentId, text || "请按技能包处理附件", sessionId || undefined, fileIds);
+      const r = await api.invokeAgent(agentId, text || "请按技能包处理附件",
+                                      sessionId || undefined, fileIds, formats);
       const d = r.data;
       setSessionId(d.session.session_id);
       setTurns((t) => [...t, {
         role: "assistant", content: d.answer,
         artifacts: d.artifacts || [], runId: d.run_id,
         skillApplied: d.agent?.skill_applied,
+        llmReal: d.llm?.real, llmError: d.llm?.error,
       }]);
       setAttachments([]);
       api.getSession(d.session.session_id).then((m) => setMemory(m.data)).catch(() => {});
@@ -161,6 +175,12 @@ export function ChatPage() {
                   ))}
                 </div>
               )}
+              {/* M17：真模型没跑通时明确标出，不能让 stub 结果看起来像模型结论 */}
+              {t.llmReal === false && (
+                <div style={{ marginTop: 6, fontSize: 11.5, color: "#b3261e" }}>
+                  ⚠ 本次未走真模型{t.llmError ? `：${t.llmError}` : ""}（结论不可用于对外）
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -192,6 +212,30 @@ export function ChatPage() {
           })}
         </div>
       )}
+
+      {/* M17 产出格式：一次执行同时出多种，模型只调一次，不额外花 token */}
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        <span className="hint" style={{ marginRight: 2 }}>产出格式</span>
+        {FORMATS.map((f) => {
+          const on = formats.includes(f.key);
+          return (
+            <button key={f.key} onClick={() => setFormats((s) => (
+                      s.includes(f.key) ? (s.length > 1 ? s.filter((x) => x !== f.key) : s)
+                                        : [...s, f.key]))}
+                    disabled={busy} title={f.hint}
+                    className="tag"
+                    style={{
+                      cursor: "pointer", padding: "3px 10px",
+                      background: on ? "var(--accent)" : undefined,
+                      color: on ? "#fff" : undefined,
+                      borderColor: on ? "var(--accent)" : "var(--line)",
+                    }}>
+              {f.label}
+            </button>
+          );
+        })}
+        <span className="hint">（至少选一个；多选不增加模型调用次数）</span>
+      </div>
 
       <div className="row" style={{ marginTop: 8 }}>
         <input ref={fileRef} type="file" accept={ACCEPT} multiple style={{ display: "none" }}

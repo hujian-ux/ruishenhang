@@ -33,6 +33,12 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024     # 单文件 20MB（xlsx 台账量级足�
 CONTENT_TYPES = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
+    # M17 多格式产出物
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "pdf": "application/pdf",
+    "html": "text/html; charset=utf-8",
+    "htm": "text/html; charset=utf-8",
     "csv": "text/csv; charset=utf-8",
     "tsv": "text/tab-separated-values; charset=utf-8",
     "txt": "text/plain; charset=utf-8",

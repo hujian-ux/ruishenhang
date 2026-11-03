@@ -47,6 +47,8 @@ def _call_llm(prompt: str, system_prompt: str | None = None) -> Dict[str, Any]:
         "model_id": out["model_id"],
         "usage": out["usage"],
         "latency_ms": out["latency_ms"],
+        # M17：真模型失败的原因要一路透到响应，不能被 stub 文本掩盖
+        "error": out.get("error") or "",
         "prompt_text": prompt,          # 无 usage 时供估算兜底
         "completion_text": out["text"],
     }
@@ -115,7 +117,9 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True):
         prompt = _compose_prompt(state["input"], ctx, mem, skill, state.get("file_ctx") or "")
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
-        if not answer.startswith("[stub"):
+        # 轮次标记只在平台助手的多轮对话上加（证明记忆生效）；
+        # 技能包产出是直接交付物的正文，带调试前缀会污染 Word/PPT/PDF 首页。
+        if not answer.startswith("[stub") and not skill:
             answer = f"[第{turn_no}轮|LLM生成] {answer}"
         return {"answer": answer, "usage": llm}
 
@@ -165,7 +169,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         prompt = _compose_prompt(user_input, ctx, mem, skill, file_context)
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
-        if not answer.startswith("[stub"):
+        if not answer.startswith("[stub") and not skill:
             answer = f"[stub|第{turn_no}轮|LLM生成] {answer}"
         elif query != user_input:
             answer += f" ‖query改写: {query}"

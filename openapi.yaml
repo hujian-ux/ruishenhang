@@ -886,9 +886,51 @@ paths:
                 code: 0
                 data:
                   available: true
-                  base_url: "http://127.0.0.1:4000"
-                  default_model: "qwen-plus"
+                  base_url: "https://open.bigmodel.cn/api/paas/v4"
+                  default_model: "glm-4.6"
+                  provider: "direct"
+                  vendor: "zhipu"
+                  vendor_label: "智谱 GLM"
+                  key_configured: true
+                  key_hint: "ZHIPU_API_KEY"
+                  strict: false
                   probe: "live"
+  /models/probe:
+    get:
+      tags: [models]
+      operationId: probeModel
+      summary: 真生成探活（M17，仅平台管理员）
+      description: |
+        花一次极短调用换取确定结论。与 /models/gateway 的区别：那个只看「通道配好了没」，
+        这个判断「模型真能答」。401/429/模型名不存在会原样回显在 error 里。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: model_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 留空则测 LLM_DEFAULT_MODEL
+      responses:
+        '200':
+          description: 探活结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                code: 0
+                data:
+                  ok: true
+                  model_id: "glm-4.6"
+                  status_code: 200
+                  reply: "通了"
+                  error: ""
+                  latency_ms: 812
+                  provider: "direct"
+                  vendor: "zhipu"
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /models/{model_id}:
     patch:
       tags: [models]
@@ -1633,7 +1675,18 @@ components:
           description: |
             文件进出（M16）：先 POST /agent/files 上传拿 file_id，再在此引用。
             后端会把附件解析成「列画像 + 样本行」注入上下文（不是整表塞进 prompt），
-            执行后自动生成 xlsx 产出物，地址见响应 data.artifacts。
+            执行后自动生成产出物，地址见响应 data.artifacts。
+        output_formats:
+          type: array
+          items:
+            type: string
+            enum: [xlsx, docx, pptx, html, pdf, auto]
+          description: |
+            产出物格式（M17），可多选，例如 ["xlsx","pptx","pdf"]。
+            **模型只调一次**，多格式是同一份答案的不同排版，不额外消耗 token。
+            - 不传 → xlsx（保持 M16 行为）
+            - auto → 按技能包 outputs_contract 关键词猜（汇报/PPT→pptx，文档→docx，归档→pdf）
+            单格式渲染失败不拖垮整单：失败项见 data.artifact_errors。
     AgentFile:
       type: object
       description: 文件元信息（M16）。字节流在对象存储，这里只回元信息与下载地址。

@@ -1,0 +1,162 @@
+{
+  "mode": "dry-run",
+  "started_at": "2026-11-03 23:24:35",
+  "model": "glm-4.6",
+  "provider": "direct",
+  "cases": [
+    {
+      "case": "费用异常波动分析",
+      "agent_id": "ag_7625564f",
+      "score": 1.0,
+      "passed": 8,
+      "total": 8,
+      "checks": [
+        {
+          "label": "认出保洁费是主要异常项",
+          "pass": true
+        },
+        {
+          "label": "取到本期金额 12000",
+          "pass": true
+        },
+        {
+          "label": "取到上期金额 10000",
+          "pass": true
+        },
+        {
+          "label": "涨幅算对 20%",
+          "pass": true
+        },
+        {
+          "label": "量差判定为 0（用量未变）",
+          "pass": true
+        },
+        {
+          "label": "价差算出 2000（纯价涨）",
+          "pass": true
+        },
+        {
+          "label": "归因落到「价涨/单价」而非「量涨」",
+          "pass": true
+        },
+        {
+          "label": "产出结构化表格（markdown 表或 json）",
+          "pass": true
+        }
+      ],
+      "usage": {
+        "real": false,
+        "model_id": "dry-run",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cost": 0
+      },
+      "latency_ms": 416,
+      "artifacts": [
+        {
+          "file": "费用异常波动分析_20261103-2324.xlsx",
+          "size": 7301
+        },
+        {
+          "file": "费用异常波动分析_20261103-2324.docx",
+          "size": 37768
+        },
+        {
+          "file": "费用异常波动分析_20261103-2324.pptx",
+          "size": 36231
+        },
+        {
+          "file": "费用异常波动分析_20261103-2324.html",
+          "size": 4250
+        },
+        {
+          "file": "费用异常波动分析_20261103-2324.pdf",
+          "size": 85119
+        }
+      ],
+      "files_used": 2
+    },
+    {
+      "case": "报销单合规预审",
+      "agent_id": "ag_e91fd7ce",
+      "score": 1.0,
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        {
+          "label": "李四这笔被拦下",
+          "pass": true
+        },
+        {
+          "label": "指出招待超单次上限 3000",
+          "pass": true
+        },
+        {
+          "label": "李四结论为退单/不合规",
+          "pass": true
+        },
+        {
+          "label": "张三这笔判通过",
+          "pass": true
+        },
+        {
+          "label": "王五这笔判待复核（品名与事由不一致）",
+          "pass": true
+        },
+        {
+          "label": "退单理由挂到制度/条款",
+          "pass": true
+        },
+        {
+          "label": "产出逐张结论清单表",
+          "pass": true
+        }
+      ],
+      "usage": {
+        "real": false,
+        "model_id": "dry-run",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cost": 0
+      },
+      "latency_ms": 85,
+      "artifacts": [
+        {
+          "file": "报销单合规预审_20261103-2324.xlsx",
+          "size": 7341
+        },
+        {
+          "file": "报销单合规预审_20261103-2324.docx",
+          "size": 37792
+        },
+        {
+          "file": "报销单合规预审_20261103-2324.pptx",
+          "size": 34968
+        },
+        {
+          "file": "报销单合规预审_20261103-2324.html",
+          "size": 4212
+        },
+        {
+          "file": "报销单合规预审_20261103-2324.pdf",
+          "size": 97342
+        }
+      ],
+      "files_used": 3
+    }
+  ],
+  "artifacts": [
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.pdf",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.pdf"
+  ],
+  "avg_score": 1.0,
+  "verdict": "达标"
+}

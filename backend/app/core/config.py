@@ -29,8 +29,32 @@ class Settings:
     # 可选：LiteLLM 代理主密钥（新版代理默认要求鉴权）。本地开发可留空，
     # 并给 litellm 设 LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true。
     LITELLM_MASTER_KEY = _env("LITELLM_MASTER_KEY", "")
-    # M6：对话默认路由的 model_id（LiteLLM model_list 里的一项）；探活通过走真生成，否则 stub
-    LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "gpt-4o-mini")
+
+    # ── M17 真模型接入：两种通道，业务代码不感知 ──
+    # litellm —— 经 LiteLLM 代理（多厂商统一账单，生产推荐）
+    # direct  —— 直连厂商 OpenAI 兼容端点（单厂商起步最快，不额外起容器）
+    LLM_PROVIDER = _env("LLM_PROVIDER", "litellm").strip().lower()
+    # 直连通道的端点与密钥。LLM_PROVIDER=direct 时生效；
+    # 留空则按 VENDOR 取默认端点（见 model_gateway.PROVIDER_PRESETS）。
+    LLM_VENDOR = _env("LLM_VENDOR", "zhipu").strip().lower()
+    LLM_BASE_URL = _env("LLM_BASE_URL", "")      # 例：https://open.bigmodel.cn/api/paas/v4
+    LLM_API_KEY = _env("LLM_API_KEY", "")        # 留空则按 VENDOR 读对应环境变量
+    # M6：对话默认路由的 model_id；探活通过走真生成，否则 stub
+    LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "glm-4.6")
+    # 生成参数：技能包要吐多张表，输出上限给小了会被截断成半张表
+    LLM_MAX_TOKENS = int(_env("LLM_MAX_TOKENS", "8192"))
+    # 财务归因类任务要可复现，温度压到 0.2（同输入两次跑结论应当一致）
+    LLM_TEMPERATURE = float(_env("LLM_TEMPERATURE", "0.2"))
+    LLM_TIMEOUT_S = float(_env("LLM_TIMEOUT_S", "180"))
+    # 真模型失败时是否直接报错（1）还是回退确定性 stub（0）。
+    # 默认 0 保开发/CI 可用，但**验收与生产必须置 1** —— 静默 stub 会把
+    # 「链路通了」误当成「效果达标」，这正是 M17 要堵的坑。
+    LLM_STRICT = _env("LLM_STRICT", "0") == "1"
+    # GLM-4.5/4.6 默认混合思考。财务归因/表格抽取这类结构化任务关掉思考
+    # 更稳更快也更省 token（思考 token 也计费）。要推理能力时置 0。
+    LLM_DISABLE_THINKING = _env("LLM_DISABLE_THINKING", "1") == "1"
+    # 牌价覆盖：{"glm-4.6": [0.004, 0.014]}（元/1k tokens，[输入, 输出]）
+    MODEL_PRICES_JSON = _env("MODEL_PRICES_JSON", "")
 
     # M7 计量配额：部门滚动 30 天 token 上限（0 = 不限额）。超限调用直接 429，
     # 不是事后告警——计费在调用链路上是红线，不只是报表。

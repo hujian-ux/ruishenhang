@@ -16,8 +16,8 @@ from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import AgentInvokeRequest
 from app.routers.agents import _AGENTS
-from app.services import (agent_runtime, artifact, audit, file_store, session_store,
-                          tabular, usage_store)
+from app.services import (agent_runtime, artifact, audit, file_store, model_gateway,
+                          session_store, tabular, usage_store)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -43,17 +43,23 @@ def _load_attachments(file_ids: list[str], caller: CallerContext):
     return out
 
 
-def _build_artifact(caller: CallerContext, agent, req, result, attachments,
-                    run_id: str, trace_id: str) -> dict | None:
-    """产出物：答案 → xlsx → 对象存储 → 文件注册表。
+def _build_artifacts(caller: CallerContext, agent, req, result, attachments,
+                     run_id: str, trace_id: str) -> list[dict]:
+    """产出物：答案 → 多格式文件 → 对象存储 → 文件注册表。
 
-    生成条件：有附件，或调用的是技能包（技能包的产出契约就是表格文件）。
+    生成条件：有附件，或调用的是技能包（技能包的产出契约就是文件）。
     平台默认助手纯闲聊时不生成，避免存储里堆满 8KB 的"你好"。
+
+    M17：一次调用可同时出 xlsx/docx/pptx/html/pdf。**模型只调一次**，
+    多格式只是同一份答案的不同排版 —— 重复调模型既慢又费 token。
+    单个格式渲染失败不拖垮整单：记在 failures 里，其余格式照常返回。
     """
     is_skill = bool(agent.get("system_prompt")) and agent.get("system_prompt") != agent_runtime.SYSTEM_PROMPT
     if not attachments and not is_skill:
-        return None
+        return []
 
+    formats = artifact.normalize_formats(req.output_formats,
+                                         agent.get("outputs_contract", ""))
     input_files = [rec.get("filename") for rec, _ in attachments]
     summary = [["文件", "工作表", "行数", "列数", "列名（类型）"]]
     raw_sheet = None
@@ -63,28 +69,35 @@ def _build_artifact(caller: CallerContext, agent, req, result, attachments,
         raw_sheet = tabular.to_raw_sheet(attachments[0][1])
 
     u = result.get("usage") or {}
-    data = artifact.build_xlsx(
-        result["answer"],
-        {
-            "agent_name": agent.get("name") or req.agent_id,
-            "agent_id": req.agent_id,
-            "input_files": input_files,
-            "model_id": u.get("model_id") or agent.get("model_id") or settings.LLM_DEFAULT_MODEL,
-            "run_id": run_id,
-            "trace_id": trace_id,
-            "citations": [c.get("title") for c in result.get("citations") or []],
-        },
-        summary if attachments else None,
-        raw_sheet,
-    )
-    fname = artifact.artifact_name(agent.get("name") or req.agent_id,
-                                   input_files[0] if input_files else "")
-    rec = file_store.put(data, fname, caller, kind=file_store.KIND_ARTIFACT,
-                         agent_id=req.agent_id, run_id=run_id, trace_id=trace_id,
-                         meta={"input_files": input_files,
-                               "table_count": len(artifact.extract_tables(result["answer"])),
-                               "skill_applied": bool(is_skill)})
-    return file_store.public_view(rec)
+    meta = {
+        "agent_name": agent.get("name") or req.agent_id,
+        "agent_id": req.agent_id,
+        "input_files": input_files,
+        "model_id": u.get("model_id") or agent.get("model_id") or settings.LLM_DEFAULT_MODEL,
+        "run_id": run_id,
+        "trace_id": trace_id,
+        "citations": [c.get("title") for c in result.get("citations") or []],
+    }
+    base = agent.get("name") or req.agent_id
+    src = input_files[0] if input_files else ""
+
+    out: list[dict] = []
+    for fmt in formats:
+        try:
+            data = artifact.build(fmt, result["answer"], meta,
+                                  summary if attachments else None, raw_sheet)
+        except Exception as exc:      # 单格式失败不影响其他格式
+            result.setdefault("artifact_errors", []).append(f"{fmt}: {type(exc).__name__}: {exc}")
+            continue
+        fname = artifact.artifact_name(base, src, fmt)
+        rec = file_store.put(data, fname, caller, kind=file_store.KIND_ARTIFACT,
+                             agent_id=req.agent_id, run_id=run_id, trace_id=trace_id,
+                             meta={"format": fmt,
+                                   "input_files": input_files,
+                                   "table_count": len(artifact.extract_tables(result["answer"])),
+                                   "skill_applied": bool(is_skill)})
+        out.append(file_store.public_view(rec))
+    return out
 
 
 @router.post("/invoke")
@@ -125,12 +138,19 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     run_id = "run_" + uuid.uuid4().hex[:12]
     t0 = time.time()
     # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
-    result = agent_runtime.run_agent(
-        req.agent_id, req.input, caller, history=history,
-        system_prompt=agent.get("system_prompt"),
-        adapter_type=agent.get("adapter_type", ""),
-        file_context=file_context,
-    )
+    try:
+        result = agent_runtime.run_agent(
+            req.agent_id, req.input, caller, history=history,
+            system_prompt=agent.get("system_prompt"),
+            adapter_type=agent.get("adapter_type", ""),
+            file_context=file_context,
+        )
+    except model_gateway.LLMUnavailable as exc:
+        # M17：LLM_STRICT=1 时真模型失败直接 502，绝不拿 stub 冒充结果 ——
+        # 「链路通了」和「效果达标」是两件事，静默回退会让人把前者当后者。
+        audit.record("generate", caller, target=req.agent_id, result="llm_error",
+                     meta={"run_id": run_id, "error": str(exc)[:300]}, trace_id=trace_id)
+        raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
     elapsed_ms = int((time.time() - t0) * 1000)
 
     # 记忆落账：用户轮 + 助手轮
@@ -148,8 +168,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         prompt_text=u.get("prompt_text") or req.input,
         completion_text=u.get("completion_text") or result["answer"],
     )
-    # M16：产出物 xlsx（技能包/带附件时生成），随后回下载地址
-    artifact_view = _build_artifact(caller, agent, req, result, attachments, run_id, trace_id)
+    # M16/M17：产出物（技能包/带附件时生成），多格式一次出齐
+    artifact_views = _build_artifacts(caller, agent, req, result, attachments, run_id, trace_id)
     tool_calls = result["tool_calls"] + ([{"tool": "file_parse", "authorized": True}]
                                          if attachments else [])
 
@@ -166,7 +186,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             "sheets": parsed.get("sheet_count", 0),
             "rows": parsed.get("total_rows", 0),
         } for frec, parsed in attachments],
-        "artifacts": [artifact_view] if artifact_view else [],
+        "artifacts": artifact_views,
+        "artifact_errors": result.get("artifact_errors") or [],
         "agent": {"agent_id": req.agent_id, "name": agent.get("name"),
                   "adapter_type": agent.get("adapter_type"),
                   "skill_applied": result.get("skill_applied", False)},
@@ -186,6 +207,14 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             "real": rec["real"],
             "latency_ms": rec["latency_ms"],
         },
+        # M17：把「这次到底是真模型还是 stub」摆在响应顶层。
+        # 之前只隐含在 usage.real 里，前端与验收脚本都容易漏看。
+        "llm": {
+            "real": bool(u.get("real")),
+            "provider": model_gateway.settings.LLM_PROVIDER,
+            "error": u.get("error") or "",
+        },
+        "output_formats": [a["meta"].get("format") for a in artifact_views],
         "quota": usage_store.quota_status(caller),
     }
     # M13 审计：必须在 return 之前 —— 原先写在 return 之后是不可达代码，
@@ -194,7 +223,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
                  meta={"session_id": sess["session_id"], "turn_no": result.get("turn_no", 1),
                        "model_id": rec["model_id"], "real": rec["real"], "run_id": run_id,
                        "files": [r["file_id"] for r, _ in attachments],
-                       "artifact": artifact_view["file_id"] if artifact_view else ""},
+                       "formats": payload["output_formats"],
+                       "artifact": artifact_views[0]["file_id"] if artifact_views else ""},
                  trace_id=trace_id)
     return {"code": 0, "data": payload}
 

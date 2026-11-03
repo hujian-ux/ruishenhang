@@ -79,10 +79,10 @@ cd web && npm install && npm run dev
 | M13 审计日志 | 2 天 | 新建 `audit` 模块（PG 落库 + SQLite 兜底，与计量解耦），`AuditTraceMiddleware` 生成 trace_id；在检索/生成/下载原文/审批决策四类动作落审计；`GET /audit/logs` 按 RBAC 收敛查询 | ✅ `test_m13_audit.py` 6 项全过（存储兜底、员工/部门/平台三级隔离、敏感字段脱敏）；跨请求 trace 可串联 |
 | M14 第二部门真实语料试点 | 2 天 | 固化「导入双部门→评估→跨域隔离校验」SOP（同一索引按 caller 可见性预筛，非分库存）；`scripts/pilot_second_dept.py` 一键跑通，真实数据到位直接换目录 | ✅ 实跑：双部门各 200 篇共 400 篇、隔离计数正确；第二部门 Recall@100=1.0、过滤正确率 1.0；**跨域泄露探针 Recall@5=0.0（零泄露）**；门禁 PASS。注：@5/MRR 低为伪向量下限，真实 bge-m3 下 M11 已验 @5=0.98 |
 | M15 技能包融合（方案库接入） | 3 天 | 把 `D:\workbuddy_解决方案` 的 **115 个 prompt-as-skill 技能包**接进平台：`agent_store`（内存+PG 写穿，保留 system_prompt/分类/输入产出契约）、`agent_runtime` 按 agent 加载提示词（不再全局写死）、`POST /agents/import` 批量导入**合并一张批次审批单**、`GET /agents/catalog` 分类目录、前端 `Skills.tsx` 目录页。红线不放宽：未 published 仍 403 | ✅ `test_m15_skills.py` 7 项全过（字段不丢、批次单唯一、审批前403/审批后 `skill_applied=true`、目录不串行业、幂等重导入、跨部门隔离、global 可见）；全量 **98 passed**；前端 `tsc + vite build` 通过。实测：115 个一次导入 → 1 张批次单 → 一次审批迁移 115 个。详见 `docs/M15_技能包融合方案.md` |
-
 | M16 文件进出（P0） | 3 天 | 技能包本质是 **xlsx 进 → xlsx 出**，而 invoke 原来只吃 `input: str`，20 列的台账根本进不来。新增：`POST /agent/files` 上传（上传即解析，回表头/列画像/样本）、`invoke.file_ids` 引用附件、`tabular`（标题行识别 + 列类型/空值率 + 预算内压缩，不把整表塞 prompt）、`artifact`（答案里的 markdown 表/JSON 数组 → 多 sheet xlsx，永远有「执行结论」页）、`GET /agent/files/{id}` 后端代理下载（带鉴权，不暴露 MinIO）、`file_store`（内存+PG 写穿，重启仍可下载） | ✅ `test_m16_files.py` 17 项全过（标题行干扰下表头仍准、损坏文件降级不崩、全链路上传→执行→产出物→下载、跨部门 404、产出物生成器多表/JSON/兜底）；全量 **115 passed**；前端 `tsc + vite build` 通过。真实对象存储路径已验（`store: minio`，S3 协议往返）；顺带修掉两处旧 bug：`pg_store._KEY_COL` 漏 `agents` 导致 M15 写穿 PG 静默失效、`invoke` 的 `audit.record("generate")` 写在 `return` 之后是从不可达代码 |
+| M17 真模型 + 多格式产出 | 3 天 | 把「链路通了」升级成「效果可验收」：①`model_gateway` 支持**双通道**——`LLM_PROVIDER=direct` 直连厂商（zhipu/dashscope/openai/deepseek/moonshot 预设）或 `=litellm` 走代理，业务代码零改动；②失败**不再静默吞**：`LLM_STRICT=1` 时直接 502，响应顶层带 `llm.real/llm.error`；③产出物从只有 xlsx 扩到 **xlsx/docx/pptx/html/pdf**，`output_formats` 多选、**模型只调一次**；④`renderers` 四种格式共用一份文档模型（章节自带表格，PDF 走 reportlab 直绘不依赖 Office）；⑤`scripts/accept_real_llm.py` 用技能包自带示例产出物当对照答案逐条打分 | ✅ `test_m17_outputs.py` 20 项全过（双通道端点/鉴权、strict 抛错不落 stub、五格式结构校验、格式协商、一次调用多格式下载）；全量 **135 passed**；openapi **38 paths**。dry-run 全链路 15/15 检查通过、15 个产出物落盘；**真模型跑分待有效 key**（你给的 key 探活 401）。详见 `docs/M17_真模型与多格式产出.md` |
 
-> 接口数：openapi **37 paths / 27 schemas**。测试累计 **115 passed**（M0–M16）。
+> 接口数：openapi **38 paths / 27 schemas**。测试累计 **135 passed**（M0–M17）。
 
 ## M8 试点怎么跑（最快路径）
 
