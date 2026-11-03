@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>费用异常波动分析 · 执行报告</title>
+<title>报销单合规预审 · 执行报告</title>
 <style>
 :root{--brand:#1F4E79;--light:#EAF0F7;--grey:595959;}
 *{box-sizing:border-box}
@@ -44,13 +44,13 @@ footer{margin:34px 44px 0;padding-top:14px;border-top:1px solid #E6EBF1;
 <body><div class="page">
 <header>
   <div class="kicker">Enterprise AI Platform · Skill Execution</div>
-  <h1>费用异常波动分析</h1>
+  <h1>报销单合规预审</h1>
   <div class="sub">执行报告</div>
 </header>
 <main>
-<section><h2>费用环比</h2><p>本期（2026-03）对上期（2026-02），保洁费由 10000 元涨至 12000 元，涨幅 20%，为本次最大涨项。</p></section><section><h2>量价分离</h2><div class="tbl"><div class="scroll"><table><thead><tr><th>科目</th><th>本期</th><th>上期</th><th>涨幅</th><th>量差</th><th>价差</th></tr></thead><tbody><tr><td>保洁费</td><td>12000</td><td>10000</td><td>20%</td><td>0</td><td>2000</td></tr><tr><td>水电费</td><td>8600</td><td>8000</td><td>7.5%</td><td>400</td><td>200</td></tr></tbody></table></div><p class="cap">共 2 行 · 6 列</p></div></section><section><h2>涨价归因</h2><p>保洁费为纯价涨：2 月为包干计价，3 月起耗材改按量计费，单价上调，用量未变，故量差 0、价差 2000。</p></section><section><h2>异常清单</h2><div class="tbl"><div class="scroll"><table><thead><tr><th>科目</th><th>归因</th><th>说明</th><th>处置</th></tr></thead><tbody><tr><td>保洁费</td><td>价涨</td><td>耗材改按量计费</td><td>重新议价</td></tr></tbody></table></div><p class="cap">共 1 行 · 4 列</p></div></section>
-<table class="info"><tr><th>技能包</th><td>费用异常波动分析</td></tr><tr><th>输入文件</th><td>（无附件）</td></tr><tr><th>模型</th><td>glm-4.6</td></tr><tr><th>执行时间</th><td>2026-11-03 23:24:58</td></tr><tr><th>运行编号</th><td>run_dry</td></tr><tr><th>追溯编号</th><td>tr_dry</td></tr><tr><th>引用知识</th><td>（无）</td></tr></table>
+<section><h2>预审结论</h2><div class="tbl"><div class="scroll"><table><thead><tr><th>报销人</th><th>金额(元)</th><th>结论</th><th>退单理由(挂条款)</th></tr></thead><tbody><tr><td>张三</td><td>3200</td><td>通过</td><td>差旅未超 5000 单次上限，附件 3 张齐全</td></tr><tr><td>李四</td><td>8800</td><td>退单</td><td>招待费超单次上限 3000，依据《报销制度》第5条</td></tr><tr><td>王五</td><td>540</td><td>待复核</td><td>品名「咨询费」与事由「办公」不一致，依据《报销制度》第3条</td></tr></tbody></table></div><p class="cap">共 3 行 · 4 列</p></div></section><section><h2>待复核发票</h2><div class="tbl"><div class="scroll"><table><thead><tr><th>发票号</th><th>疑点</th><th>动作</th></tr></thead><tbody><tr><td>INV002</td><td>抬头与报销人单位不符</td><td>官方查验平台复核真伪</td></tr></tbody></table></div><p class="cap">共 1 行 · 3 列</p></div></section><section><h2>退单话术</h2><p>本次招待费超出公司单次上限 3000 元，请拆分或改期提交。</p></section>
+<table class="info"><tr><th>技能包</th><td>报销单合规预审</td></tr><tr><th>输入文件</th><td>（无附件）</td></tr><tr><th>模型</th><td>glm-4.6</td></tr><tr><th>执行时间</th><td>2026-11-04 00:44:25</td></tr><tr><th>运行编号</th><td>run_dry</td></tr><tr><th>追溯编号</th><td>tr_dry</td></tr><tr><th>引用知识</th><td>（无）</td></tr></table>
 </main>
 <footer><span>本报告由企业 AI 智能体中台自动生成，结论需人工确认后对外。</span>
-<span>2026-11-03 23:24</span></footer>
+<span>2026-11-04 00:44</span></footer>
 </div></body></html>

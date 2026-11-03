@@ -1,12 +1,12 @@
 {
   "mode": "dry-run",
-  "started_at": "2026-11-03 23:24:35",
+  "started_at": "2026-11-04 00:44:00",
   "model": "glm-4.6",
   "provider": "direct",
   "cases": [
     {
       "case": "费用异常波动分析",
-      "agent_id": "ag_7625564f",
+      "agent_id": "ag_fae78c04",
       "score": 1.0,
       "passed": 8,
       "total": 8,
@@ -51,26 +51,26 @@
         "completion_tokens": 0,
         "cost": 0
       },
-      "latency_ms": 416,
+      "latency_ms": 823,
       "artifacts": [
         {
-          "file": "费用异常波动分析_20261103-2324.xlsx",
-          "size": 7301
+          "file": "费用异常波动分析_20261104-0044.xlsx",
+          "size": 7300
         },
         {
-          "file": "费用异常波动分析_20261103-2324.docx",
-          "size": 37768
+          "file": "费用异常波动分析_20261104-0044.docx",
+          "size": 37767
         },
         {
-          "file": "费用异常波动分析_20261103-2324.pptx",
+          "file": "费用异常波动分析_20261104-0044.pptx",
           "size": 36231
         },
         {
-          "file": "费用异常波动分析_20261103-2324.html",
+          "file": "费用异常波动分析_20261104-0044.html",
           "size": 4250
         },
         {
-          "file": "费用异常波动分析_20261103-2324.pdf",
+          "file": "费用异常波动分析_20261104-0044.pdf",
           "size": 85119
         }
       ],
@@ -78,7 +78,7 @@
     },
     {
       "case": "报销单合规预审",
-      "agent_id": "ag_e91fd7ce",
+      "agent_id": "ag_a56bffe1",
       "score": 1.0,
       "passed": 7,
       "total": 7,
@@ -119,43 +119,43 @@
         "completion_tokens": 0,
         "cost": 0
       },
-      "latency_ms": 85,
+      "latency_ms": 231,
       "artifacts": [
         {
-          "file": "报销单合规预审_20261103-2324.xlsx",
-          "size": 7341
+          "file": "报销单合规预审_20261104-0044.xlsx",
+          "size": 7336
         },
         {
-          "file": "报销单合规预审_20261103-2324.docx",
+          "file": "报销单合规预审_20261104-0044.docx",
           "size": 37792
         },
         {
-          "file": "报销单合规预审_20261103-2324.pptx",
-          "size": 34968
+          "file": "报销单合规预审_20261104-0044.pptx",
+          "size": 34970
         },
         {
-          "file": "报销单合规预审_20261103-2324.html",
+          "file": "报销单合规预审_20261104-0044.html",
           "size": 4212
         },
         {
-          "file": "报销单合规预审_20261103-2324.pdf",
-          "size": 97342
+          "file": "报销单合规预审_20261104-0044.pdf",
+          "size": 97343
         }
       ],
       "files_used": 3
     }
   ],
   "artifacts": [
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.xlsx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.docx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.pptx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.html",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261103-2324.pdf",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.xlsx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.docx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.pptx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.html",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261103-2324.pdf"
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.pdf",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.pdf"
   ],
   "avg_score": 1.0,
   "verdict": "达标"

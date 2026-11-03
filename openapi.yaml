@@ -902,7 +902,9 @@ paths:
       summary: 真生成探活（M17，仅平台管理员）
       description: |
         花一次极短调用换取确定结论。与 /models/gateway 的区别：那个只看「通道配好了没」，
-        这个判断「模型真能答」。401/429/模型名不存在会原样回显在 error 里。
+        这个判断「模型真能答」。401/429/模型名不存在会原样回显在 error 里，
+        并在 hint 里给一句可执行结论（401=key 不属于该厂商 / 402=认证通过但余额不足 /
+        403=模型未开通 / 429=限流）。402 与 401 必须分开看：前者说明 key 是对的。
       parameters:
         - $ref: '#/components/parameters/CallerContext'
         - name: model_id
@@ -926,6 +928,7 @@ paths:
                   status_code: 200
                   reply: "通了"
                   error: ""
+                  hint: ""
                   latency_ms: 812
                   provider: "direct"
                   vendor: "zhipu"

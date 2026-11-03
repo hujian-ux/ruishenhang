@@ -18,6 +18,30 @@ import httpx
 from app.core.config import settings
 
 
+# ── 厂商错误的可执行结论 ──
+# 各家返回的 4xx 语义一致，但原文是英文且不含处置动作。接入期最常见的三类问题
+# （key 拿错厂商 / 余额为 0 / 模型名不存在）光看 "HTTP 402" 完全判断不出来，
+# 这里统一翻成「为什么 + 下一步做什么」。
+_HTTP_HINTS = {
+    400: "请求被拒：多半是模型名写错，检查 LLM_DEFAULT_MODEL 是否在该厂商的模型清单里",
+    401: "密钥无效：可能已删除、复制不全，或这串 key 不属于当前 LLM_VENDOR 指向的厂商",
+    402: "账户余额不足：key 本身有效，但账户没钱了，去厂商控制台充值",
+    403: "无权限：模型未开通/已下线，或该 key 没有此模型的调用权限",
+    404: "接口地址或模型不存在：检查 LLM_BASE_URL 与模型名",
+    429: "触发限流或配额用尽：降低并发或稍后重试，长期问题需提配额",
+}
+
+
+def diagnose(status_code: int, body: str = "") -> str:
+    """把厂商 HTTP 状态翻成一句可执行的结论（无匹配则返回空串）。"""
+    if status_code >= 500:
+        return f"厂商侧服务异常：稍后重试；持续出现联系厂商（HTTP {status_code}）"
+    hint = _HTTP_HINTS.get(status_code, "")
+    if not hint:
+        return ""
+    return f"{hint}（HTTP {status_code}{'：' + body[:160] if body else ''}）"
+
+
 class LLMUnavailable(Exception):
     """真模型不可用且 LLM_STRICT=1 —— 由调用方转成 502，不允许回退 stub。
 
@@ -40,6 +64,10 @@ PROVIDER_PRESETS = {
                  "key_env": "DEEPSEEK_API_KEY", "label": "DeepSeek"},
     "moonshot": {"base_url": "https://api.moonshot.cn/v1",
                  "key_env": "MOONSHOT_API_KEY", "label": "月之暗面 Kimi"},
+    # 硅基流动：一家聚合国内外主流开源模型（含 zai-org/GLM-*、deepseek-ai/*、Qwen/*），
+    # 一个 key 跑多模型，适合做「同一技能包换模型比效果」的横向评测。
+    "siliconflow": {"base_url": "https://api.siliconflow.cn/v1",
+                    "key_env": "SILICONFLOW_API_KEY", "label": "硅基流动（聚合）"},
 }
 
 
@@ -278,8 +306,10 @@ def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 0,
         r = httpx.post(_endpoint(), json=_payload(model_id, messages, **kw),
                        headers=_headers(), timeout=to)
         if r.status_code >= 400:
-            # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同
-            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
+            # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同；
+            # 能翻成结论的（401/402/403…）附一句人话，避免只看到 HTTP 402 卡住。
+            hint = diagnose(r.status_code, r.text)
+            raise RuntimeError(hint or f"HTTP {r.status_code}: {r.text[:300]}")
         body = r.json()
         text, usage = _extract(body)
         if not text.strip():
@@ -318,10 +348,11 @@ def probe(model_id: str = "", timeout: float = 30.0) -> dict:
                 text = ""
         return {"ok": ok, "model_id": mid, "status_code": r.status_code,
                 "reply": text, "error": "" if ok else r.text[:300],
+                "hint": "" if ok else diagnose(r.status_code, r.text),
                 "latency_ms": int((time.time() - t0) * 1000), **info}
     except Exception as exc:
         return {"ok": False, "model_id": mid, "status_code": 0, "reply": "",
-                "error": f"{type(exc).__name__}: {exc}",
+                "error": f"{type(exc).__name__}: {exc}", "hint": "网络不可达：检查网络/代理",
                 "latency_ms": int((time.time() - t0) * 1000), **info}
 
 

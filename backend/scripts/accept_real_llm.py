@@ -208,9 +208,14 @@ def main() -> int:
         print(f"模型探活：{'通过' if p['ok'] else '失败'} · {p.get('vendor_label')} "
               f"· {p['model_id']} · {p['latency_ms']}ms")
         if not p["ok"]:
-            print(f"  HTTP {p['status_code']} · {p['error'][:200]}")
+            # hint 是 model_gateway 翻好的可执行结论（402=余额不足 / 401=key 无效 / 403=模型未开通），
+            # 直接给结论，不要让人对着 "HTTP 402" 猜。
+            print(f"  结论：{p.get('hint') or p['error'][:200]}")
+            print(f"  原始响应：HTTP {p['status_code']} · {p['error'][:200]}")
+            if p.get("status_code") in (401, 402, 403):
+                print("  换 key 后先跑一次归属识别，能少走弯路："
+                      "\n    .venv/Scripts/python.exe scripts/check_key.py --key <你的key>")
             _write_report(report, outdir, blocked="模型不可用，验收未执行")
-            print("\n结论：未执行验收 —— 先解决上面的模型访问问题（多半是 key 失效/欠费）。")
             return 2
 
     # 2) 导入两个技能包（走真实导入接口 + 批次审批，和正式上线同一条路径）
