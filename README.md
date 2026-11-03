@@ -78,8 +78,9 @@ cd web && npm install && npm run dev
 | M12 真实身份（企业 SSO/OIDC） | 3 天 | 身份认证从「dev token 单点」升级为**可插拔**：`security.decode_token` 增加 OIDC/JWT 校验分支（标准 discovery + JWKS 验签 RS256，对接任意 IdP 无需写死 SDK）；下游 `X-Caller-Context` 契约不变、零改动。**已选定 Casdoor 作中间件**（Apache-2.0 开源、自托管免费、原生接企业微信/钉钉）；已附 `docker-compose.casdoor.yml` + `docs/M12_Casdoor接入指南.md`。**前端已内置**：登录页（OIDC 授权码 + PKCE）、`/callback` 换码、`/setup` 自助连接页（填企微/钉钉资料 + 复制 Casdoor 清单 + 可选一键写入）；后端新增 `GET /auth/oidc/health`、`POST /auth/oidc/exchange`（后端代换码，避开 CORS）、`POST /auth/oidc/provision`（实验） | ✅ `test_m12_oidc.py` 6 项全过（claims→CallerContext 映射、过期/audience/签名拒绝、dev token 在 OIDC 开启时仍可用、生产环境拒绝 dev token）；前端 `tsc + vite build` 通过；未配 IdP 时只认 dev token，CI 不受影响 |
 | M13 审计日志 | 2 天 | 新建 `audit` 模块（PG 落库 + SQLite 兜底，与计量解耦），`AuditTraceMiddleware` 生成 trace_id；在检索/生成/下载原文/审批决策四类动作落审计；`GET /audit/logs` 按 RBAC 收敛查询 | ✅ `test_m13_audit.py` 6 项全过（存储兜底、员工/部门/平台三级隔离、敏感字段脱敏）；跨请求 trace 可串联 |
 | M14 第二部门真实语料试点 | 2 天 | 固化「导入双部门→评估→跨域隔离校验」SOP（同一索引按 caller 可见性预筛，非分库存）；`scripts/pilot_second_dept.py` 一键跑通，真实数据到位直接换目录 | ✅ 实跑：双部门各 200 篇共 400 篇、隔离计数正确；第二部门 Recall@100=1.0、过滤正确率 1.0；**跨域泄露探针 Recall@5=0.0（零泄露）**；门禁 PASS。注：@5/MRR 低为伪向量下限，真实 bge-m3 下 M11 已验 @5=0.98 |
+| M15 技能包融合（方案库接入） | 3 天 | 把 `D:\workbuddy_解决方案` 的 **115 个 prompt-as-skill 技能包**接进平台：`agent_store`（内存+PG 写穿，保留 system_prompt/分类/输入产出契约）、`agent_runtime` 按 agent 加载提示词（不再全局写死）、`POST /agents/import` 批量导入**合并一张批次审批单**、`GET /agents/catalog` 分类目录、前端 `Skills.tsx` 目录页。红线不放宽：未 published 仍 403 | ✅ `test_m15_skills.py` 7 项全过（字段不丢、批次单唯一、审批前403/审批后 `skill_applied=true`、目录不串行业、幂等重导入、跨部门隔离、global 可见）；全量 **98 passed**；前端 `tsc + vite build` 通过。实测：115 个一次导入 → 1 张批次单 → 一次审批迁移 115 个。详见 `docs/M15_技能包融合方案.md` |
 
-> 接口数：openapi **31 paths / 24 schemas**。测试累计 **91 passed**（M0–M14）。
+> 接口数：openapi **33 paths / 26 schemas**。测试累计 **98 passed**（M0–M15）。
 
 ## M8 试点怎么跑（最快路径）
 

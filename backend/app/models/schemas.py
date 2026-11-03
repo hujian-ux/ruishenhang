@@ -59,7 +59,7 @@ class AgentInvokeResponse(BaseModel):
     code: int = 0
     data: dict = Field(default_factory=dict)  # answer/citations/tool_calls
 
-# ── agents (第35章选型落库) ──
+# ── agents (第35章选型落库 + M15 技能包融合) ──
 class AgentRegisterRequest(BaseModel):
     agent_id: Optional[str] = None
     name: str
@@ -68,6 +68,40 @@ class AgentRegisterRequest(BaseModel):
     knowledge_scope: str  # personal|owner|department|global
     model_id: Optional[str] = None
     selection_rationale: Optional[dict] = None
+    # M15：技能包（prompt-as-skill）承载字段。缺省时行为与旧版完全一致。
+    system_prompt: Optional[str] = None      # 技能包执行提示词（无则退回平台默认助手）
+    category: Optional[str] = None           # industry | office
+    category_cn: Optional[str] = None        # 制造业 / 零售 / 办公角色 …
+    sub_function: Optional[str] = None       # HR / 行政 / 财务 / 销售（办公角色才有）
+    tags: Optional[list[str]] = None
+    source_path: Optional[str] = None        # 技能包来源路径，便于版本回流与重导入
+    inputs_contract: Optional[str] = None
+    outputs_contract: Optional[str] = None
+
+
+class AgentImportItem(BaseModel):
+    """批量导入的单个技能包（导入器解析后直接投喂，无需再走选型向导）。"""
+    name: str
+    description: str
+    system_prompt: str
+    adapter_type: str = "llm"
+    knowledge_scope: str = "department"
+    category: Optional[str] = None
+    category_cn: Optional[str] = None
+    sub_function: Optional[str] = None
+    tags: Optional[list[str]] = None
+    source_path: Optional[str] = None
+    inputs_contract: Optional[str] = None
+    outputs_contract: Optional[str] = None
+    model_id: Optional[str] = None
+
+
+class AgentImportRequest(BaseModel):
+    items: list[AgentImportItem]
+    batch_name: Optional[str] = None
+    # 115 个包逐个开单会把审批台压垮：默认合并为一张批次审批单，一次决策整批发布
+    batch_approval: bool = True
+
 
 class AgentRegisterResponse(BaseModel):
     code: int = 0

@@ -70,6 +70,10 @@ export const api = {
       input_type: inputType, deterministic, need,
     }),
   listAgents: () => req<{ code: number; data: { agents: any[] } }>("GET", "/agents"),
+  // ── M15 技能包融合：分类目录 + 批量导入 ──
+  getAgentCatalog: () => req<{ code: number; data: { categories: any[]; total: number } }>("GET", "/agents/catalog"),
+  importAgents: (body: { items: any[]; batch_name?: string; batch_approval?: boolean }) =>
+    req<any>("POST", "/agents/import", body),
   // M4 会话记忆：session_id 传入续聊，缺省新建
   invokeAgent: (agentId: string, input: string, sessionId?: string) =>
     req<any>("POST", "/agent/invoke", {

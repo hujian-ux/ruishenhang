@@ -16,7 +16,6 @@ from app.models.caller import CallerContext
 from app.models.schemas import AgentInvokeRequest
 from app.routers.agents import _AGENTS
 from app.services import agent_runtime, audit, session_store, usage_store
-
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
@@ -48,7 +47,12 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
 
     history = session_store.history_of(sess["session_id"])
     t0 = time.time()
-    result = agent_runtime.run_agent(req.agent_id, req.input, caller, history=history)
+    # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
+    result = agent_runtime.run_agent(
+        req.agent_id, req.input, caller, history=history,
+        system_prompt=agent.get("system_prompt"),
+        adapter_type=agent.get("adapter_type", ""),
+    )
     elapsed_ms = int((time.time() - t0) * 1000)
 
     # 记忆落账：用户轮 + 助手轮
@@ -72,6 +76,9 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             "answer": result["answer"],
             "citations": result["citations"],
             "tool_calls": result["tool_calls"],
+            "agent": {"agent_id": req.agent_id, "name": agent.get("name"),
+                      "adapter_type": agent.get("adapter_type"),
+                      "skill_applied": result.get("skill_applied", False)},
             "session": {
                 "session_id": sess["session_id"],
                 "turn_count": len(history) + 2,  # 本轮 user+assistant 已入账

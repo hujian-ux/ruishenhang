@@ -10,6 +10,7 @@ import { KnowledgePage } from "./pages/Knowledge";
 import { SessionsPage } from "./pages/Sessions";
 import { ModelsPage } from "./pages/Models";
 import { PilotPage } from "./pages/Pilot";
+import { SkillsPage } from "./pages/Skills";
 
 function RetrievePage() {
   const [q, setQ] = useState("五一活动方案");
@@ -35,10 +36,10 @@ function RetrievePage() {
   );
 }
 
-type Tab = "agents" | "chat" | "sessions" | "approval" | "kb" | "usage" | "pilot" | "models" | "retrieve";
+type Tab = "skills" | "agents" | "chat" | "sessions" | "approval" | "kb" | "usage" | "pilot" | "models" | "retrieve";
 
 export function App({ session, onLogout }: { session: Session; onLogout: () => void }) {
-  const [tab, setTab] = useState<Tab>("agents");
+  const [tab, setTab] = useState<Tab>("skills");
   const isAdmin = session.user.role === "platform_admin" || session.user.role === "dept_admin";
 
   // 仅开发模式（dev token）下提供身份切换，方便演示两种角色；真实 OIDC 登录请退出重登。
@@ -58,8 +59,9 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
   };
 
   const NAV: { k: Tab; label: string }[] = [
-    { k: "agents", label: "选型 / 建智能体" },
+    { k: "skills", label: "技能包目录（115 个）" },
     { k: "chat", label: "智能体对话（会话记忆）" },
+    { k: "agents", label: "选型 / 建智能体" },
     { k: "sessions", label: "会话管理" },
     { k: "approval", label: "审批台（发布评审）" },
     { k: "kb", label: "知识库上传" },
@@ -91,6 +93,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
       </div>
       <div className="main">
+        {tab === "skills" && <SkillsPage />}
         {tab === "agents" && <AgentsPage />}
         {tab === "chat" && <ChatPage />}
         {tab === "sessions" && <SessionsPage />}

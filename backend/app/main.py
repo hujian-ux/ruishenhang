@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
 from app.routers import agents, approval, audit, auth, eval as eval_router, invoke, kb, models, rag, selection, usage
-from app.services import approval_store, kb_store, pg_store, session_store, usage_store
+from app.services import agent_store, approval_store, kb_store, pg_store, session_store, usage_store
 
 
 @asynccontextmanager
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
     approval_store.load_from_pg()
     usage_store.load_from_pg()   # M7：重启后账单不清零
     kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
+    agent_store.load_from_pg()   # M15：注册的智能体/技能包重启不清零
     pg_store._connect()  # 触发建表/探活（一次性）
     yield
 

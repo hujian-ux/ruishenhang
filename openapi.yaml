@@ -347,6 +347,53 @@ paths:
                   registered_by: "u_1024"
         '403':
           $ref: '#/components/responses/Forbidden'
+  /agents/import:
+    post:
+      tags: [agent]
+      operationId: importAgents
+      summary: 批量导入技能包（M15）
+      description: >
+        把 prompt-as-skill 形态的技能包（skill.md）批量注册为智能体。默认合并为**一张批次
+        审批单**——逐个开单会让审批台不可治理。导入后状态一律 pending_review，仍受第 35 章红线
+        约束：审批通过前不可调用。`source_path` 相同视为同一技能包，重复导入跳过（幂等）。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentImportRequest'
+            example:
+              batch_name: "办公角色技能包首批导入"
+              batch_approval: true
+              items:
+                - name: "经营复盘"
+                  description: "月度经营复盘，五条线判定+矛盾检测+四层归因"
+                  system_prompt: "你是「经营复盘」执行专家……"
+                  adapter_type: "llm"
+                  knowledge_scope: "department"
+                  category: "industry"
+                  category_cn: "制造业"
+                  source_path: "01_制造业/02_经营复盘/skill.md"
+      responses:
+        '200':
+          description: 导入完成（进入待发布评审）
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /agents/catalog:
+    get:
+      tags: [agent]
+      operationId: agentCatalog
+      summary: 技能包分类目录（行业 / 角色 → 子职能）
+      description: >
+        按 category_cn（制造业/零售/跨境电商/办公角色）分组，办公角色下再按子职能
+        （HR / 行政 / 财务 / 销售）分列，供前端树形导航。仅返回当前身份可见的智能体。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 分类目录
   /approval/{approval_id}/decide:
     post:
       tags: [approval]
@@ -1495,6 +1542,85 @@ components:
               type: string
             landing_chapters:
               type: string
+        system_prompt:
+          type: string
+          description: 技能包执行提示词（M15）。缺省时该智能体退回平台默认知识助手行为
+        category:
+          type: string
+          enum: [industry, office]
+          description: 大分类（行业方案 / 办公角色）
+        category_cn:
+          type: string
+          description: 分类中文名（制造业 / 零售 / 跨境电商 / 办公角色）
+        sub_function:
+          type: string
+          description: 办公角色下的子职能（HR / 行政 / 财务 / 销售）
+        tags:
+          type: array
+          items:
+            type: string
+        source_path:
+          type: string
+          description: 技能包来源路径，用于版本回流与幂等重导入
+        inputs_contract:
+          type: string
+          description: 输入契约（缺哪些输入必须显式列出，不得臆造）
+        outputs_contract:
+          type: string
+          description: 产出契约
+    AgentImportItem:
+      type: object
+      required: [name, description, system_prompt]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        system_prompt:
+          type: string
+        adapter_type:
+          type: string
+          enum: [rule, ml_serving, llm, llm_retrieval, ml_llm_retrieval]
+          default: llm
+        knowledge_scope:
+          type: string
+          enum: [personal, owner, department, global]
+          default: department
+        category:
+          type: string
+          enum: [industry, office]
+        category_cn:
+          type: string
+        sub_function:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        source_path:
+          type: string
+        inputs_contract:
+          type: string
+        outputs_contract:
+          type: string
+        model_id:
+          type: string
+    AgentImportRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/AgentImportItem'
+        batch_name:
+          type: string
+          description: 批次名称（审批单标题）
+        batch_approval:
+          type: boolean
+          default: true
+          description: 是否合并为一张批次审批单。默认 true——115 个技能包逐个开单在审批台不可治理
     AgentRegisterResponse:
       type: object
       required: [code, data]

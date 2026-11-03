@@ -9,8 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import ApprovalDecisionRequest, ApprovalDecisionResponse
-from app.routers.agents import _AGENTS
-from app.services import approval_store, audit
+from app.services import agent_store, approval_store, audit
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -44,11 +43,18 @@ async def decide(
         audit.record("approval", caller, target=approval_id, result="error:forbidden", trace_id=trace_id)
         raise HTTPException(status_code=403, detail="dept_admin 仅可审批本部门发起的单据")
     # 智能体状态同步迁移（第35章红线：评审通过才发布）
-    agent = _AGENTS.get(ticket["agent_id"])
-    if agent:
-        agent["status"] = "published" if ticket["status"] == "approved" else "rejected"
+    # M15：批次单一次决策整批迁移，避免 115 个技能包逐个点。
+    target_ids = ticket.get("agent_ids") or [ticket["agent_id"]]
+    new_status = "published" if ticket["status"] == "approved" else "rejected"
+    migrated = []
+    for aid in target_ids:
+        if agent_store.set_status(aid, new_status):
+            migrated.append(aid)
+    agent = agent_store.get(ticket["agent_id"])
     audit.record("approval", caller, target=approval_id, result=ticket["status"],
-                 meta={"agent_id": ticket["agent_id"], "decision": req.decision}, trace_id=trace_id)
+                 meta={"agent_id": ticket["agent_id"], "agent_ids": target_ids,
+                       "batch": bool(ticket.get("batch")), "decision": req.decision,
+                       "migrated": len(migrated)}, trace_id=trace_id)
     return {
         "code": 0,
         "data": {
@@ -56,6 +62,8 @@ async def decide(
             "status": ticket["status"],
             "agent_id": ticket["agent_id"],
             "agent_status": agent["status"] if agent else None,
+            "batch": bool(ticket.get("batch")),
+            "migrated_count": len(migrated),
             "decided_by": caller.userId,
             "comment": ticket["comment"],
         },

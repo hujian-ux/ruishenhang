@@ -33,9 +33,41 @@ def create_ticket(agent_id: str, requester_id: str, dept_id: str) -> Dict[str, A
     ticket = {
         "approval_id": approval_id,
         "agent_id": agent_id,
+        "agent_ids": [agent_id],   # 统一字段：单张单也当长度 1 的批次，审批路径共用
+        "batch": False,
+        "batch_name": None,
         "requester_id": requester_id,
         "dept_id": dept_id,
         "status": "pending",  # pending | approved | rejected
+        "decided_by": None,
+        "comment": None,
+        "created_at": time.time(),
+        "decided_at": None,
+    }
+    _TICKETS[approval_id] = ticket
+    _persist(ticket)
+    return ticket
+
+
+def create_batch_ticket(agent_ids: List[str], requester_id: str, dept_id: str,
+                        batch_name: str | None = None) -> Dict[str, Any]:
+    """M15：批量导入合并为一张批次单。
+
+    115 个技能包逐个开单会把审批台压垮且人工不可能逐条看；合并成一张
+    批次单，一次决策整批发布，决策时仍可整批拒绝。
+    """
+    if not agent_ids:
+        raise ValueError("批次单至少需要一个 agent_id")
+    approval_id = "apr_" + uuid.uuid4().hex[:12]
+    ticket = {
+        "approval_id": approval_id,
+        "agent_id": agent_ids[0],       # 兼容旧字段：取首个
+        "agent_ids": list(agent_ids),
+        "batch": True,
+        "batch_name": batch_name or f"批量导入 {len(agent_ids)} 个技能包",
+        "requester_id": requester_id,
+        "dept_id": dept_id,
+        "status": "pending",
         "decided_by": None,
         "comment": None,
         "created_at": time.time(),
@@ -54,8 +86,9 @@ def get_ticket(approval_id: str) -> Dict[str, Any]:
 
 
 def ticket_for_agent(agent_id: str) -> Dict[str, Any] | None:
-    """取某智能体最近一张审批单（注册重试会开多张，取最新）。"""
-    mine = [t for t in _TICKETS.values() if t["agent_id"] == agent_id]
+    """取某智能体最近一张审批单（注册重试会开多张，取最新；批次单按 agent_ids 命中）。"""
+    mine = [t for t in _TICKETS.values()
+            if agent_id in (t.get("agent_ids") or [t.get("agent_id")])]
     return max(mine, key=lambda t: t["created_at"]) if mine else None
 
 

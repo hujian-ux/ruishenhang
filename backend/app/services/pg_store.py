@@ -44,6 +44,12 @@ def _ensure_tables() -> None:
                 payload JSONB NOT NULL,
                 updated_at TIMESTAMPTZ DEFAULT now()
             );
+            -- M15：智能体注册表（技能包落库，重启不清零）
+            CREATE TABLE IF NOT EXISTS agents (
+                agent_id TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
             CREATE TABLE IF NOT EXISTS usage_records (
                 id BIGSERIAL PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
