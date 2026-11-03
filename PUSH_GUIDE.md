@@ -1,228 +1,267 @@
-# 企业 AI 智能体中台 · 推送到 GitHub 详细指南（小白版）
+# 企业 AI 智能体中台 · 推送操作详细指南（M11 补推版）
 
-> 适用对象：第一次用 Git / GitHub、不想看术语的人。
-> 目标：把你电脑 `D:\enterprise-ai-platform` 里的平台代码，推到 GitHub 仓库
-> `https://github.com/hujian-ux/ruishenhang.git`，并确认自动测试（CI）跑起来。
->
-> ⚠️ **重要现实情况**：我（AI 助手）所在的运行环境连 GitHub 只能"短连接通、长上传断"，实测 6 次推送全在上传中途被掐断，**推不上去**。所以这一步必须在**你自己的电脑**上做——你本机直连 GitHub 是稳的。下面就是照抄命令。
+> 适用场景：本地已有提交 `8aaac42`，远程还没有，需要补推一次并确认 CI 通过。
+> 更新日期：2026-11-03　｜　本文件替代早先的「首次推送小白版」。
 
 ---
 
-## 〇、先说结论（1 分钟看懂）
+## 〇、一句话结论
 
-- ✅ **代码已经准备好了**：全部在 `D:\enterprise-ai-platform`，已经用 Git 登记过（叫"提交"），还写好了自动化测试门禁。
-- ✅ **GitHub 仓库已经建好**：地址是 `https://github.com/hujian-ux/ruishenhang.git`（仓库名 `ruishenhang`，归属账号 `hujian-ux`）。
-- ⚠️ **唯一没做完的一步**：把代码"上传"到 GitHub。这一步需要在**你自己的电脑**上做（我所在的运行环境连 GitHub 长上传会被掐断，推不上去；你本机直连是稳的）。
-- 📌 你只要按下面"第三步"敲几条命令，1~2 分钟就能传完，GitHub 会自动跑测试。
+**只需要 3 条命令，1 分钟。** 凭据已经存在 Windows 凭据管理器里，不会再让你输密码。
 
----
-
-## 一、背景：我们做到哪了
-
-我们做的事情，类比成"写了一份很重要的 Word 文档存在你 D 盘，现在要把它传到网盘（GitHub）上备份并自动检查错别字"。
-
-| 名词 | 大白话 | 我们的现状 |
-|------|--------|-----------|
-| 仓库（Repository） | 一个项目文件夹，存在 GitHub 网上 | 已建好：`hujian-ux/ruishenhang` |
-| 本地仓库 | 你电脑上用 Git 管理起来的文件夹 | 已就绪：`D:\enterprise-ai-platform`，含 2 次"提交" |
-| 远程（Remote） | 给网上仓库起的本地外号，默认叫 `origin` | 已配置好，指向你的 GitHub 地址 |
-| 分支（Branch） | 一条时间线，默认叫 `main`（主线） | 本地是 `main` |
-| 提交（Commit） | 给当前所有文件拍一张"快照"存档 | 已拍 2 张（全部 112 个文件） |
-| 推送（Push） | 把本地快照上传到 GitHub | **就差这一步** |
-| CI / 工作流 | 上传后 GitHub 自动跑测试的门禁 | 已写好，上传即自动触发 |
+```cmd
+cd /d D:\enterprise-ai-platform
+git push origin main
+git status
+```
 
 ---
 
-## 二、你需要准备的东西
+## 一、现在的真实状态（我已逐项核对）
 
-1. 一台能上网的电脑（Windows / Mac 都行）。
-2. 安装 **Git**（下面教你怎么装）。
-3. 一个 GitHub 账号（你已有，仓库也建好了）。
-4. 一个 **访问令牌（PAT）**——相当于"专门给程序用的密码"，下面教你怎么生成。
+| 核对项 | 实测值 | 说明 |
+|---|---|---|
+| 本地仓库 | `D:\enterprise-ai-platform` | 唯一真源，工作区已迁到这里 |
+| 远程仓库 | `https://github.com/hujian-ux/ruishenhang.git` | 公开仓库，别名 `origin` |
+| 当前分支 | `main` | 已跟踪 `origin/main` |
+| 领先远程 | **2 个提交** | `8aaac42`（M11）+ 本文档更新 |
+| 工作区 | 干净，无未提交改动 | `git status` 无改动行即正常 |
+| 本地提交总数 | 27 个 | M0 到 M11 全部在内 |
+| 本机 Git | `D:\Program Files\Git`，2.55.0.windows.2 | **已在系统 PATH 里**，终端直接敲 `git` 可用 |
+| 凭据助手 | Git Credential Manager（manager） | 上次推送已授权，凭据已保存 |
+| CI 触发条件 | push 到 main 或任意 PR | 推上去约 80 秒跑完 |
+
+> 注意：我这边执行环境连 GitHub 长连接会被掐断（试了 3 次：`Empty reply` / `schannel closed` / `CONNECT tunnel 502`），所以必须由你在本机终端执行。你的机器是直连，之前推成功过一次，没问题。
 
 ---
 
-## 三、第一步：安装并配置 Git（若已装可跳过）
+## 二、操作步骤（照抄即可）
 
-### 3.1 检查是否已装
-打开**终端**：
-- Windows：按 `Win` 键，输入 `Git Bash`，回车打开（或打开"命令提示符 / PowerShell"）。
-- Mac：打开"终端" App。
+### 第 1 步：打开一个终端
 
-输入下面命令，回车：
-```bash
+三种方式任选，**推荐方式 C**（最省事，目录自动对好）：
+
+| 方式 | 操作 |
+|---|---|
+| A · Win+R | 按 `Win + R` → 输入 `cmd` → 回车 |
+| B · 开始菜单 | 搜 `PowerShell` → 打开 |
+| C · 资源管理器（推荐） | 打开 `D:\enterprise-ai-platform` 文件夹 → 点顶部地址栏 → 输入 `cmd` → 回车 |
+
+> 方式 C 打开后已经在项目目录里，第 3 步可以跳过。
+
+### 第 2 步：确认 git 能用
+
+```cmd
 git --version
 ```
-- 如果显示 `git version 2.xx.x` → 已装好，跳到第四步。
-- 如果显示"找不到命令" → 去装：https://git-scm.com/downloads ，下载后一路点"下一步"安装，装完重开终端再试。
 
-### 3.2 告诉 Git 你是谁（只做一次）
-把下面两行里的名字、邮箱换成**你自己的 GitHub 用户名和邮箱**，逐行复制粘贴执行：
-```bash
-git config --global user.name "你的GitHub用户名"
-git config --global user.email "你注册GitHub的邮箱"
+**预期输出**：`git version 2.55.0.windows.2`
+
+如果提示「'git' 不是内部或外部命令」，说明系统 PATH 没生效 —— 关掉终端重开一次即可；还不行就用完整路径：`"D:\Program Files\Git\cmd\git.exe"`。
+
+### 第 3 步：进入仓库目录
+
+cmd：
+
+```cmd
+cd /d D:\enterprise-ai-platform
 ```
-> 这步不填真邮箱也行，只是 Git 要个署名。填了你 GitHub 的邮箱最规范。
 
----
+PowerShell：
 
-## 四、第二步：生成 GitHub 访问令牌（PAT）—— 最关键！
-
-### 为什么必须做这步？
-从 2021 年起，GitHub **不允许用账号密码推代码**了。你必须在 GitHub 网页上生成一个"访问令牌"（一串 `github_pat_xxx` 开头的字符），程序用这串字符当密码来上传。
-
-> ⚠️ **令牌 = 密码，只显示一次！** 生成后立刻复制保存到记事本，关掉网页就再也看不到了。
-
-### 生成步骤（跟着点）
-1. 用浏览器打开并登录 GitHub，点右上角**头像** → **Settings（设置）**。
-2. 左侧最底下找 **Developer settings（开发者设置）** → 点开。
-3. 点 **Personal access tokens（个人访问令牌）** → **Tokens (classic)（经典令牌）**。
-   - （如果你的界面是 "Fine-grained tokens 细粒度令牌"，也能用，但要在第 6 步里单独给这个仓库开"写"权限，见下方备注。）
-4. 点右上角绿色按钮 **Generate new token（生成新令牌）** → 选 **Generate new token (classic)**。
-5. 填写：
-   - **Note（备注）**：随便写，如 `platform-push`（方便以后认得）。
-   - **Expiration（过期时间）**：选 `30 days` 或 `90 days`（别选 No expiration 永久，不安全）。
-6. **权限勾选（最重要）**：在下方找到 **repo** 这一项，把它**整个勾上**（意思是"对该账号下所有仓库有读写权限"）。
-   - 如果你用的是 Fine-grained 令牌：在 "Repository access" 选 **Only select repositories** 并勾选 `ruishenhang`；在 "Permissions → Contents" 设为 **Read and write**。
-7. 拉到最底点 **Generate token（生成令牌）**。
-8. 页面会出现一串 `github_pat_11...` 开头的字符 → **立刻全选复制，粘到记事本暂存**。
-
-### 🔒 安全提醒
-- 这串令牌等同于你的 GitHub 密码，**不要发给任何人、不要发到聊天群里**。
-- 推完代码后，建议回来把它**撤销（Revoke）**（方法见第八节），用一次就废，零风险。
-
----
-
-## 五、第三步：在你电脑上推送（核心步骤）
-
-> 前提：`D:\enterprise-ai-platform` 这个文件夹在你电脑上存在、里面有 `backend`、`web`、`.github` 等目录（我们之前的工作成果就在那）。
-
-### 5.1 打开终端，进入项目文件夹
-Windows 用 **Git Bash** 或 **PowerShell**，输入：
-```bash
-cd /d/enterprise-ai-platform
+```powershell
+cd D:\enterprise-ai-platform
 ```
-> 说明：Git Bash 里 `D:\` 要写成 `/d/`。如果用普通命令提示符（CMD），则输入 `D:` 回车，再 `cd enterprise-ai-platform`。
-> 也可以：在文件夹地址栏输入 `cmd` 回车，自动就位。
 
-确认进对了地方，看一下：
-```bash
-dir
+确认位置对不对：
+
+```cmd
+git rev-parse --show-toplevel
 ```
-应该能看到 `backend`、`web`、`.github`、`README.md` 等。
 
-### 5.2 连上 GitHub 并上传
-直接执行：
-```bash
-git push -u origin main
-```
-- 如果**弹出输入用户名**：填你的 GitHub 用户名。
-- 如果**弹出输入密码**：**粘贴你刚复制的那个 `github_pat_...` 令牌**（不是账号密码！粘贴时屏幕不显示字符是正常的，粘完直接回车）。
-- 等待十几秒，看到 `main -> main` 或 `Writing objects` 之类字样、最后没报错 → **上传成功！**
+**预期输出**：`D:/enterprise-ai-platform`
 
-### 5.3 如果报"拒绝 / 不是快进"（远程已有初始文件）
-GitHub 建仓库时可能自动塞了几个模板文件（README、.gitignore 等），和我们本地的冲突，Git 会拒绝直接覆盖。解决：
-```bash
-git pull origin main --rebase
-git push -u origin main
-```
-> 意思是"先把网上那点模板合进来，再传我们的"，一般能直接过。
+### 第 4 步：推送前三项核对（30 秒，别跳）
 
-### 5.4 想直接用我们的代码覆盖掉远程模板（可选，谨慎）
-如果你确认远程那几个自动生成的文件没用，想让 GitHub 上的内容和我们本地完全一致：
-```bash
-git push -u origin main --force
-```
-> `--force` 会**覆盖**远程。新手一般不用这招，除非你确定要。
-
----
-
-## 六、第四步：验证自动测试（CI）跑起来了
-
-代码一上传，GitHub 就会自动按计划跑一套测试（叫"质量门禁"），验证平台的核心功能没坏。
-
-1. 用浏览器打开你的仓库：https://github.com/hujian-ux/ruishenhang
-2. 点顶部标签页 **Actions（动作）**。
-3. 应该能看到一条正在跑或刚跑完的工作流，名字类似 `quality-gate`。
-4. 它包含三道关（Job）：
-   - `backend-build`：后端能正常安装、构建。
-   - `rag-recall-gate`：知识库检索召回率达标（我们实测 Recall@100 = 100%）。
-   - `ml-objective-gate`：客观评测指标达标（不依赖 AI 主观打分）。
-5. 状态：
-   - 三个都是 ✅ 绿色 → **全部通过**，可以放心。
-   - 有红色 ❌ → 点进去看日志（Logs），哪关红了就是哪关没达标，把报错发我，我帮你修。
-
----
-
-## 七、我们之前踩过的坑（对照自查，不用怕）
-
-你本机推一般很顺，但万一遇到下面这些报错，对照看：
-
-| 报错 / 现象 | 是什么意思 | 怎么办 |
-|-------------|-----------|--------|
-| `401 Unauthorized` | 令牌无效 / 过期 / 没权限 | 重新生成令牌，确认勾了 `repo`；复制完整别漏字符 |
-| `could not read Password` / `Password authentication is not supported` | 把**账号密码**当令牌用了，或令牌**没有写权限** | 密码处粘 `github_pat_...` 令牌；确认令牌有 `repo` 写权限 |
-| `fatal: repository not found` | 仓库地址拼错，或你没这仓库权限 | 核对地址 `github.com/hujian-ux/ruishenhang.git` |
-| `non-fast-forward` / `rejected` | 远程有你本地没有的文件 | 按 5.3 先 `pull --rebase` 再 `push` |
-| `502` / 连不上 / 超时 | 网络问题（多见于公司代理/沙箱环境） | 换网络、关代理重试；你本机一般不会有 |
-| `schannel: server closed abruptly` | Windows 上 Git 的 SSL 小毛病 | 重装 Git 或换网络；通常重试就好 |
-
----
-
-## 八、用完令牌请撤销（好习惯）
-
-1. GitHub 网页 → 头像 → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**。
-2. 找到你刚建的令牌（备注名 `platform-push`），点进去。
-3. 点 **Revoke（撤销）** → 确认。
-4. 撤销后这串令牌立刻失效，即使别人拿到也登不进，**零残留**。
-
-> 以后要再推代码，重新生成一个新令牌即可（步骤同第四节）。
-
----
-
-## 九、常用命令速查表（贴在便签上）
-
-```bash
-# 进入项目
-cd /d/enterprise-ai-platform
-
-# 看当前状态（哪些文件改了）
+```cmd
 git status
+git log --oneline -3
+git remote -v
+```
 
-# 看提交历史
-git log --oneline
+**预期输出对照**：
 
-# 上传（第一次加 -u，之后直接 git push）
-git push -u origin main
+```
+On branch main
+Your branch is ahead of 'origin/main' by 2 commits.      ← 关键：ahead 2
+nothing to commit, working tree clean                    ← 关键：干净
 
-# 远程有冲突时，先合再推
-git pull origin main --rebase
-git push -u origin main
+<hash>  docs: 推送指南更新为 M11 补推版
+8aaac42 feat(M11): 真实 bge-m3 接入 + Qdrant http 真服务验证...
+08ed440 feat(M9): 规模化——向量矩阵化...
+
+origin  https://github.com/hujian-ux/ruishenhang.git (fetch)
+origin  https://github.com/hujian-ux/ruishenhang.git (push)
+```
+
+三项都对得上，说明该推的正好是这两个提交。若 `git status` 显示 `ahead of ... by 3 commits` 之类，别慌 —— 多推几个提交也是对的，都是本地已完成的工作。
+
+### 第 5 步：执行推送
+
+```cmd
+git push origin main
+```
+
+**成功时的输出长这样**：
+
+```
+Enumerating objects: 47, done.
+Counting objects: 100% (47/47), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (23/23), done.
+Writing objects: 100% (26/26), 18.42 KiB | 2.30 MiB/s, done.
+Total 26 (delta 18), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (18/18), completed with a specific timeout.
+To https://github.com/hujian-ux/ruishenhang.git
+   08ed440..<新哈希>  main -> main        ← 这一行是关键
+```
+
+**判断标准**：最后一行 `旧哈希..新哈希  main -> main`，右边应该是 `8aaac42` 或更新的哈希。
+
+只要看到 `main -> main`，就成功了。
+
+### 第 6 步：验证推送结果
+
+```cmd
+git status
+```
+
+**预期输出**：
+
+```
+On branch main
+Your branch is up to date with 'origin/main'.      ← 变成了 up to date
+nothing to commit, working tree clean
+```
+
+然后打开浏览器看两个页面：
+
+1. **确认代码到了**：<https://github.com/hujian-ux/ruishenhang/commits/main>
+   最上面一条应该是 `8aaac42 feat(M11): 真实 bge-m3 接入...`
+
+2. **确认 CI 在跑**：<https://github.com/hujian-ux/ruishenhang/actions>
+   最新一条 `quality-gate` 记录：
+   - 黄圈转 → 正在跑（约 80 秒）
+   - 绿勾 → **通过**，M11 才算真正验收闭环
+   - 红叉 → 失败，把日志贴给我
+
+---
+
+## 三、可能遇到的 6 种情况（对症处理）
+
+### 情况 1：弹出一个浏览器登录窗口
+
+说明凭据失效了。直接用 `hujian-ux` 账号登录授权即可，勾选授权后终端会自动继续。
+
+### 情况 2：`remote: Permission to hujian-ux/ruishenhang.git denied` 或 `403`
+
+**当前登录的 GitHub 账号不对**。清理旧凭据再推：
+
+```cmd
+git credential-manager logout
+git push origin main
+```
+
+或者手动删：控制面板 → 凭据管理器 → Windows 凭据 → 找到 `git:https://github.com` → 删除 → 重新 push。
+
+### 情况 3：`! [rejected] main -> main (non-fast-forward)`
+
+远程比你本地多了一些提交（可能是之前在网页上改过文件）。**先拉再推**：
+
+```cmd
+git pull --rebase origin main
+git push origin main
+```
+
+`--rebase` 会把你的提交排到远程提交之后，不会产生多余的合并提交。
+
+如果 rebase 过程中报冲突，执行 `git rebase --abort` 回到推之前的状态，然后叫我处理，别硬来。
+
+### 情况 4：卡在 `Writing objects: 45%` 不动 / 超时断开
+
+网络问题。先看有没有残留的代理配置（**这是之前实际踩过的坑**，会导致 `CONNECT tunnel 502`）：
+
+```cmd
+git config --global --get http.proxy
+git config --global --get https.proxy
+```
+
+- 有输出：说明走了代理。确认代理软件（Clash / v2ray 等）在运行、端口对得上；或直接清掉：`git config --global --unset http.proxy` 与 `git config --global --unset https.proxy`
+- 无输出：直接重跑一次 `git push origin main`，第二次通常会成功
+
+### 情况 5：`fatal: not a git repository`
+
+没进对目录。执行 `cd` 确认，或直接 `cd /d D:\enterprise-ai-platform`。
+
+### 情况 6：`'git' 不是内部或外部命令，也不是可运行的程序`
+
+终端启动时 PATH 还没刷新。关掉全部终端窗口重开。仍然不行就用绝对路径：
+
+```cmd
+"D:\Program Files\Git\cmd\git.exe" -C D:\enterprise-ai-platform push origin main
 ```
 
 ---
 
-## 十、关于"让我代推"的说明（重要）
+## 四、命令行实在不想用？两个图形方案
 
-我们之前确实试过让我（AI 助手）在后台代推，并且已经**解决了所有账号/令牌权限问题**：
-- 你给的第一个 `github_pat_...` 令牌是**只读**的，已换成有 `repo` 写权限的 `ghp_oozs...` 经典令牌；
-- 发现该令牌归属账号是 `hujian-ux`，和目标仓库原本的 `hblchu75-sudo` 不一致，已把仓库改到 `hujian-ux/ruishenhang`，令牌身份与仓库归属已**完全匹配**；
-- 本地 `origin`、2 个提交、` .git/config` 干净无令牌，全部就绪。
+### 方案 A：GitHub Desktop（推荐给不想碰命令的人）
 
-**唯一没跨过去的，是运行环境的网络**：实测短连接（查询仓库）能通，但 git 真正上传时连接被反复重置/掐断（6 次全败）。所以我这边硬推基本不可能成功。
+1. 下载安装 <https://desktop.github.com/>
+2. 打开 → `File` → `Add local repository` → 选 `D:\enterprise-ai-platform`
+3. 顶部会出现 `Push origin` 按钮（因为检测到有未推送提交）→ 点它
+4. 点右上角 `Fetch origin` 确认变成 `Last fetched just now` 且无待推
 
-**结论**：这一步请你按本指南第三步在自己电脑上推——你本机直连 GitHub 是稳的，30 秒搞定，且不用把令牌交给任何人。推完把 Actions 页截图或结果发我即可。
+### 方案 B：网页手动上传（不推荐）
 
-> 如果你更想让我再试，也可以，但大概率是同样网络失败，不如你本机一次成功。
+GitHub 网页的 `Add file → Upload files` 上传的是**文件**不是**提交**，会把 M11 的提交信息与增量历史全部压平。除非命令行彻底走不通，别用这个。
 
 ---
 
-### 附录：本次项目已具备的资产（推上去后都会进 GitHub）
-- `backend/`：平台后端（FastAPI + 选型/知识库/评测服务），含 24 项测试全过。
-- `web/`：React 前端（选型向导已联调后端）。
-- `.github/workflows/quality-gate.yml`：GitHub 自动测试门禁。
-- `docs/`：各版本蓝图与评审报告（58 份）。
-- `README.md`：项目说明与里程碑。
-- `openapi.yaml`：接口契约。
+## 五、推完之后请把这两样发我
 
-> 有任何一步卡住，把**完整的报错文字**发给我，我帮你定位。别怕，都是小问题。
+1. **`git push` 的完整输出**（复制文本或截图都行）
+2. **Actions 页面的结论**：绿勾 / 红叉
+
+- 绿勾 → 我更新记忆里的「已推送」状态，M11 正式收尾
+- 红叉 → 把失败 job 的日志贴给我。CI 里最可能踩的两个点：`python-multipart` 依赖（已修，见 `ed861cb`）和真实模型相关开关（CI 里应保持伪向量，不能依赖本机 bge-m3）
+
+---
+
+## 六、速查表（贴在便签上）
+
+| 目的 | 命令 |
+|---|---|
+| 看有没有东西要推 | `git status` |
+| 看具体哪几个提交 | `git log --oneline origin/main..HEAD` |
+| 推 | `git push origin main` |
+| 推后确认 | `git status`（应显示 up to date） |
+| 远程多提交被拒 | `git pull --rebase origin main` 再 `git push origin main` |
+| 清代理 | `git config --global --unset http.proxy` |
+| 清 GitHub 凭据 | `git credential-manager logout` |
+| 撤销上一次提交（**慎用**） | `git reset --soft HEAD~1` |
+
+---
+
+## 附录：本次待推提交包含什么
+
+`8aaac42 feat(M11)` —— 79 项测试全过，包含：
+
+- Qdrant Windows 原生二进制接入，`QDRANT_MODE=http` 全链路验证通过
+- 真实 bge-m3（1024 维）接入，Recall@5 从 0.9206 提升到 **0.9802**
+- 修掉 3 个只在真实环境暴露的 bug：
+  1. 向量后端降级后仍走 qdrant → Recall@100 跌到 0.948 跌破门禁
+  2. 2686 点一次性 upsert 超时被吞 → 静默丢 97.6% 向量
+  3. 缓存命中率统计用去重 key 数当分子 → 显示 28.89%，实际 100%
+- 新增 `backend/scripts/bench_embed.py` 压测脚本、`docs/M11_真实模型与Qdrant验证.md`
+- openapi 保持 27 paths / 24 schemas
