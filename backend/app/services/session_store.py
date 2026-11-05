@@ -85,6 +85,22 @@ def append_turn(session_id: str, role: str, content: str) -> None:
     _persist(sess)
 
 
+def attach_meta(session_id: str, role: str, extra: Dict[str, Any]) -> None:
+    """给最后一条指定角色的轮次挂附加信息（目前用于产出物）。
+
+    为什么不在 append_turn 时一起写：产出物是生成之后才有的，
+    而助手轮必须先落账（落账=这轮对话已经发生，不能因为渲染失败就丢记忆）。
+    """
+    sess = _SESSIONS.get(session_id)
+    if not sess:
+        return
+    for t in reversed(sess["turns"]):
+        if t["role"] == role:
+            t.update(extra)
+            _persist(sess)
+            return
+
+
 def history_of(session_id: str) -> List[Dict[str, Any]]:
     sess = _SESSIONS.get(session_id)
     return list(sess["turns"]) if sess else []
@@ -108,11 +124,25 @@ def rewritten_query(user_input: str, history: List[Dict[str, Any]], max_chars: i
     return f"{user_input} {last_user[:max_chars]}".strip()
 
 
+def session_title(sess: Dict[str, Any], max_chars: int = 26) -> str:
+    """会话标题：取首条用户输入。
+
+    对外界面要在侧栏列历史对话，标题必须来自用户自己的话，
+    不能显示 `sess_9f3a...` 这种内部 ID。
+    """
+    for t in sess["turns"]:
+        if t["role"] == "user":
+            text = " ".join((t["content"] or "").split())
+            return (text[:max_chars] + "…") if len(text) > max_chars else (text or "新对话")
+    return "新对话"
+
+
 def session_summary(sess: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "session_id": sess["session_id"],
         "agent_id": sess["agent_id"],
         "user_id": sess["user_id"],
+        "title": session_title(sess),
         "turn_count": len(sess["turns"]),
         "created_at": sess["created_at"],
     }

@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
     usage_store.load_from_pg()   # M7：重启后账单不清零
     kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
     agent_store.load_from_pg()   # M15：注册的智能体/技能包重启不清零
+    agent_store.ensure_builtin_assistant()  # 内置通用助手：新用户开口即可提问
     file_store.load_from_pg()    # M16：上传件与产出物重启后仍可下载
     pg_store._connect()  # 触发建表/探活（一次性）
     yield

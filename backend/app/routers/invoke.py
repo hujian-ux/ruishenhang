@@ -170,6 +170,14 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     )
     # M16/M17：产出物（技能包/带附件时生成），多格式一次出齐
     artifact_views = _build_artifacts(caller, agent, req, result, attachments, run_id, trace_id)
+    # 这一轮「到底走没走真模型」要跟着轮次一起存：
+    # 只存在当次响应里的话，刷新一次页面，"这是 stub 结果"的提示就消失了，
+    # 用户第二天翻记录会把占位内容当成模型结论。
+    extra = {"llm_real": bool(u.get("real"))}
+    if artifact_views:
+        # 产出物挂到这一轮上：刷新页面 / 换设备打开历史会话时仍能下载
+        extra.update({"artifacts": artifact_views, "run_id": run_id})
+    session_store.attach_meta(sess["session_id"], "assistant", extra)
     tool_calls = result["tool_calls"] + ([{"tool": "file_parse", "authorized": True}]
                                          if attachments else [])
 
@@ -252,6 +260,12 @@ async def get_session_memory(session_id: str, caller: CallerContext = Depends(ge
     except KeyError:
         raise HTTPException(status_code=404, detail=f"会话不存在：{session_id}")
     return {"code": 0, "data": {**session_store.session_summary(sess),
+                                # 对外界面要能点开历史对话继续聊，所以回完整轮次；
+                                # context_preview 仍保留——它才是真正进模型的那段（截断后）
+                                "turns": [{k: v for k, v in t.items()
+                                           if k in ("role", "content", "ts", "artifacts",
+                                                    "run_id", "llm_real")}
+                                          for t in sess["turns"]],
                                 "context_preview": session_store.build_context(sess)}}
 
 

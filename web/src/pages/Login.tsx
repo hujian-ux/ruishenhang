@@ -5,7 +5,7 @@ import { isConfigured, loadConfig, redirectUri } from "../auth/config";
 import { buildAuthorizeUrl, pkceChallenge, randomString } from "../auth/oidc";
 import { setSession } from "../auth/session";
 
-// 登录页：企业身份（企业微信 / 钉钉 / SSO）走标准 OIDC；另留开发模式入口。
+// 登录页：对外产品第一屏。左侧讲清楚"这是什么、给谁用"，右侧只放登录动作。
 export function LoginPage() {
   const cfg = useMemo(() => loadConfig(), []);
   const configured = isConfigured(cfg);
@@ -16,7 +16,7 @@ export function LoginPage() {
   const oidcLogin = async () => {
     setErr("");
     if (!configured) {
-      setErr("尚未填写 Client ID，请先点击「配置连接」。");
+      setErr("尚未填写 Client ID，请先点击「配置身份源」。");
       return;
     }
     setBusy(true);
@@ -50,7 +50,7 @@ export function LoginPage() {
       });
       window.location.href = "/";
     } catch (e: any) {
-      setErr(`开发模式登录失败：${e?.message || e}`);
+      setErr(`演示登录失败：${e?.message || e}`);
       setDevBusy(false);
     }
   };
@@ -59,46 +59,65 @@ export function LoginPage() {
     <>
       <style>{STYLE}</style>
       <style>{AUTH_STYLE}</style>
-      <div className="auth-wrap">
-        <div className="auth-card">
-          <div className="auth-brand">
-            <div className="auth-logo">AI</div>
+      <div className="auth-screen">
+        <div className="auth-left">
+          <div className="brand">
+            <div className="lg">睿</div>
             <div>
-              <div style={{ fontSize: 12.5, color: "var(--muted)", letterSpacing: 0.5 }}>睿深行 · 企业 AI 智能体中台</div>
+              <b>睿深行 AI 工作台</b>
+              <i>企业智能体中台</i>
             </div>
           </div>
-          <h2>登录</h2>
-          <p className="auth-sub">使用企业身份登录（企业微信 / 钉钉 / 统一 SSO）。</p>
 
-          {configured ? (
-            <div className="hint" style={{ marginBottom: 12 }}>
-              身份源：<span className="mono">{cfg.issuer}</span>
-              <br />Client ID：<span className="mono">{cfg.clientId}</span>
+          <div className="auth-hero">
+            <h1>把 115 个业务技能<br />交到每位员工手里</h1>
+            <p>
+              上传台账、报表、合同，技能包按自己的流程逐步执行，
+              产出 Excel / Word / PPT / PDF 直接下载归档。
+            </p>
+            <div className="auth-points">
+              <div><b>✓</b>企业微信 / 钉钉身份直接登录，权限按部门隔离</div>
+              <div><b>✓</b>技能包先评审后发布，未发布一律不可调用</div>
+              <div><b>✓</b>对话与文件仅本人可见，全程留痕可审计</div>
             </div>
-          ) : (
-            <div className="warn">
-              尚未配置企业身份源（缺少 Client ID）。可先用下方「开发模式」进入，或点击「配置连接」填写。
-            </div>
-          )}
-
-          <div className="auth-actions">
-            <button className="btn" disabled={busy || !configured} onClick={oidcLogin}>
-              {busy ? "正在跳转…" : "使用企业身份登录"}
-            </button>
-            <button className="btn ghost" onClick={() => (window.location.href = "/setup")}>
-              配置连接（企微 / 钉钉 / SSO）
-            </button>
           </div>
 
-          {err && <div className="err">{err}</div>}
+          <div className="foot">© 睿深行 · 数据不出企业内网</div>
+        </div>
 
-          <div className="auth-foot">
-            <span>开发者 / 演示：</span>
-            <span>
-              <span className="link" onClick={() => !devBusy && devLogin(false)}>员工</span>
-              <span style={{ color: "var(--line)", margin: "0 6px" }}>|</span>
-              <span className="link" onClick={() => !devBusy && devLogin(true)}>管理员</span>
-            </span>
+        <div className="auth-right">
+          <div className="auth-card">
+            <h2>登录</h2>
+            <p className="auth-sub">使用企业统一身份继续</p>
+
+            {!configured && (
+              <div className="warn" style={{ marginBottom: 0 }}>
+                尚未接入企业身份源。可先点「配置身份源」填写，或用下方演示入口进入。
+              </div>
+            )}
+            {configured && (
+              <div className="hint">
+                身份源 <span className="mono">{cfg.issuer.replace(/^https?:\/\//, "").slice(0, 34)}</span>
+              </div>
+            )}
+
+            <div className="auth-actions">
+              <button className="btn blue" disabled={busy || !configured} onClick={oidcLogin}>
+                {busy ? "正在跳转…" : "使用企业身份登录"}
+              </button>
+              <button className="btn ghost" onClick={() => (window.location.href = "/setup")}>
+                配置身份源
+              </button>
+            </div>
+
+            {err && <div className="err">{err}</div>}
+
+            <div className="auth-rule">演示</div>
+            <div className="auth-foot">
+              <span className="link" onClick={() => !devBusy && devLogin(false)}>员工视角</span>
+              <span style={{ color: "var(--line)" }}>|</span>
+              <span className="link" onClick={() => !devBusy && devLogin(true)}>管理员视角</span>
+            </div>
           </div>
         </div>
       </div>

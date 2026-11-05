@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, downloadAgentFile } from "../api/client";
 
 type Attachment = {
@@ -12,56 +12,143 @@ type Attachment = {
 type Turn = {
   role: "user" | "assistant";
   content: string;
-  files?: string[];        // 用户轮：带哪些附件
-  artifacts?: any[];       // 助手轮：本次产出物
+  files?: string[];
+  artifacts?: any[];
   runId?: string;
   skillApplied?: boolean;
-  llmReal?: boolean;       // M17：这轮到底是真模型还是 stub 回退
+  llmReal?: boolean;
   llmError?: string;
 };
 
+export type ChatSeed = {
+  sessionId?: string;
+  agentId?: string;
+  turns?: { role: "user" | "assistant"; content: string; artifacts?: any[]; llmReal?: boolean }[];
+};
+
+// 后端用 `[stub|model]` / `[第N轮|LLM生成]` 标记这一轮到底走没走真模型，
+// 那是给日志和判真用的，不该出现在用户眼前。是否真跑由下方提示条说明。
+function cleanAnswer(s: string) {
+  return (s || "")
+    .replace(/^\[stub[^\]]*\]\s*/i, "")
+    .replace(/^\[第\d+轮\|LLM生成\]\s*/, "");
+}
+
 const ACCEPT = ".xlsx,.xlsm,.csv,.tsv,.txt,.md,.markdown,.json";
 
-// M17 产出格式：后端一次渲染多种，模型只调一次。默认 xlsx，保持旧习惯。
-const FORMATS: { key: string; label: string; hint: string }[] = [
-  { key: "xlsx", label: "Excel", hint: "多 sheet 明细表，财务核数" },
-  { key: "docx", label: "Word", hint: "分章正文 + 表格，归档签批" },
-  { key: "pptx", label: "PPT", hint: "汇报骨架，给老板讲" },
-  { key: "pdf", label: "PDF", hint: "A4 直绘，盖章归档" },
-  { key: "html", label: "HTML", hint: "单文件，发群发客户" },
+const FORMATS: { key: string; label: string; ext: string }[] = [
+  { key: "xlsx", label: "Excel", ext: "XLSX" },
+  { key: "docx", label: "Word", ext: "DOCX" },
+  { key: "pptx", label: "PPT", ext: "PPTX" },
+  { key: "pdf", label: "PDF", ext: "PDF" },
+  { key: "html", label: "网页", ext: "HTML" },
 ];
 
+// 欢迎页的推荐位：按真实使用频次排，不按目录顺序（办公角色 62 个是客户最先用起来的）
+const FEATURED = ["费用异常波动分析", "报销单合规预审", "周报月报自动化", "合同条款确认"];
+
+const ICONS = ["◑", "◧", "◔", "◩", "◐", "◨"];
+
 function kb(n: number) {
+  if (!n) return "";
   return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`;
 }
 
-export function ChatPage() {
+function extOf(name: string) {
+  const e = (name || "").split(".").pop() || "file";
+  return e.toLowerCase();
+}
+
+// 产出物命名是「技能包_源文件_20261105-1528.xlsx」，卡片上只留技能包名：
+// 一次执行的五种格式主名相同，靠左侧格式徽标区分；完整名放 title。
+function niceName(fn: string) {
+  const base = (fn || "").replace(/\.[^.]+$/, "").replace(/_\d{8}-\d{4}$/, "");
+  return base.split("_")[0] || base;
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 6) return "夜里好";
+  if (h < 12) return "上午好";
+  if (h < 14) return "中午好";
+  if (h < 18) return "下午好";
+  return "晚上好";
+}
+
+export function ChatPage({ seed, userName, onSession }: {
+  seed: ChatSeed;
+  userName: string;
+  onSession: (sessionId: string, firstTitle?: string) => void;
+}) {
   const [agents, setAgents] = useState<any[]>([]);
-  const [agentId, setAgentId] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [agentId, setAgentId] = useState(seed.agentId || "");
+  const [sessionId, setSessionId] = useState<string | null>(seed.sessionId || null);
+  const [turns, setTurns] = useState<Turn[]>(
+    (seed.turns || []).map((t) => ({
+      role: t.role, content: t.content, artifacts: t.artifacts, llmReal: t.llmReal,
+    })),
+  );
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [memory, setMemory] = useState<any>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dlBusy, setDlBusy] = useState("");
-  const [formats, setFormats] = useState<string[]>(["xlsx"]);
+  // 打开历史对话时沿用当时选的格式，否则会出现"上次出了 5 种，这次突然只剩 Excel"
+  const [formats, setFormats] = useState<string[]>(() => {
+    const seen = Array.from(new Set(
+      (seed.turns || []).flatMap((t) => t.artifacts || [])
+        .map((a: any) => a?.meta?.format).filter(Boolean),
+    )) as string[];
+    return seen.length ? seen : ["xlsx"];
+  });
+  const [skillPop, setSkillPop] = useState(false);
+  const [fmtPop, setFmtPop] = useState(false);
+  const [q, setQ] = useState("");
+
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     api.listAgents().then((r) => {
-      const list = r.data.agents || [];
+      const list = (r.data.agents || []).filter((a: any) => a.status === "published");
       setAgents(list);
-      if (list.length) setAgentId(list[0].agent_id);
+      // 默认落在内置通用助手：打开就能问，不必先挑技能包
+      setAgentId((cur) => cur || list.find((a: any) => a.builtin)?.agent_id || list[0]?.agent_id || "");
     }).catch(() => setAgents([]));
   }, []);
 
   useEffect(() => {
-    boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight });
-  }, [turns]);
+    boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
+  }, [turns, busy]);
+
+  useEffect(() => {
+    if (taRef.current) {
+      taRef.current.style.height = "auto";
+      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 180) + "px";
+    }
+  }, [input]);
+
+  const agent = useMemo(() => agents.find((a) => a.agent_id === agentId), [agents, agentId]);
+  const filtered = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    if (!k) return agents;
+    return agents.filter((a) => `${a.name}${a.description || ""}`.toLowerCase().includes(k));
+  }, [agents, q]);
+
+  const featured = useMemo(() => {
+    const out: any[] = [];
+    for (const f of FEATURED) {
+      const hit = agents.find((a) => a.name.includes(f));
+      if (hit && !out.includes(hit)) out.push(hit);
+    }
+    for (const a of agents) {
+      if (out.length >= 4) break;
+      if (!out.includes(a)) out.push(a);
+    }
+    return out.slice(0, 4);
+  }, [agents]);
 
   const pickFiles = async (files: FileList | null) => {
     if (!files || !files.length) return;
@@ -86,8 +173,9 @@ export function ChatPage() {
     if ((!text && !attachments.length) || !agentId || busy) return;
     const fileIds = attachments.map((a) => a.file_id);
     const fileNames = attachments.map((a) => a.filename);
-    setBusy(true); setErr(""); setInput("");
-    setTurns((t) => [...t, { role: "user", content: text || "（已上传附件，请按技能包执行）", files: fileNames }]);
+    setBusy(true); setErr("");
+    setInput("");
+    setTurns((t) => [...t, { role: "user", content: text || "请按技能包处理这份附件", files: fileNames }]);
     try {
       const r = await api.invokeAgent(agentId, text || "请按技能包处理附件",
                                       sessionId || undefined, fileIds, formats);
@@ -100,9 +188,9 @@ export function ChatPage() {
         llmReal: d.llm?.real, llmError: d.llm?.error,
       }]);
       setAttachments([]);
-      api.getSession(d.session.session_id).then((m) => setMemory(m.data)).catch(() => {});
+      onSession(d.session.session_id, (text || fileNames[0] || "").slice(0, 26));
     } catch (e: any) {
-      setErr(e.message || "调用失败");
+      setErr(e.message || "执行失败，请重试");
     } finally {
       setBusy(false);
     }
@@ -119,147 +207,213 @@ export function ChatPage() {
     }
   };
 
-  const newSession = () => {
-    setSessionId(null); setTurns([]); setMemory(null); setErr(""); setAttachments([]);
-  };
-
-  const canSend = !!agentId && !busy && (!!input.trim() || attachments.length > 0);
+  const empty = turns.length === 0;
 
   return (
-    <div className="card">
-      <h3>智能体对话（M4 多轮记忆 · M16 文件进出）</h3>
-      <div className="row" style={{ alignItems: "center" }}>
-        <select value={agentId} onChange={(e) => { setAgentId(e.target.value); newSession(); }}
-                style={{ flex: 1, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8, fontSize: 13 }}>
-          {agents.length === 0 && <option value="">（无已注册智能体，请先到「选型/建智能体」注册）</option>}
-          {agents.map((a) => <option key={a.agent_id} value={a.agent_id}>{a.name} · {a.agent_id} · {a.adapter_type}</option>)}
-        </select>
-        <button className="btn" onClick={newSession}>新会话</button>
-      </div>
-      <div className="hint" style={{ marginTop: 6 }}>
-        会话：{sessionId ? <span className="tag">{sessionId}</span> : "（首轮发送后自动创建）"}
-        {memory && <> · 已记 {memory.turn_count} 轮 · 仅你本人可见</>}
-      </div>
+    <div className="chat-shell">
+      <div className="thread-scroll" ref={boxRef}
+           style={empty ? { display: "flex", flexDirection: "column", justifyContent: "center" } : undefined}>
+        {empty ? (
+          <div className="welcome">
+            <div className="hello">{greeting()}，{userName}</div>
+            <h1>今天想让 AI <em>帮你做什么</em>？</h1>
+            <p className="lead">
+              选中一个技能包，或直接用大白话描述任务。上传台账、报表、合同，产出可以直接下载。
+            </p>
 
-      <div ref={boxRef} style={{ marginTop: 10, maxHeight: 360, overflowY: "auto", padding: "4px 2px" }}>
-        {turns.length === 0 && (
-          <div className="hint">
-            技能包用法：点「＋ 附件」上传台账 xlsx → 发送执行要求 → 直接下载产出 xlsx。
-            可试「经营复盘」配一份费用台账。
+            <div className="w-cards">
+              {featured.map((a, i) => (
+                <div key={a.agent_id} className="w-card"
+                     onClick={() => { setAgentId(a.agent_id); taRef.current?.focus(); }}>
+                  <div className="w-ico">{ICONS[i % ICONS.length]}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{a.name}</b>
+                    <span>{a.description || "按技能包流程执行"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <span className="w-all" onClick={() => setSkillPop(true)}>
+              浏览全部 {Math.max(0, agents.filter((a) => !a.builtin).length)} 个技能包 →
+            </span>
+          </div>
+        ) : (
+          <div className="thread">
+            {turns.map((t, i) => (
+              <div key={i} className={"msg " + t.role}>
+                {t.role === "user" ? (
+                  <>
+                    <div className="who">{userName}</div>
+                    <div className="bubble">
+                      {t.content}
+                      {!!t.files?.length && (
+                        <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.7 }}>
+                          {t.files.map((f) => <div key={f}>📎 {f}</div>)}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="who">
+                      <span style={{ width: 16, height: 16, borderRadius: 5, background: "var(--ink)",
+                                     color: "#fff", fontSize: 9, display: "inline-flex",
+                                     alignItems: "center", justifyContent: "center" }}>AI</span>
+                      {agent?.name || "AI 工作台"}
+                    </div>
+                    <div className="body">{cleanAnswer(t.content)}</div>
+                    {!!t.artifacts?.length && (
+                      <div className="artifacts">
+                        {t.artifacts.map((a: any) => {
+                          const ext = extOf(a.filename);
+                          return (
+                            <div key={a.file_id} className="artifact" onClick={() => download(a)}
+                                 title={`${a.filename} · ${kb(a.size)}`}>
+                              <div className={"ext " + ext}>{dlBusy === a.file_id ? "…" : ext.toUpperCase()}</div>
+                              <div className="meta">
+                                <b>{niceName(a.filename)}</b>
+                                <span>{dlBusy === a.file_id ? "准备中…"
+                                  : `${ext.toUpperCase()} · ${kb(a.size)} · 点击下载`}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {t.llmReal === false && (
+                      <div className="notice">
+                        本次未走真模型{t.llmError ? `（${t.llmError}）` : ""}，内容仅供参考，不要对外使用。
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+            {busy && (
+              <div className="msg assistant">
+                <div className="who">
+                  <span style={{ width: 16, height: 16, borderRadius: 5, background: "var(--ink)",
+                                 color: "#fff", fontSize: 9, display: "inline-flex",
+                                 alignItems: "center", justifyContent: "center" }}>AI</span>
+                  {agent?.name || "AI 工作台"}
+                </div>
+                <div className="pending">
+                  <span className="dot" /><span className="dot" /><span className="dot" />
+                  正在按技能包流程执行…
+                </div>
+              </div>
+            )}
+            {err && <div className="err">{err}</div>}
           </div>
         )}
-        {turns.map((t, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: t.role === "user" ? "flex-end" : "flex-start", margin: "6px 0" }}>
-            <div style={{
-              maxWidth: "82%", padding: "8px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap",
-              background: t.role === "user" ? "var(--accent)" : "#eef3fa", color: t.role === "user" ? "#fff" : "var(--ink)",
-            }}>
-              {t.content}
-              {!!t.files?.length && (
-                <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.9 }}>
-                  📎 {t.files.join("、")}
-                </div>
-              )}
-              {!!t.artifacts?.length && (
-                <div style={{ marginTop: 8, borderTop: "1px dashed var(--line)", paddingTop: 8 }}>
-                  <div style={{ fontSize: 11.5, color: "#4a5b6d", marginBottom: 4 }}>
-                    产出物{t.skillApplied ? "（按技能包产出契约生成）" : ""}
-                    {t.runId ? ` · ${t.runId}` : ""}
-                  </div>
-                  {t.artifacts.map((a) => (
-                    <button key={a.file_id} className="btn" onClick={() => download(a)} disabled={dlBusy === a.file_id}
-                            style={{ fontSize: 12, marginRight: 6, marginTop: 2 }}
-                            title={`${a.filename} · ${kb(a.size)}`}>
-                      {dlBusy === a.file_id ? "准备中…" : `⤓ ${a.filename}`}
-                    </button>
+      </div>
+
+      <div className="composer-wrap">
+        <div className="composer" style={{ position: "relative" }}>
+          {!!attachments.length && (
+            <div className="chips">
+              {attachments.map((a) => {
+                const ok = a.meta?.parse_ok !== false;
+                return (
+                  <span key={a.file_id} className={"chip" + (ok ? "" : " bad")}
+                        title={ok ? `${a.preview?.sheet_count ?? 0} 个工作表 · ${a.preview?.total_rows ?? 0} 行`
+                                  : a.meta?.parse_error || "解析失败"}>
+                    {ok ? "📎" : "⚠"} {a.filename}
+                    <span style={{ opacity: 0.6 }}>{ok ? kb(a.size) : "读不出来"}</span>
+                    <span className="x"
+                          onClick={() => setAttachments((x) => x.filter((y) => y.file_id !== a.file_id))}>×</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          <textarea
+            ref={taRef}
+            rows={1}
+            value={input}
+            placeholder={empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件"}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+            }}
+            disabled={busy}
+          />
+
+          <div className="ctools">
+            <input ref={fileRef} type="file" accept={ACCEPT} multiple style={{ display: "none" }}
+                   onChange={(e) => pickFiles(e.target.files)} />
+            <button className="tool" onClick={() => fileRef.current?.click()} disabled={uploading || busy}
+                    title="上传 xlsx / csv / 文本作为输入">
+              <span style={{ fontSize: 15, lineHeight: 1 }}>＋</span>{uploading ? "上传中" : "附件"}
+            </button>
+
+            <button className={"tool" + (skillPop ? " on" : "")} onClick={() => { setSkillPop((v) => !v); setFmtPop(false); }}
+                    title="选择技能包">
+              ◈ {agent?.name ? (agent.name.length > 10 ? agent.name.slice(0, 10) + "…" : agent.name) : "选择技能包"}
+            </button>
+
+            <button className={"tool" + (fmtPop ? " on" : "")} onClick={() => { setFmtPop((v) => !v); setSkillPop(false); }}
+                    title={formats.map((f) => FORMATS.find((x) => x.key === f)?.label).join(" / ")}>
+              ⤓ {formats.length > 2
+                ? `${formats.length} 种格式`
+                : formats.map((f) => FORMATS.find((x) => x.key === f)?.label).join(" / ")}
+            </button>
+
+            <button className="send" onClick={send}
+                    disabled={!agentId || busy || (!input.trim() && !attachments.length)}
+                    title="发送（Enter）">
+              {busy ? "·" : "↑"}
+            </button>
+          </div>
+
+          {skillPop && (
+            <div className="pop" onClick={(e) => e.stopPropagation()}>
+              <div className="pop-in">
+                <input autoFocus placeholder="搜索技能包…" value={q} onChange={(e) => setQ(e.target.value)} />
+                <div className="pop-list">
+                  {filtered.length === 0 && <div className="pop-empty">没有匹配的技能包</div>}
+                  {filtered.map((a) => (
+                    <div key={a.agent_id} className="pop-item"
+                         onClick={() => { setAgentId(a.agent_id); setSkillPop(false); setQ(""); }}>
+                      <b>{a.name}</b>
+                      <span>{a.adapter_type === "llm_retrieval" ? "查制度" : a.adapter_type === "rule" ? "规则" : "生成"}</span>
+                      {a.agent_id === agentId && <span style={{ color: "var(--blue)" }}>✓</span>}
+                    </div>
                   ))}
                 </div>
-              )}
-              {/* M17：真模型没跑通时明确标出，不能让 stub 结果看起来像模型结论 */}
-              {t.llmReal === false && (
-                <div style={{ marginTop: 6, fontSize: 11.5, color: "#b3261e" }}>
-                  ⚠ 本次未走真模型{t.llmError ? `：${t.llmError}` : ""}（结论不可用于对外）
-                </div>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
-        {busy && <div className="hint">执行中（解析附件 → 按技能包流程执行 → 生成产出物）…</div>}
-        {err && <div className="hint" style={{ color: "#c62828" }}>{err}</div>}
-      </div>
+          )}
 
-      {attachments.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-          {attachments.map((a) => {
-            const ok = a.meta?.parse_ok !== false;
-            return (
-              <span key={a.file_id} className="tag"
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px",
-                      borderColor: ok ? "var(--line)" : "#e0a0a0",
-                      background: ok ? undefined : "#fdf0f0",
-                    }}
-                    title={ok ? `${a.preview?.sheet_count ?? 0} 个工作表 · ${a.preview?.total_rows ?? 0} 行`
-                              : a.meta?.parse_error || "解析失败"}>
-                {ok ? "📎" : "⚠️"} {a.filename}
-                <span style={{ opacity: 0.65 }}>
-                  {ok ? `${a.meta?.rows ?? 0} 行 · ${kb(a.size)}` : "读不出来"}
-                </span>
-                <span style={{ cursor: "pointer", fontWeight: 700 }}
-                      onClick={() => setAttachments((x) => x.filter((y) => y.file_id !== a.file_id))}>×</span>
-              </span>
-            );
-          })}
+          {fmtPop && (
+            <div className="pop" style={{ left: "auto", right: 8, width: 220 }}>
+              <div className="pop-in">
+                <div className="hint" style={{ padding: "2px 6px 4px" }}>产出格式（可多选，不多花 token）</div>
+                {FORMATS.map((f) => {
+                  const on = formats.includes(f.key);
+                  return (
+                    <div key={f.key} className="fmt-item"
+                         onClick={() => setFormats((s) => (
+                           s.includes(f.key) ? (s.length > 1 ? s.filter((x) => x !== f.key) : s)
+                                             : [...s, f.key]))}>
+                      <span style={{ width: 14, color: on ? "var(--blue)" : "#c9c9c2" }}>{on ? "✓" : "○"}</span>
+                      {f.label}
+                      <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+                        {f.ext}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* M17 产出格式：一次执行同时出多种，模型只调一次，不额外花 token */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        <span className="hint" style={{ marginRight: 2 }}>产出格式</span>
-        {FORMATS.map((f) => {
-          const on = formats.includes(f.key);
-          return (
-            <button key={f.key} onClick={() => setFormats((s) => (
-                      s.includes(f.key) ? (s.length > 1 ? s.filter((x) => x !== f.key) : s)
-                                        : [...s, f.key]))}
-                    disabled={busy} title={f.hint}
-                    className="tag"
-                    style={{
-                      cursor: "pointer", padding: "3px 10px",
-                      background: on ? "var(--accent)" : undefined,
-                      color: on ? "#fff" : undefined,
-                      borderColor: on ? "var(--accent)" : "var(--line)",
-                    }}>
-              {f.label}
-            </button>
-          );
-        })}
-        <span className="hint">（至少选一个；多选不增加模型调用次数）</span>
+        <div className="foot-note">
+          技能包会按自己的流程执行，产出物可直接下载。对话仅你本人可见。
+        </div>
       </div>
-
-      <div className="row" style={{ marginTop: 8 }}>
-        <input ref={fileRef} type="file" accept={ACCEPT} multiple style={{ display: "none" }}
-               onChange={(e) => pickFiles(e.target.files)} />
-        <button className="btn" onClick={() => fileRef.current?.click()} disabled={uploading || busy}
-                title="上传 xlsx / csv / txt 作为技能包输入">
-          {uploading ? "上传中…" : "＋ 附件"}
-        </button>
-        <input value={input} placeholder={agentId ? "输入执行要求，回车发送（可只发附件）" : "请先注册智能体"}
-               onChange={(e) => setInput(e.target.value)}
-               onKeyDown={(e) => { if (e.key === "Enter") send(); }}
-               disabled={!agentId || busy}
-               style={{ flex: 1, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8, fontSize: 13 }} />
-        <button className="btn" onClick={send} disabled={!canSend}>发送</button>
-      </div>
-
-      {memory && (
-        <details style={{ marginTop: 10 }}>
-          <summary className="hint" style={{ cursor: "pointer" }}>查看会话记忆（GET /agent/sessions）</summary>
-          <pre style={{ background: "#0a2540", color: "#cfe0f5", padding: 10, borderRadius: 8, fontSize: 11.5, overflowX: "auto" }}>
-{JSON.stringify(memory, null, 2)}
-          </pre>
-        </details>
-      )}
     </div>
   );
 }

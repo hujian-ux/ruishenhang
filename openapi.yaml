@@ -434,10 +434,11 @@ paths:
     get:
       tags: [agent]
       operationId: getSessionMemory
-      summary: 查看会话记忆（M4，工程态扩展）
+      summary: 查看会话记忆 + 完整轮次（M4/M18）
       description: >
-        返回指定会话的轮次摘要与最近上下文预览。仅会话创建者本人可访问
+        返回指定会话的轮次摘要、完整 turns 与最近上下文预览。仅会话创建者本人可访问
         （第 18 章权限语义延伸到会话）；非本人访问 403。
+        界面侧栏点开历史对话时用 turns 恢复，产出物与「是否真模型」跟着轮次一起返回。
       parameters:
         - $ref: '#/components/parameters/CallerContext'
         - name: session_id
@@ -1734,11 +1735,31 @@ components:
             session_id: { type: string }
             agent_id: { type: string }
             user_id: { type: string }
+            title:
+              type: string
+              description: 首条用户输入截断而来，供侧栏历史列表显示（不回显内部 session_id）
             turn_count: { type: integer }
             created_at: { type: number }
+            turns:
+              type: array
+              description: >
+                完整轮次，供界面打开历史对话时恢复。产出物挂在助手轮上（artifacts），
+                真模型标记同理（llm_real）——只放当次响应里的话，刷新一次就丢了。
+              items:
+                type: object
+                properties:
+                  role: { type: string, enum: [user, assistant] }
+                  content: { type: string }
+                  ts: { type: number }
+                  llm_real:
+                    type: boolean
+                    description: 这轮是否走真模型；false 表示占位答案，不可对外使用
+                  artifacts:
+                    type: array
+                    items: { $ref: '#/components/schemas/AgentFile' }
             context_preview:
               type: string
-              description: 最近若干轮对话的文本预览（滑动窗口截断）
+              description: 最近若干轮对话的文本预览（滑动窗口截断，即真正注入生成器的那段）
     Citation:
       type: object
       properties:

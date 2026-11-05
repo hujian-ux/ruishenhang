@@ -26,6 +26,32 @@ _AGENTS: Dict[str, Dict[str, Any]] = {}
 
 VALID_STATUS = {"pending_review", "published", "rejected"}
 
+# 平台内置通用助手：不属于任何业务技能包，不走评审（它是平台自带能力，不是交付物）。
+# 作用：对外界面打开即可直接提问，不必先挑一个技能包——否则用户第一句"你好"都发不出去。
+BUILTIN_ASSISTANT_ID = "ag_builtin_assistant"
+
+
+def ensure_builtin_assistant() -> Dict[str, Any]:
+    """幂等注册内置通用助手；已存在则原样返回（不覆盖用户改过的配置）。"""
+    cur = _AGENTS.get(BUILTIN_ASSISTANT_ID)
+    if cur:
+        return cur
+    return save({
+        "agent_id": BUILTIN_ASSISTANT_ID,
+        "name": "通用助手",
+        "description": "不套用具体技能包，直接回答、整理、起草。需要专业输出时再选技能包。",
+        "adapter_type": "llm",
+        "scope": "global",
+        "status": "published",
+        "category": "builtin",
+        "category_cn": "内置",
+        "sub_function": "",
+        "builtin": True,
+        # 留空表示不覆盖运行时默认提示词（agent_runtime.SYSTEM_PROMPT）
+        "system_prompt": "",
+    })
+
+
 # 技能包字段（会被原样保留并在列表接口回显）
 PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
@@ -88,6 +114,9 @@ def catalog(caller) -> Dict[str, Any]:
     """
     tree: Dict[str, Dict[str, Any]] = {}
     for a in list_all(caller):
+        # 内置通用助手不是业务技能包，不进技能库目录（否则 115 会变成 116，口径乱）
+        if a.get("builtin"):
+            continue
         cat_cn = a.get("category_cn") or a.get("category") or "未分类"
         key = cat_cn
         node = tree.setdefault(key, {
