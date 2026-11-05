@@ -134,6 +134,26 @@ button{font-family:inherit}
 .w-all{font-size:12.5px;color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .w-all:hover{text-decoration:underline}
 
+/* ── M19 岗位：让员工先认领岗位，再给工具 ── */
+.role-pick{border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px;background:#fcfcfa;margin-bottom:18px}
+.role-pick h4{margin:0 0 4px;font-size:13px;font-weight:550;color:var(--ink)}
+.role-pick .hint{margin-bottom:11px;font-size:12px}
+.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
+.role-card{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:11px;background:#fff;cursor:pointer;transition:.15s;min-width:0}
+.role-card:hover{border-color:#cfcfc8;box-shadow:var(--shadow);transform:translateY(-1px)}
+.role-card.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.role-card b{display:block;font-size:12.5px;font-weight:550;color:var(--ink);line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-card i{font-style:normal;font-size:11px;color:var(--muted)}
+.role-ini{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;color:#fff;font-weight:600;flex:none;line-height:1}
+.role-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 4px;border:1px solid var(--line);
+  border-radius:999px;background:#fff;cursor:pointer;font-size:12.5px;color:var(--ink);white-space:nowrap}
+.role-chip:hover{border-color:#d6d6cf;background:#fbfbf9}
+.role-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.role-head .t{font-size:12.5px;color:var(--muted)}
+
 /* ── 对话：消息流 ── */
 .chat-shell{flex:1;min-height:0;display:flex;flex-direction:column}
 .thread-scroll{flex:1;overflow-y:auto;min-height:0}

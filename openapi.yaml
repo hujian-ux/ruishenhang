@@ -555,15 +555,40 @@ paths:
     get:
       tags: [agent]
       operationId: agentCatalog
-      summary: 技能包分类目录（行业 / 角色 → 子职能）
+      summary: 技能包分类目录（职业 + 行业 双视角）
       description: >
-        按 category_cn（制造业/零售/跨境电商/办公角色）分组，办公角色下再按子职能
-        （HR / 行政 / 财务 / 销售）分列，供前端树形导航。仅返回当前身份可见的智能体。
+        返回两套目录：`roles` 按职业（财务/人事/销售/行政/采购供应链/生产计划/品质工程/
+        市场运营/电商运营/客服/管理者）分组，`categories` 按行业（制造业/零售/跨境电商/
+        办公角色）分组。前端默认展示职业视角——员工按岗位找工具，不按行业找。
+        仅返回当前身份可见的智能体。内置通用助手不计入两套口径。
       parameters:
         - $ref: '#/components/parameters/CallerContext'
       responses:
         '200':
           description: 分类目录
+  /agents/roles:
+    get:
+      tags: [agent]
+      operationId: listRoles
+      summary: 职业工作台（选岗位 → 常用 AI 先配进去）
+      description: >
+        不传 `role` 返回全部职业目录（含各自技能包数量与 core 数量）。
+        传 `role`（id 或中文名，如 `finance` / `财务`）返回该岗位的完整清单：
+        `core` 为 4 个开箱即用的默认配置（按岗位最高频场景排序），`rest` 为其余可选扩展。
+        同一技能包可挂多个岗位（如「对账与开票核对」既属制造业也属财务），
+        但主职业唯一，故各岗位计数之和等于技能包总数。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: role
+          in: query
+          required: false
+          schema: { type: string }
+          description: 职业 id 或中文名；缺省返回目录
+      responses:
+        '200':
+          description: 职业目录 / 该岗位的技能包清单
+        '404':
+          description: 未知职业
   /approval/{approval_id}/decide:
     post:
       tags: [approval]

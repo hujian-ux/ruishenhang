@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, downloadAgentFile } from "../api/client";
+import { RoleChip, RoleGrid, type Role } from "../components/RolePicker";
+import { useRole } from "../role";
 
 type Attachment = {
   file_id: string;
@@ -75,12 +77,17 @@ function greeting() {
   return "晚上好";
 }
 
-export function ChatPage({ seed, userName, onSession }: {
+export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   seed: ChatSeed;
   userName: string;
   onSession: (sessionId: string, firstTitle?: string) => void;
+  onOpenSkills?: () => void;
 }) {
   const [agents, setAgents] = useState<any[]>([]);
+  const [roleId, setRoleId] = useRole();
+  const [roleList, setRoleList] = useState<Role[]>([]);
+  const [ws, setWs] = useState<any>(null);
+  const [pickRole, setPickRole] = useState(false);
   const [agentId, setAgentId] = useState(seed.agentId || "");
   const [sessionId, setSessionId] = useState<string | null>(seed.sessionId || null);
   const [turns, setTurns] = useState<Turn[]>(
@@ -119,6 +126,25 @@ export function ChatPage({ seed, userName, onSession }: {
     }).catch(() => setAgents([]));
   }, []);
 
+  // 岗位目录只拉一次：11 个岗位 + 各自数量，用来渲染选择器
+  useEffect(() => {
+    api.getRoles()
+      .then((r) => setRoleList(r.data.roles || []))
+      .catch(() => setRoleList([]));
+  }, []);
+
+  // 岗位一变就换一套推荐位——这是"选完岗位，常用 AI 先配进来"的落点
+  useEffect(() => {
+    if (!roleId) { setWs(null); return; }
+    let alive = true;
+    api.getRoleWorkspace(roleId)
+      .then((r) => { if (alive) setWs(r.data); })
+      .catch(() => { if (alive) setWs(null); });
+    return () => { alive = false; };
+  }, [roleId]);
+
+  const activeRole = useMemo(() => roleList.find((r) => r.id === roleId), [roleList, roleId]);
+
   useEffect(() => {
     boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy]);
@@ -137,18 +163,20 @@ export function ChatPage({ seed, userName, onSession }: {
     return agents.filter((a) => `${a.name}${a.description || ""}`.toLowerCase().includes(k));
   }, [agents, q]);
 
+  // 推荐位优先用「该岗位的核心技能」；没选岗位或后端没返回时才退到通用推荐
   const featured = useMemo(() => {
+    const names: string[] = ws?.core?.length ? ws.core.map((a: any) => a.name) : FEATURED;
     const out: any[] = [];
-    for (const f of FEATURED) {
-      const hit = agents.find((a) => a.name.includes(f));
+    for (const n of names) {
+      const hit = agents.find((a) => a.name === n);
       if (hit && !out.includes(hit)) out.push(hit);
     }
     for (const a of agents) {
       if (out.length >= 4) break;
-      if (!out.includes(a)) out.push(a);
+      if (!out.includes(a) && !a.builtin) out.push(a);
     }
     return out.slice(0, 4);
-  }, [agents]);
+  }, [agents, ws]);
 
   const pickFiles = async (files: FileList | null) => {
     if (!files || !files.length) return;
@@ -215,28 +243,58 @@ export function ChatPage({ seed, userName, onSession }: {
            style={empty ? { display: "flex", flexDirection: "column", justifyContent: "center" } : undefined}>
         {empty ? (
           <div className="welcome">
-            <div className="hello">{greeting()}，{userName}</div>
-            <h1>今天想让 AI <em>帮你做什么</em>？</h1>
-            <p className="lead">
-              选中一个技能包，或直接用大白话描述任务。上传台账、报表、合同，产出可以直接下载。
-            </p>
-
-            <div className="w-cards">
-              {featured.map((a, i) => (
-                <div key={a.agent_id} className="w-card"
-                     onClick={() => { setAgentId(a.agent_id); taRef.current?.focus(); }}>
-                  <div className="w-ico">{ICONS[i % ICONS.length]}</div>
-                  <div style={{ minWidth: 0 }}>
-                    <b>{a.name}</b>
-                    <span>{a.description || "按技能包流程执行"}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="hello" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {greeting()}，{userName}
+              {activeRole && !pickRole && (
+                <RoleChip role={activeRole} onClick={() => setPickRole(true)} />
+              )}
             </div>
+            <h1>今天想让 AI <em>帮你做什么</em>？</h1>
 
-            <span className="w-all" onClick={() => setSkillPop(true)}>
-              浏览全部 {Math.max(0, agents.filter((a) => !a.builtin).length)} 个技能包 →
-            </span>
+            {!activeRole || pickRole ? (
+              <div className="role-pick">
+                <h4>{activeRole ? "换个岗位" : "先认一下你的岗位"}</h4>
+                <div className="hint">
+                  {activeRole
+                    ? "换岗位只换推荐技能，历史对话不受影响。"
+                    : "选完我把这个岗位最常用的 4 个 AI 直接放到下面，以后打开就在。不确定就随便选，随时能改。"}
+                </div>
+                <RoleGrid roles={roleList} value={roleId}
+                          onChange={(id) => { setRoleId(id); setPickRole(false); }} />
+              </div>
+            ) : (
+              <p className="lead">
+                {activeRole.name}岗已配好 {ws?.core?.length || featured.length} 个常用技能，
+                点一张卡直接开工；也可以上传台账、报表，用大白话描述要做什么。
+              </p>
+            )}
+
+            {activeRole && !pickRole && (
+              <>
+                <div className="w-cards">
+                  {featured.map((a, i) => (
+                    <div key={a.agent_id} className="w-card"
+                         onClick={() => { setAgentId(a.agent_id); taRef.current?.focus(); }}>
+                      <div className="w-ico">{ICONS[i % ICONS.length]}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <b>{a.name}</b>
+                        <span>{a.description || "按技能包流程执行"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <span className="w-all" onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
+                  浏览{activeRole.name}全部 {ws?.count ?? 0} 个技能包 →
+                </span>
+              </>
+            )}
+
+            {!activeRole && (
+              <span className="w-all" onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
+                不选岗位也能用，先看看全部 {Math.max(0, agents.filter((a) => !a.builtin).length)} 个技能包 →
+              </span>
+            )}
           </div>
         ) : (
           <div className="thread">

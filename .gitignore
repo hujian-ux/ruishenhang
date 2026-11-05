@@ -40,3 +40,7 @@ backend/data/
 
 # M17 离线装包缓存（pip 走代理取不到 index 时的轮子暂存目录）
 backend/wheels/
+
+# 本地截图用的开发登录跳板（绕过登录，禁止入库）
+web/public/__devlogin.html
+web/public/__measure.html

@@ -19,7 +19,7 @@ from app.models.schemas import (
     AgentRegisterResponse,
 )
 from app.selection import framework
-from app.services import agent_store, approval_store
+from app.services import agent_store, approval_store, role_map
 
 router = APIRouter(prefix="/agents", tags=["agent"])
 
@@ -157,8 +157,38 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
 
 @router.get("/catalog")
 async def agent_catalog(caller: CallerContext = Depends(get_caller)):
-    """分类目录（分类 → 子职能 → 智能体），供前端树形导航。"""
+    """双视角目录：categories（按行业）+ roles（按职业）。
+
+    前端默认展示 roles——员工按岗位找工具，不按行业找。
+    """
     return {"code": 0, "data": agent_store.catalog(caller)}
+
+
+@router.get("/roles")
+async def list_roles(
+    role: str = Query("", description="职业 id 或中文名，如 finance / 财务"),
+    caller: CallerContext = Depends(get_caller),
+):
+    """职业工作台：不传 role 返回全部职业目录；传了返回该职业的完整技能包清单。
+
+    这是「选职业 → 相应的 AI 先配进去」的落地接口：
+    core=True 的 4 个是该岗开箱即用的默认配置，其余是该岗可选扩展。
+    """
+    rows = agent_store.list_all(caller)
+    roles = role_map.catalog(rows)
+    if not role:
+        return {"code": 0, "data": {"roles": roles,
+                                    "total": sum(r["count"] for r in roles)}}
+    hit = role_map.resolve(role)
+    if not hit:
+        raise HTTPException(status_code=404, detail=f"没有这个职业：{role}")
+    node = next((r for r in roles if r["id"] == hit["id"]), None)
+    if node is None:
+        return {"code": 0, "data": {"role": hit, "count": 0, "core": [], "rest": []}}
+    core = [a for a in node["agents"] if a["core"]]
+    rest = [a for a in node["agents"] if not a["core"]]
+    return {"code": 0, "data": {"role": hit, "count": node["count"],
+                                "core": core, "rest": rest}}
 
 
 @router.get("")

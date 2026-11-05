@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from app.services import pg_store
+from app.services import pg_store, role_map
 
 _TABLE = "agents"
 
@@ -56,13 +56,18 @@ def ensure_builtin_assistant() -> Dict[str, Any]:
 PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
     "sub_function", "tags", "source_path", "inputs_contract", "outputs_contract",
+    "role_tags", "role_primary", "role_core",
 )
 
 
 def save(agent: Dict[str, Any]) -> Dict[str, Any]:
-    """写入内存并写穿 PG。PG 不可达时仅内存生效（不抛错）。"""
+    """写入内存并写穿 PG。PG 不可达时仅内存生效（不抛错）。
+
+    M19：保存前补职业标签（已有值不覆盖），使所有入口自动带 role_* 字段。
+    """
     agent.setdefault("created_at", time.time())
     agent["updated_at"] = time.time()
+    role_map.annotate(agent)
     _AGENTS[agent["agent_id"]] = agent
     pg_store.upsert(_TABLE, agent["agent_id"], agent)
     return agent
@@ -106,14 +111,16 @@ def list_all(caller, include_all: bool = False) -> List[Dict[str, Any]]:
 
 
 def catalog(caller) -> Dict[str, Any]:
-    """按 行业/角色 → 子职能 分组，供前端树形导航（只统计可见项）。
+    """双视角目录：按 行业（categories） + 按 职业（roles）。
 
+    M19 起前端默认走职业视角（员工按岗位找工具），行业视角保留给老板/售前。
     注意：kind（industry/office）粒度太粗，制造业/零售/跨境电商共用 industry，
     若只按 kind 分组会把三个行业并成一个。故分组键用 category_cn（行业名），
     无 category_cn 时回退 kind。
     """
+    rows = list_all(caller)
     tree: Dict[str, Dict[str, Any]] = {}
-    for a in list_all(caller):
+    for a in rows:
         # 内置通用助手不是业务技能包，不进技能库目录（否则 115 会变成 116，口径乱）
         if a.get("builtin"):
             continue
@@ -128,6 +135,7 @@ def catalog(caller) -> Dict[str, Any]:
             "status": a.get("status"), "adapter_type": a.get("adapter_type"),
             "description": (a.get("description") or "")[:120],
             "tags": a.get("tags") or [],
+            "role_primary": a.get("role_primary") or "",
         })
     cats = []
     for k in sorted(tree):
@@ -141,7 +149,13 @@ def catalog(caller) -> Dict[str, Any]:
                 for s, g in sorted(v["groups"].items())
             ],
         })
-    return {"categories": cats, "total": sum(c["count"] for c in cats)}
+    roles = role_map.catalog(rows)
+    return {
+        "categories": cats,
+        "roles": roles,
+        "total": sum(c["count"] for c in cats),
+        "role_total": sum(r["count"] for r in roles),
+    }
 
 
 def load_from_pg() -> int:

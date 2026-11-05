@@ -71,7 +71,15 @@ export const api = {
     }),
   listAgents: () => req<{ code: number; data: { agents: any[] } }>("GET", "/agents"),
   // ── M15 技能包融合：分类目录 + 批量导入 ──
-  getAgentCatalog: () => req<{ code: number; data: { categories: any[]; total: number } }>("GET", "/agents/catalog"),
+  getAgentCatalog: () => req<{
+    code: number;
+    data: { categories: any[]; roles: any[]; total: number; role_total: number };
+  }>("GET", "/agents/catalog"),
+  // M19 职业工作台：不传 role 返回职业目录；传了返回该岗位的 core + 全部
+  getRoles: () => req<{ code: number; data: { roles: any[]; total: number } }>("GET", "/agents/roles"),
+  getRoleWorkspace: (role: string) =>
+    req<{ code: number; data: { role: any; count: number; core: any[]; rest: any[] } }>(
+      "GET", `/agents/roles?role=${encodeURIComponent(role)}`),
   importAgents: (body: { items: any[]; batch_name?: string; batch_approval?: boolean }) =>
     req<any>("POST", "/agents/import", body),
   // M4 会话记忆：session_id 传入续聊，缺省新建

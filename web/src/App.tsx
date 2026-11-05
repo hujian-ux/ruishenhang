@@ -11,6 +11,7 @@ import { SessionsPage } from "./pages/Sessions";
 import { ModelsPage } from "./pages/Models";
 import { PilotPage } from "./pages/Pilot";
 import { SkillsPage } from "./pages/Skills";
+import { useRole } from "./role";
 
 type View = "chat" | "skills" | "admin";
 
@@ -77,6 +78,8 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
   const [menu, setMenu] = useState(false);
   const [gateway, setGateway] = useState<any>(null);
   const [railOpen, setRailOpen] = useState(false);
+  const [roleId] = useRole();
+  const [roleList, setRoleList] = useState<any[]>([]);
 
   const isAdmin = session.user.role === "platform_admin" || session.user.role === "dept_admin";
   const initial = (session.user.name || "用户").trim().slice(0, 1);
@@ -97,6 +100,12 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
   useEffect(() => {
     api.gatewayHealth().then((r) => setGateway(r.data)).catch(() => setGateway({ available: false }));
   }, [chatKey]);
+
+  useEffect(() => {
+    api.getRoles().then((r) => setRoleList(r.data.roles || [])).catch(() => setRoleList([]));
+  }, []);
+
+  const myRole = roleList.find((r) => r.id === roleId);
 
   const newChat = (agentId = "", name = "") => {
     setSeed({ agentId });
@@ -206,8 +215,25 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
 
         <div className="rail-foot">
+          {/* 岗位是这一版的入口：员工先认领岗位，再从这里进技能库 */}
           <div className="rail-link" onClick={() => { setView("skills"); setRailOpen(false); }}>
-            <span style={{ fontSize: 13 }}>◈</span> 技能库
+            {myRole ? (
+              <>
+                <span className="role-ini" style={{ background: myRole.color, width: 16, height: 16, fontSize: 10 }}>
+                  {myRole.initial}
+                </span>
+                {myRole.name}
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>{myRole.count}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 12 }}>◇</span> 还没选岗位
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--blue)" }}>去选</span>
+              </>
+            )}
+          </div>
+          <div className="rail-link" onClick={() => { setView("skills"); setRailOpen(false); }}>
+            <span style={{ fontSize: 13 }}>◈</span> 全部技能包
             <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>115</span>
           </div>
           {isAdmin && (
@@ -261,6 +287,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
             key={chatKey}
             seed={seed}
             userName={(session.user.name || "你").trim()}
+            onOpenSkills={() => setView("skills")}
             onSession={(sid, first) => {
               setSeed((s) => ({ ...s, sessionId: sid }));
               loadSessions();
