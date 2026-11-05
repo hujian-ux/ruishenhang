@@ -192,7 +192,22 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
       {err && <div className="err">{err}</div>}
       {loading && <div className="hint">加载中…</div>}
 
-      {mode === "role" && (
+      {/* 空态必须说人话：技能库空白时用户会以为是系统坏了，
+          实际多半是包没导入 / 没审批发布 / 账号不在可见范围。 */}
+      {!loading && !err && total === 0 && (
+        <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "34px 24px",
+                      background: "#fcfcfa", textAlign: "center" }}>
+          <div style={{ fontSize: 14, fontWeight: 550, color: "var(--ink)", marginBottom: 6 }}>
+            当前身份看不到技能包
+          </div>
+          <div className="hint" style={{ maxWidth: 460, margin: "0 auto", lineHeight: 1.75 }}>
+            常见三种原因：技能包还没导入；导入了但未在「审批台」通过；或者你的账号不在包的可见范围内。
+            找管理员确认这三点即可。
+          </div>
+        </div>
+      )}
+
+      {mode === "role" && total > 0 && (
         <>
           {/* 岗位横排：11 个一屏看全，带数量，方便判断哪个岗装得多 */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>

@@ -251,7 +251,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             </div>
             <h1>今天想让 AI <em>帮你做什么</em>？</h1>
 
-            {!activeRole || pickRole ? (
+            {roleList.length > 0 && (!activeRole || pickRole) ? (
               <div className="role-pick">
                 <h4>{activeRole ? "换个岗位" : "先认一下你的岗位"}</h4>
                 <div className="hint">
@@ -262,12 +262,12 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                 <RoleGrid roles={roleList} value={roleId}
                           onChange={(id) => { setRoleId(id); setPickRole(false); }} />
               </div>
-            ) : (
+            ) : activeRole ? (
               <p className="lead">
                 {activeRole.name}岗已配好 {ws?.core?.length || featured.length} 个常用技能，
                 点一张卡直接开工；也可以上传台账、报表，用大白话描述要做什么。
               </p>
-            )}
+            ) : null}
 
             {activeRole && !pickRole && (
               <>

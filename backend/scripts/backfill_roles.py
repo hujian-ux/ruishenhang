@@ -25,34 +25,47 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true", help="按最新映射表重算（覆盖已有标签）")
     ap.add_argument("--dry-run", action="store_true", help="只统计不写入")
+    ap.add_argument("--scope", choices=["global", "department"],
+                    help="顺带修正技能包可见域（M15 时期误写 department，导致非导入部门员工看到 0 个）")
     a = ap.parse_args()
 
     loaded = agent_store.load_from_pg()
     print(f"从 PG 载入 {loaded} 条；内存中共 {len(agent_store._AGENTS)} 条")
 
-    changed, skipped, unknown = 0, 0, []
+    changed, skipped, unknown, rescoped = 0, 0, [], 0
     for agent in list(agent_store._AGENTS.values()):
         if agent.get("builtin"):
             continue
-        if agent.get("role_tags") and not a.force:
+        dirty = False
+        if a.scope and agent.get("knowledge_scope") != a.scope:
+            if not a.dry_run:
+                agent["knowledge_scope"] = a.scope
+            dirty = True
+            rescoped += 1
+        if not agent.get("role_tags") or a.force:
+            roles = role_map.roles_for(agent.get("name", ""),
+                                       agent.get("sub_function") or "",
+                                       agent.get("category_cn") or "")
+            if not roles or not roles[0]:
+                unknown.append(agent.get("name"))
+            if a.force and not a.dry_run:
+                agent.pop("role_tags", None)
+                agent.pop("role_primary", None)
+                agent.pop("role_core", None)
+            dirty = True
+        if not dirty:
             skipped += 1
             continue
-        roles = role_map.roles_for(agent.get("name", ""),
-                                   agent.get("sub_function") or "",
-                                   agent.get("category_cn") or "")
-        if not roles or not roles[0]:
-            unknown.append(agent.get("name"))
         if a.dry_run:
             changed += 1
             continue
-        if a.force:
-            agent.pop("role_tags", None)
-            agent.pop("role_primary", None)
-            agent.pop("role_core", None)
         agent_store.save(agent)
         changed += 1
 
-    print(f"{'将改' if a.dry_run else '已改'} {changed} 条，跳过（已有标签）{skipped} 条")
+    verb = "将改" if a.dry_run else "已改"
+    print(f"{verb} {changed} 条，跳过（无变化）{skipped} 条")
+    if a.scope:
+        print(f"其中可见域改为 {a.scope} 的：{rescoped} 条")
     if unknown:
         print(f"未能识别职业 {len(unknown)} 条（会落到「其他」，需补映射表）：")
         for n in unknown[:20]:

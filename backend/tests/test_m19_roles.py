@@ -18,6 +18,7 @@ from app.services import agent_store, role_map
 
 client = TestClient(app)
 ADMIN = {"Authorization": create_dev_token("p_admin", "d_platform", "platform_admin")}
+EMP = {"Authorization": create_dev_token("u_1024", "d_sales", "employee")}
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +32,7 @@ def _isolate_store():
     agent_store._AGENTS.update(backup)
 
 
-def _seed_all():
+def _seed_all(scope: str = "global"):
     """把 115 个包按真实解析结果灌进 store（模拟 M15 导入后的状态）。"""
     import os
     import sys
@@ -43,7 +44,7 @@ def _seed_all():
             "name": d["name"],
             "description": d["description"],
             "adapter_type": d["adapter_type"],
-            "knowledge_scope": "department",
+            "knowledge_scope": scope,
             "status": "published",
             "category": d["kind"],
             "category_cn": d["board_cn"],
@@ -112,6 +113,30 @@ def test_role_accepts_cn_name_and_id():
 def test_unknown_role_404():
     r = client.get("/api/v1/agents/roles", params={"role": "法务"}, headers=ADMIN)
     assert r.status_code == 404
+
+
+def test_employee_sees_published_skill_library():
+    """普通员工必须能看到技能库。
+
+    回归用例：M15 批量导入写的是 scope=department + 导入人部门，结果销售部员工
+    看到「0 个业务技能包 · 0 个岗位」，而管理员看到 115 个。之前所有演示都用管理员
+    身份，所以这个问题藏了很久。技能库是公司资产，不该是导入人所在部门的私产。
+    """
+    _seed_all()
+    r = client.get("/api/v1/agents/roles", headers=EMP)
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["total"] == 115, "员工不该因为部门不同而看不到技能库"
+    assert len(d["roles"]) == len(role_map.ROLES)
+    # 行业视角同样要有，不能只修了一个入口
+    assert client.get("/api/v1/agents/catalog", headers=EMP).json()["data"]["total"] == 115
+
+
+def test_department_scope_is_still_respected():
+    """修 bug 不能顺手把 RBAC 放开：department 域的包对外部门仍然不可见。"""
+    _seed_all(scope="department")
+    assert client.get("/api/v1/agents/roles", headers=EMP).json()["data"]["total"] == 0
+    assert client.get("/api/v1/agents/roles", headers=ADMIN).json()["data"]["total"] == 115
 
 
 def test_roles_list_without_param():

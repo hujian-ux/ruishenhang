@@ -51,7 +51,10 @@ def main() -> int:
         "description": d["description"] or d["name"],
         "system_prompt": d["system_prompt"],
         "adapter_type": d["adapter_type"],
-        "knowledge_scope": "department",
+        # 技能库是公司资产，不是导入人所在部门的私产。
+        # 写 department + 导入人部门 → 销售部员工看到 0 个（只有全公司通用助手），
+        # 而平台管理员看得到 115 个，一直没暴露。故一律 global。
+        "knowledge_scope": "global",
         "category": d["kind"],
         "category_cn": d["board_cn"],
         "sub_function": d["sub_function"] or None,
