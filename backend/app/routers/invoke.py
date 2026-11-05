@@ -144,6 +144,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             system_prompt=agent.get("system_prompt"),
             adapter_type=agent.get("adapter_type", ""),
             file_context=file_context,
+            # M26：技能定义可要求抓取前 N 篇网页正文（竞品调研），其余只要摘要
+            web_fetch_top=int(agent.get("web_fetch_top") or 0),
         )
     except model_gateway.LLMUnavailable as exc:
         # M17：LLM_STRICT=1 时真模型失败直接 502，绝不拿 stub 冒充结果 ——
@@ -173,7 +175,9 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     # 这一轮「到底走没走真模型」要跟着轮次一起存：
     # 只存在当次响应里的话，刷新一次页面，"这是 stub 结果"的提示就消失了，
     # 用户第二天翻记录会把占位内容当成模型结论。
-    extra = {"llm_real": bool(u.get("real"))}
+    extra = {"llm_real": bool(u.get("real")),
+             "web_sources": result.get("web_sources") or [],
+             "web_search": result.get("web_search")}
     if artifact_views:
         # 产出物挂到这一轮上：刷新页面 / 换设备打开历史会话时仍能下载
         extra.update({"artifacts": artifact_views, "run_id": run_id})
@@ -184,6 +188,9 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     payload = {
         "answer": result["answer"],
         "citations": result["citations"],
+        # M26：公网来源与内部引用分开回传，前端不要把两者拼成一个「来源」列表
+        "web_sources": result.get("web_sources") or [],
+        "web_search": result.get("web_search"),
         "tool_calls": tool_calls,
         "run_id": run_id,
         "files_used": [{

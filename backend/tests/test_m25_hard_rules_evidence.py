@@ -1,9 +1,9 @@
 """M25 · 三件不依赖真模型也必须成立的事。
 
-1. 平台硬规则**单一来源**：25 条公共技能全量注入，改一处全生效，启动刷新能自愈；
+1. 平台硬规则**单一来源**：全部公共技能全量注入，改一处全生效，启动刷新能自愈；
    硬规则不许带 `## `（下游按它切页，多一个标题就多一张空白页）。
-2. 第 25 条「已有表格清洗与改写」补齐 M16 上传链路的技能引导，
-   数量仍卡在 25 上限，表格组 5 条且同组连续。
+2. 「已有表格清洗与改写」补齐 M16 上传链路的技能引导，
+   数量仍卡在上限内（M26 后为 28），表格组 5 条且同组连续。
 3. RAG 证据**带正文进 prompt**：M24 之前只拼 title，模型看不到原文，
    「逐字引用 / 冲突并列 / 查不到说没查到」全是空话。这里用 monkeypatch
    截获真实 prompt 验证，不需要真模型。
@@ -27,9 +27,9 @@ FIXTURES = ROOT / "fixtures" / "rag_conflicts"
 
 # ---------------------------------------------------------------- 1. 硬规则
 def test_hard_rules_single_source_and_full_coverage():
-    """25 条共享同一段硬规则；不是各写一遍，也不许漏一条。"""
+    """所有公共技能共享同一段硬规则；不是各写一遍，也不许漏一条。"""
     agents = public_skills.build_agents()
-    assert len(agents) == 25
+    assert len(agents) == len(public_skills.PUBLIC_SKILLS)
     for a in agents:
         p = a["system_prompt"]
         assert p.startswith(public_skills.HARD_RULES_HEADER), f"{a['name']} 没注入硬规则"
@@ -102,8 +102,8 @@ def test_file_rework_skill_is_complete():
     assert "改动逐条说明" in p and "需人工确认" in p
 
 
-def test_cap_still_holds_at_25():
-    assert 20 <= len(public_skills.PUBLIC_SKILLS) <= 25
+def test_cap_still_holds_at_28():
+    assert 20 <= len(public_skills.PUBLIC_SKILLS) <= 28
     seq = [s["sub_function"] for s in public_skills.PUBLIC_SKILLS]
     compact = [g for i, g in enumerate(seq) if i == 0 or g != seq[i - 1]]
     assert not [g for g in compact if compact.count(g) > 1], "分组被拆散了"

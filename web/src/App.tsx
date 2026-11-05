@@ -132,6 +132,8 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
           content: t.content,
           artifacts: t.artifacts || [],
           llmReal: t.llm_real,
+          webSources: t.web_sources || [],
+          webSearch: t.web_search,
           ts: t.ts,
         })),
       });

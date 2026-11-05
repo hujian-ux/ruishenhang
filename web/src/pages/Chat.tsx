@@ -20,12 +20,16 @@ type Turn = {
   skillApplied?: boolean;
   llmReal?: boolean;
   llmError?: string;
+  // M26：公网来源与内部引用分开显示，刷新历史会话后仍在
+  webSources?: { title: string; url: string; source?: string; published_at?: string }[];
+  webSearch?: { mode?: string; degraded?: boolean; provider?: string; error?: string } | null;
 };
 
 export type ChatSeed = {
   sessionId?: string;
   agentId?: string;
-  turns?: { role: "user" | "assistant"; content: string; artifacts?: any[]; llmReal?: boolean }[];
+  turns?: { role: "user" | "assistant"; content: string; artifacts?: any[]; llmReal?: boolean;
+            webSources?: Turn["webSources"]; webSearch?: Turn["webSearch"] }[];
 };
 
 // 后端用 `[stub|model]` / `[第N轮|LLM生成]` 标记这一轮到底走没走真模型，
@@ -90,6 +94,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   const [turns, setTurns] = useState<Turn[]>(
     (seed.turns || []).map((t) => ({
       role: t.role, content: t.content, artifacts: t.artifacts, llmReal: t.llmReal,
+      webSources: t.webSources, webSearch: t.webSearch,
     })),
   );
   const [input, setInput] = useState("");
@@ -257,6 +262,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
         artifacts: d.artifacts || [], runId: d.run_id,
         skillApplied: d.agent?.skill_applied,
         llmReal: d.llm?.real, llmError: d.llm?.error,
+        webSources: d.web_sources || [], webSearch: d.web_search,
       }]);
       setAttachments([]);
       onSession(d.session.session_id, (text || fileNames[0] || "").slice(0, 26));
@@ -409,6 +415,30 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                           );
                         })}
                       </div>
+                    )}
+                    {!!t.webSources?.length && (
+                      <div style={{ marginTop: 8, borderTop: "1px solid var(--line)", paddingTop: 7 }}>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>
+                          联网来源 · {t.webSources.length} 条（公开网页，非公司内部资料）
+                        </div>
+                        {t.webSources.slice(0, 4).map((s, i) => (
+                          <a key={`${s.url}-${i}`} href={s.url} target="_blank" rel="noopener noreferrer"
+                             style={{ display: "block", fontSize: 11.5, lineHeight: 1.7,
+                                      color: "var(--blue)", textDecoration: "none",
+                                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            [W{i + 1}] {s.title || s.url}
+                          </a>
+                        ))}
+                        {t.webSources.length > 4 && (
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                            其余 {t.webSources.length - 4} 条见产出物「来源」页
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {t.webSearch?.degraded && (
+                      <div className="notice">联网通道已降级（{t.webSearch.mode || "unavailable"}），
+                        本次结果请人工复核来源。</div>
                     )}
                     {t.llmReal === false && (
                       <div className="notice">

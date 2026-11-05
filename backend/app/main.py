@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
-from app.routers import agents, approval, audit, auth, eval as eval_router, files, invoke, kb, models, rag, selection, usage
+from app.routers import (agents, approval, audit, auth, eval as eval_router, files,
+                        invoke, kb, models, rag, search, selection, usage)
 from app.services import agent_store, approval_store, file_store, kb_store, pg_store, session_store, usage_store
 
 
@@ -55,6 +56,7 @@ app.include_router(usage.router, prefix=settings.API_PREFIX)
 app.include_router(approval.router, prefix=settings.API_PREFIX)
 app.include_router(audit.router, prefix=settings.API_PREFIX)  # M13：审计日志查询
 app.include_router(eval_router.router, prefix=settings.API_PREFIX)  # M8：基线评测最近报告
+app.include_router(search.router, prefix=settings.API_PREFIX)       # M26：联网查资料 / 竞品调研
 
 
 @app.get("/healthz")

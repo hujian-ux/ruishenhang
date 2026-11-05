@@ -30,6 +30,24 @@ class Settings:
     # 并给 litellm 设 LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY=true。
     LITELLM_MASTER_KEY = _env("LITELLM_MASTER_KEY", "")
 
+    # ── M26 联网搜索通道（公网事实获取，与内部 RAG 完全隔离）──
+    # auto = 有官方 key 就用官方 API，一个都没配走免费网页抓取（搜狗 → Bing 互为备份）。
+    # 中文长 query 实测搜狗相关性更好；生产务必配 key，网页抓取依赖对方页面结构。
+    WEB_SEARCH_ENABLED = _env("WEB_SEARCH_ENABLED", "1") == "1"
+    WEB_SEARCH_PROVIDER = _env("WEB_SEARCH_PROVIDER", "auto").strip().lower()
+    WEB_SEARCH_TIMEOUT_S = float(_env("WEB_SEARCH_TIMEOUT_S", "10"))
+    WEB_SEARCH_MAX_RESULTS = int(_env("WEB_SEARCH_MAX_RESULTS", "6"))
+    WEB_SEARCH_FETCH_CHARS = int(_env("WEB_SEARCH_FETCH_CHARS", "3000"))
+    # 是否允许抓取搜索结果正文（竞品调研需要）。抓之前有 URL 白名单 + DNS 校验。
+    WEB_SEARCH_ALLOW_FETCH = _env("WEB_SEARCH_ALLOW_FETCH", "1") == "1"
+    # 逗号分隔的域名黑名单，命中的结果直接丢弃
+    WEB_SEARCH_BLOCK_DOMAINS = _env("WEB_SEARCH_BLOCK_DOMAINS", "")
+    BING_SEARCH_KEY = _env("BING_SEARCH_KEY", "")          # Bing Web Search v7
+    BOCHA_API_KEY = _env("BOCHA_API_KEY", "")              # 博查（中文）
+    SERPER_API_KEY = _env("SERPER_API_KEY", "")            # Serper / Google
+    TAVILY_API_KEY = _env("TAVILY_API_KEY", "")            # Tavily
+    SEARXNG_BASE_URL = _env("SEARXNG_BASE_URL", "")        # 自建 SearXNG，如 http://host:8080
+
     # ── M17 真模型接入：两种通道，业务代码不感知 ──
     # litellm —— 经 LiteLLM 代理（多厂商统一账单，生产推荐）
     # direct  —— 直连厂商 OpenAI 兼容端点（单厂商起步最快，不额外起容器）

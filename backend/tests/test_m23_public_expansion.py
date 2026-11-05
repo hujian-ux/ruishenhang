@@ -1,8 +1,9 @@
 """M23 · 公共库扩充（从「10 条」到「一整套办公室常用技能」）。
 
 守的是**筛选口径**，不只是条数：
-1. 数量上限：20-25 条。再多就变成第二个「不知道点哪个」；
-2. 分组结构：≤6 组、每组 3-5 条，同组条目必须连续（前端按出现顺序分组，
+1. 数量上限：20-28 条（M26 新增「联网查证」这一新能力类别，独立成第 7 组，
+   上限从 25 提到 28 只此一次；再加必须先合并同类项）；
+2. 分组结构：≤7 组、每组 3-5 条，同组条目必须连续（前端按出现顺序分组，
    交叉会出现两个「写作」标题）；
 3. 每条必须有真提示词（Markdown 分节 ≥3）和明确产出格式；
 4. 口径不变：公共库不进 115、不挂职业标签；
@@ -21,8 +22,8 @@ client = TestClient(app)
 ADMIN = {"Authorization": create_dev_token("p_admin", "d_platform", "platform_admin")}
 EMP = {"Authorization": create_dev_token("u_1024", "d_sales", "employee")}
 
-# 数量红线：低于 20 说明覆盖不全，高于 25 说明开始堆同质条目
-MIN_SKILLS, MAX_SKILLS = 20, 25
+# 数量红线：低于 20 说明覆盖不全，高于 28 说明开始堆同质条目
+MIN_SKILLS, MAX_SKILLS = 20, 28
 GROUP_MIN, GROUP_MAX = 3, 5
 
 
@@ -44,13 +45,13 @@ def test_count_within_cap():
 
 
 def test_groups_balanced():
-    """分组不超过 6 组，每组 3-5 条，且 covered=全部条目（不许有漏网的孤立组）。"""
+    """分组不超过 7 组，每组 3-5 条，且 covered=全部条目（不许有漏网的孤立组）。"""
     counters = {g: 0 for g in public_skills.PUBLIC_GROUPS}
     for s in public_skills.PUBLIC_SKILLS:
         assert s["sub_function"] in counters, f"{s['name']} 的分组未登记：{s['sub_function']}"
         counters[s["sub_function"]] += 1
 
-    assert len(public_skills.PUBLIC_GROUPS) <= 6
+    assert len(public_skills.PUBLIC_GROUPS) <= 7
     for g, n in counters.items():
         assert GROUP_MIN <= n <= GROUP_MAX, f"「{g}」{n} 条，应为 {GROUP_MIN}-{GROUP_MAX}"
     assert sum(counters.values()) == len(public_skills.PUBLIC_SKILLS)

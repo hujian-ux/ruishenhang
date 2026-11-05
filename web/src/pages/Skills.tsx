@@ -33,6 +33,8 @@ type Role = RoleBase & { count: number; core_count: number; agents: Agent[] };
 const ADAPTER_LABEL: Record<string, string> = {
   llm: "生成",
   llm_retrieval: "查制度",
+  llm_web_search: "联网",
+  llm_web_search_rag: "内外双查",
   rule: "规则",
   ml_serving: "模型",
   ml_llm_retrieval: "混合",
@@ -54,6 +56,7 @@ const PUB_GROUP_NOTE: Record<string, string> = {
   "沟通与会议": "邮件消息、会议纪要、润色翻译、待办跟进、会前准备",
   "阅读": "合同审阅、文件提字段、长文速读、制度查证（带出处）",
   "方法与沉淀": "SOP 手册、复盘、语音转结构化记录",
+  "联网查证": "带链接查资料、竞品对照、内部制度与公开信息交叉核对",
 };
 
 function SkillCard({ a, onUse, highlight, kind }: {

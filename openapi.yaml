@@ -29,6 +29,8 @@ tags:
     description: 模型注册表（可插拔大模型接入，热插拔）
   - name: usage
     description: Token 用量统计与计费（按租户/部门/用户/智能体）
+  - name: search
+    description: 公网检索（与企业内部 RAG 隔离，M26）
 paths:
   /auth/sso/callback:
     post:
@@ -182,6 +184,83 @@ paths:
                   trace_id: "trace_2026abc"
         '403':
           $ref: '#/components/responses/Forbidden'
+  /search/web:
+    post:
+      tags: [search]
+      operationId: webSearch
+      summary: 公网检索（联网查资料 / 竞品调研）
+      description: >
+        与企业内部 RAG 平行但**完全隔离**的通道：结果只在当轮上下文使用，不写入知识库、
+        不参与向量检索、不跨租户共享。命中带 origin=public_web，生成侧用 [W编号] 与
+        内部片段的 [编号] 分开标注，避免把竞品网页写成公司制度。
+        接口不接受自定义 URL；正文抓取只允许本进程刚搜到的链接，且经过字面 + DNS 公网校验。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebSearchRequest'
+            example:
+              query: "东莞 独立储能电站 容量补偿 政策 2026"
+              top_k: 6
+              fetch_top: 0
+      responses:
+        '200':
+          description: 检索完成（ok=false 时 hits 为空，error 说明原因；不会抛 500）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSearchResponse'
+              example:
+                code: 0
+                data:
+                  query: "东莞 独立储能电站 容量补偿 政策 2026"
+                  provider: "sogou_html"
+                  mode: "free_html"
+                  ok: true
+                  degraded: false
+                  hits:
+                    - title: "广东省新型储能发展实施方案"
+                      url: "https://example.gov.cn/policy/123"
+                      snippet: "独立储能电站可参与现货市场与容量补偿……"
+                      origin: "public_web"
+                      source: "sogou_html"
+                      published_at: "2026-01-15"
+                      fetched_at: "2026-11-06 00:30 UTC"
+                  elapsed_ms: 820
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /search/status:
+    get:
+      tags: [search]
+      operationId: webSearchStatus
+      summary: 联网通道状态（provider / 是否降级 / 是否配 key）
+      description: 只回显「有没有配」，不回显密钥值。前端据此提示结果是否可信。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+      responses:
+        '200':
+          description: 通道状态
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, data]
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      enabled: { type: boolean }
+                      provider: { type: string, example: bing_html }
+                      mode: { type: string, enum: [api, free_html, disabled] }
+                      configured: { type: object, additionalProperties: { type: boolean } }
+                      allow_fetch: { type: boolean }
+                      max_results: { type: integer }
   /agent/invoke:
     post:
       tags: [agent]
@@ -1702,6 +1781,78 @@ components:
           items:
             type: string
           description: 同一篇文档按相关度取前 3 句（去重），供制度查证类技能并列比对条款；缺省为空数组
+    WebSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: 检索问题（截断至 200 字）
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 6
+        fetch_top:
+          type: integer
+          minimum: 0
+          maximum: 3
+          default: 0
+          description: 抓前 N 条结果正文；只允许本轮搜到的 URL，竞品调研用
+    WebSearchHit:
+      type: object
+      required: [title, url, origin]
+      properties:
+        title: { type: string }
+        url: { type: string, format: uri }
+        snippet: { type: string }
+        content:
+          type: string
+          description: 可选正文摘录（fetch_top > 0 且通过安全校验时才有）
+        origin:
+          type: string
+          enum: [public_web]
+          description: 固定为 public_web，与内部授权片段区分
+        source:
+          type: string
+          description: provider 名，如 bing_html / bocha / serper
+        published_at: { type: string }
+        fetched_at: { type: string }
+        fetch_error:
+          type: string
+          description: 正文抓取失败原因（不影响检索结果本身）
+    WebSearchResponse:
+      type: object
+      required: [code, data]
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          required: [query, ok, degraded, mode, provider, hits]
+          properties:
+            query: { type: string }
+            top_k: { type: integer }
+            provider: { type: string }
+            mode:
+              type: string
+              enum: [api, free_html, fallback_html, mock, unavailable, disabled, invalid_query]
+            ok:
+              type: boolean
+              description: 是否拿到可用结果；false 时模型必须写「未检索到公开信息」
+            degraded:
+              type: boolean
+              description: 官方通道失败已降级到网页抓取，结论需人工复核
+            error: { type: string }
+            fallback_from: { type: string }
+            elapsed_ms: { type: integer }
+            fetched_at: { type: string }
+            origin: { type: string, example: public_web }
+            hits:
+              type: array
+              items:
+                $ref: '#/components/schemas/WebSearchHit'
     RetrieveResponse:
       type: object
       required: [code, data]

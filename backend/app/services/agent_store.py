@@ -76,7 +76,7 @@ def ensure_public_skills() -> int:
             for k in ("name", "description", "system_prompt", "tags", "sub_function",
                       "default_format", "sort", "category", "category_cn",
                       "when_to_use", "inputs_contract", "outputs_contract", "adapter_type",
-                      "hard_rules_version"):
+                      "hard_rules_version", "web_fetch_top"):
                 cur[k] = a[k]
             cur.setdefault("status", "published")
             cur.setdefault("knowledge_scope", "global")
@@ -97,7 +97,7 @@ PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
     "sub_function", "tags", "source_path", "inputs_contract", "outputs_contract",
     "when_to_use", "role_tags", "role_primary", "role_core",
-    "hard_rules_version",
+    "hard_rules_version", "web_fetch_top",
 )
 
 
@@ -167,6 +167,7 @@ def brief(a: Dict[str, Any]) -> Dict[str, Any]:
         "when_to_use": a.get("when_to_use") or "",
         "inputs_contract": a.get("inputs_contract") or "",
         "outputs_contract": a.get("outputs_contract") or "",
+        "web_fetch_top": int(a.get("web_fetch_top") or 0),
     }
 
 

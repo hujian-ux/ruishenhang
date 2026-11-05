@@ -47,6 +47,14 @@ class RetrieveResponse(BaseModel):
     data: dict = Field(default_factory=dict)  # query/hits/filtered_out/trace_id
 
 # ── agent invoke ──
+class WebSearchRequest(BaseModel):
+    """M26 公网检索：只允许传 query 与条数，不接受自定义 URL（SSRF 面收死）。"""
+    query: str
+    top_k: int = Field(6, ge=1, le=10)
+    fetch_top: int = Field(0, ge=0, le=3,
+                           description="抓前 N 条结果的正文，仅用于竞品调研这类需要看原文的活")
+
+
 class AgentInvokeRequest(BaseModel):
     agent_id: str
     input: str

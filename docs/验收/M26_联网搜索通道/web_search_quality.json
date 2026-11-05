@@ -1,0 +1,159 @@
+{
+  "generated_at": "2026-11-06T01:06:01",
+  "status": {
+    "enabled": true,
+    "provider": "sogou_html",
+    "mode": "free_html",
+    "configured": {
+      "BOCHA_API_KEY": false,
+      "SERPER_API_KEY": false,
+      "TAVILY_API_KEY": false,
+      "BING_SEARCH_KEY": false,
+      "SEARXNG_BASE_URL": false
+    },
+    "providers": [
+      "bing_api",
+      "bing_html",
+      "bocha",
+      "mock",
+      "searxng",
+      "serper",
+      "sogou_html",
+      "tavily"
+    ],
+    "allow_fetch": true,
+    "timeout_s": 10.0,
+    "max_results": 6,
+    "origin": "public_web",
+    "note": "公网结果只在当轮上下文使用，不写入企业内部知识库"
+  },
+  "probes": [
+    {
+      "query": "广东 独立储能 容量补偿 政策 2026",
+      "ok": true,
+      "provider": "sogou_html",
+      "mode": "free_html",
+      "degraded": false,
+      "hits": 5,
+      "elapsed_ms": 952,
+      "titles": [
+        "2026年最新国内各省独立储能政策与收益情况分析报告",
+        "广东电力现货市场结算实施细则(2024年修订):独立储能充电电量...",
+        "广东: 独立储能试行电费补偿,标准100元/千瓦.年_KE科日光伏网"
+      ],
+      "error": ""
+    },
+    {
+      "query": "半成品菜 供应链 品牌 报价",
+      "ok": true,
+      "provider": "sogou_html",
+      "mode": "free_html",
+      "degraded": false,
+      "hits": 5,
+      "elapsed_ms": 965,
+      "titles": [
+        "食材半成品-食材半成品价格、图片、排行 - 阿里巴巴",
+        "半成品菜-半成品菜价格、图片、排行 - 阿里巴巴",
+        "【农产品食材供应链】农产品食材供应链价格_农产品食材供应链报价 -..."
+      ],
+      "error": ""
+    }
+  ],
+  "cases": [
+    {
+      "id": "web_lookup",
+      "agent_id": "ag_pub_web_lookup",
+      "ok": true,
+      "tools": [
+        "session_memory",
+        "web_search"
+      ],
+      "web_sources": 6,
+      "citations": 0,
+      "artifacts": [
+        "docx"
+      ],
+      "llm_real": false,
+      "web_search": {
+        "ok": true,
+        "degraded": false,
+        "mode": "free_html",
+        "provider": "sogou_html",
+        "error": "",
+        "fetched_at": "2026-11-05T17:05:55+00:00",
+        "elapsed_ms": 889
+      },
+      "source_titles": [
+        "广东电力现货市场结算实施细则(2024年修订):独立储能充电电量...",
+        "广东省发展改革委 广东省能源局关于印发广东省促进新型储能电站发展...",
+        "独立储能迎利好,又一省份推出容量补偿机制|广东|大容量|新型电力系..."
+      ],
+      "answer_chars": 77
+    },
+    {
+      "id": "competitor",
+      "agent_id": "ag_pub_competitor_scan",
+      "ok": true,
+      "tools": [
+        "session_memory",
+        "web_search"
+      ],
+      "web_sources": 6,
+      "citations": 0,
+      "artifacts": [
+        "xlsx"
+      ],
+      "llm_real": false,
+      "web_search": {
+        "ok": true,
+        "degraded": false,
+        "mode": "free_html",
+        "provider": "sogou_html",
+        "error": "",
+        "fetched_at": "2026-11-05T17:05:58+00:00",
+        "elapsed_ms": 1860
+      },
+      "source_titles": [
+        "中国餐饮供应链指南2024（半成品预制菜篇）-红餐产业研究院_企业_...",
+        "2024餐饮半成品预制菜发展简析_企业_产业_加工",
+        "半成品菜研究报告_2024-2029年中国半成品菜行业深度分析及发展前..."
+      ],
+      "answer_chars": 71
+    },
+    {
+      "id": "cross_check",
+      "agent_id": "ag_pub_cross_check",
+      "ok": true,
+      "tools": [
+        "rag_retrieve",
+        "session_memory",
+        "web_search"
+      ],
+      "web_sources": 6,
+      "citations": 6,
+      "artifacts": [
+        "docx"
+      ],
+      "llm_real": false,
+      "web_search": {
+        "ok": true,
+        "degraded": true,
+        "mode": "fallback_html",
+        "provider": "sogou_html",
+        "error": "HTTPStatusError: Client error '403 Forbidden' for url 'http://www.sogou.com/antispider/?m=1&antip=web_sh2&from=%2Fwebsearch%2Fsogou.jsp%3Fquery%3D%25E6%25A0%25B8%25E5%25AF%25B9%25E5%2585%25AC%25E5%258",
+        "fetched_at": "2026-11-05T17:06:00+00:00",
+        "elapsed_ms": 1262
+      },
+      "source_titles": [
+        "核对_百度百科",
+        "核对的意思_核对的解释-汉语国学",
+        "核对的意思|汉典「核对」词语解释"
+      ],
+      "answer_chars": 73
+    }
+  ],
+  "retrieval_all": true,
+  "stub_mode": true,
+  "semantic_verdict": "SKIP: 模型仍为占位，未验证答案是否逐条标 [W编号]、查不到是否说没查到",
+  "scope": "公网检索结果与内部 RAG 片段分通道回传；模型为 stub 时只证明链路，不证明答案质量"
+}
