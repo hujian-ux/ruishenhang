@@ -1697,6 +1697,11 @@ components:
         can_access:
           type: boolean
           description: 已通过过滤点，必然为 true
+        snippets:
+          type: array
+          items:
+            type: string
+          description: 同一篇文档按相关度取前 3 句（去重），供制度查证类技能并列比对条款；缺省为空数组
     RetrieveResponse:
       type: object
       required: [code, data]

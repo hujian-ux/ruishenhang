@@ -75,7 +75,8 @@ def ensure_public_skills() -> int:
         if cur:
             for k in ("name", "description", "system_prompt", "tags", "sub_function",
                       "default_format", "sort", "category", "category_cn",
-                      "when_to_use", "inputs_contract", "outputs_contract", "adapter_type"):
+                      "when_to_use", "inputs_contract", "outputs_contract", "adapter_type",
+                      "hard_rules_version"):
                 cur[k] = a[k]
             cur.setdefault("status", "published")
             cur.setdefault("knowledge_scope", "global")
@@ -96,6 +97,7 @@ PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
     "sub_function", "tags", "source_path", "inputs_contract", "outputs_contract",
     "when_to_use", "role_tags", "role_primary", "role_core",
+    "hard_rules_version",
 )
 
 

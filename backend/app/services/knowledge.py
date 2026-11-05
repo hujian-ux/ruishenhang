@@ -194,6 +194,13 @@ except Exception:  # pragma: no cover - 无 numpy 时退回纯 Python（慢但�
 import time as _time
 from array import array as _array
 
+# M25：单篇文档最多给证据块几句话。太多会挤爆上下文，1 句又看不出条款冲突。
+# 5 句是权衡：制度文档通常「开头版本声明 + 3 条关键条款」就够判断冲突了。
+MAX_EVIDENCE_SNIPPETS = 5
+# 文档开头的句子保底进证据：生效日期、废止声明、适用范围都在前面，
+# 纯按相关度排会被「第三条 住宿费上限」这种字面高重合的标题句挤掉。
+EVIDENCE_HEAD_SENTENCES = 2
+
 _CHILDREN: list = []          # 下标 = 向量矩阵行号；删除后置 None（tombstone）
 _VEC = None                   # (cap, D) float32；numpy 缺失时退化为 list[list[float]]
 _CAP = 0                      # 矩阵已分配行数
@@ -774,8 +781,15 @@ def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
 
     # 4) 聚合回 parent：同一 parent 取最高分 child 作为代表 snippet
     parent_best: dict = {}
+    parent_texts: dict = {}
     for c, sc in reranked:
         pid = c["parent_id"]
+        # child_id 形如 doc_x_c3，尾部即该句在原文档中的序号
+        try:
+            pos = int(str(c["child_id"]).rsplit("_c", 1)[-1])
+        except (ValueError, IndexError):
+            pos = 9999
+        parent_texts.setdefault(pid, []).append((sc, pos, c["text"]))
         rep = parent_best.get(pid)
         if rep is None or sc > rep["score"]:
             parent_best[pid] = {
@@ -784,6 +798,30 @@ def retrieve(query: str, caller: CallerContext, top_k: int = 6) -> tuple:
                 "source": c["source"], "child_id": c["child_id"],
                 "owner": c["owner"], "dept": c["dept"], "tenant_id": c["tenant_id"],
             }
+
+    # M25：一篇文档只给模型一句最高分 child，制度查证类会**天然证据不足**。
+    # 例：「部门经理限额」那句和「超标报 CEO 审批」那句是不同 child，
+    # 只取前者，模型再聪明也看不出新旧两版的审批人冲突。
+    # 这里额外留同 parent 的前 N 句（去重），旧字段 snippet 不变，
+    # 只有 grounded 技能的证据块会用到 snippets。
+    for pid, rep in parent_best.items():
+        items = parent_texts[pid]
+        seen, texts = set(), []
+
+        def add(t: str) -> None:
+            t = (t or "").strip()
+            if t and t not in seen:
+                seen.add(t)
+                texts.append(t)
+
+        # 先按原文顺序保底开头几句，再按相关度补到上限
+        for _, _, t in sorted(items, key=lambda x: x[1])[:EVIDENCE_HEAD_SENTENCES]:
+            add(t)
+        for _, _, t in sorted(items, key=lambda x: -x[0]):
+            if len(texts) >= MAX_EVIDENCE_SNIPPETS:
+                break
+            add(t)
+        rep["snippets"] = texts[:MAX_EVIDENCE_SNIPPETS]
 
     agg = sorted(parent_best.values(), key=lambda x: x["score"], reverse=True)
     visible_items, filtered_out = single_filter(agg, caller)

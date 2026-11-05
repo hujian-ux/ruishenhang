@@ -38,6 +38,9 @@ class RetrieveHit(BaseModel):
     score: float
     source: str
     can_access: bool = True
+    # M25：同一篇文档的前 N 句证据，供「制度查证」类技能并列比对条款；
+    # 缺省空列表，老调用方不受影响。
+    snippets: List[str] = Field(default_factory=list)
 
 class RetrieveResponse(BaseModel):
     code: int = 0

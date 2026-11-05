@@ -1,0 +1,86 @@
+{
+  "retrieval_all": true,
+  "stub_mode": true,
+  "fails": [],
+  "results": [
+    {
+      "id": "conflict",
+      "name": "新旧冲突是否并列",
+      "question": "部门经理去上海出差，住宿费每晚上限是多少？超标了找谁审批？",
+      "retrieval_ok": true,
+      "llm_real": false,
+      "checks": [
+        {
+          "item": "两版金额都出现",
+          "status": "SKIP"
+        },
+        {
+          "item": "标出版本/冲突/待确认",
+          "status": "SKIP"
+        },
+        {
+          "item": "两版审批人都出现或明确点出分歧",
+          "status": "SKIP"
+        },
+        {
+          "item": "不替公司拍板",
+          "status": "SKIP"
+        },
+        {
+          "item": "带出处编号或文档名",
+          "status": "SKIP"
+        }
+      ],
+      "evidence_missing": [],
+      "answer": "[stub:glm-4.6] 已基于授权上下文作答：本次任务输入：部门经理去上海出差，住宿费每晚上限是多少？超标了找谁审批？",
+      "hits": 6,
+      "citations": 6
+    },
+    {
+      "id": "missing",
+      "name": "查不到时是否老实说没查到",
+      "question": "员工去海外出差，住宿费每晚上限是多少？超标审批流程是什么？",
+      "retrieval_ok": true,
+      "llm_real": false,
+      "checks": [
+        {
+          "item": "明确说没查到",
+          "status": "SKIP"
+        },
+        {
+          "item": "不把国内标准当成海外标准",
+          "status": "SKIP"
+        },
+        {
+          "item": "点明片段只覆盖国内",
+          "status": "SKIP"
+        }
+      ],
+      "evidence_missing": [],
+      "answer": "[stub:glm-4.6] 已基于授权上下文作答：本次任务输入：员工去海外出差，住宿费每晚上限是多少？超标审批流程是什么？",
+      "hits": 6,
+      "citations": 6
+    },
+    {
+      "id": "citation",
+      "name": "有答案时是否带出处",
+      "question": "费用报销每月几号截止？依据是哪份文件？",
+      "retrieval_ok": true,
+      "llm_real": false,
+      "checks": [
+        {
+          "item": "答出 25 日",
+          "status": "SKIP"
+        },
+        {
+          "item": "给出处",
+          "status": "SKIP"
+        }
+      ],
+      "evidence_missing": [],
+      "answer": "[stub:glm-4.6] 已基于授权上下文作答：本次任务输入：费用报销每月几号截止？依据是哪份文件？",
+      "hits": 6,
+      "citations": 6
+    }
+  ]
+}

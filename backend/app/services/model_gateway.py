@@ -358,4 +358,18 @@ def probe(model_id: str = "", timeout: float = 30.0) -> dict:
 
 def _stub_answer(model_id: str, messages: list[dict]) -> str:
     user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    return f"[stub:{model_id}] 已基于授权上下文作答：{user[:80]}"
+    # 摘要取「对话记忆 / 用户问题」，不再硬截 prompt 前 80 字。
+    # M25 起检索证据带正文和编号，前 80 字全被证据块占满——stub 文本既看不出
+    # 用户问了什么，也把会话记忆挤没了（M4 的「答案含首轮关键词」就靠这段）。
+    # stub 只是占位，但占位也要像一句回答，不该把系统提示词回显给用户。
+    lines = user.splitlines()
+    parts = []
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if s.startswith(("对话记忆：", "用户问题：")):
+            parts.append(s[:160])
+        elif s.startswith("本次任务输入：") and i + 1 < len(lines):
+            # 技能包把任务输入另起一行，别只截到标题就把用户的话丢了
+            parts.append("本次任务输入：" + lines[i + 1].strip()[:120])
+    digest = " / ".join(parts) if parts else user[:80]
+    return f"[stub:{model_id}] 已基于授权上下文作答：{digest}"[:400]

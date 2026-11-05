@@ -31,6 +31,9 @@ SYSTEM_PROMPT = "企业AI智能体中台知识助手，只基于授权片段作�
 # M15：需要先检索再执行的适配器类型（技能包标注为 RAG 类才注入企业知识段落）
 RETRIEVAL_ADAPTERS = {"llm_retrieval", "ml_llm_retrieval"}
 
+# 单篇文档在证据块里最多占多少字；多篇命中时不至于把上下文撑爆
+EVIDENCE_PER_DOC_CHARS = 600
+
 
 def _call_llm(prompt: str, system_prompt: str | None = None) -> Dict[str, Any]:
     """调模型网关并带回用量（M7：token/延迟原样上抛，由路由层落账）。
@@ -54,24 +57,58 @@ def _call_llm(prompt: str, system_prompt: str | None = None) -> Dict[str, Any]:
     }
 
 
+def compose_evidence(hits: List[Dict[str, Any]]) -> str:
+    """把检索命中拼成**带正文、带编号**的证据块。
+
+    M25：以前只拼 `h["title"]`，snippet 根本没进 prompt。后果是
+    「逐字引用并标出处」「冲突并列」「查不到说没查到」这些写在技能提示词里的
+    要求全都落不了地——模型只看得到几个文档标题，只能靠常识编。
+    编号 [1][2] 让模型有稳定的引用锚点，也让验收脚本能核对引用是否对得上片段。
+    """
+    if not hits:
+        return ("（本次检索没有任何可见的授权片段。按规则明确回答「未查到」，"
+                "不得用常识、行业惯例或示例补一段像答案的话。）")
+    lines = []
+    for i, h in enumerate(hits, 1):
+        title = h.get("title") or "(无标题)"
+        # M25：优先用同 parent 的多句证据（knowledge.retrieve 附的 snippets），
+        # 兼容只有单句 snippet 的老调用方/测试夹具。
+        texts = [t.strip() for t in (h.get("snippets") or []) if (t or "").strip()]
+        if not texts:
+            texts = [(h.get("snippet") or "").strip()]
+        body = " / ".join(t for t in texts if t)
+        if len(body) > EVIDENCE_PER_DOC_CHARS:
+            body = body[:EVIDENCE_PER_DOC_CHARS] + "…"
+        lines.append(f"[{i}] 《{title}》：{body or '（片段正文为空）'}")
+    return "\n".join(lines)
+
+
 def _compose_prompt(user_input: str, ctx: str, mem: str, skill: bool,
-                    file_ctx: str = "") -> str:
+                    file_ctx: str = "", grounded: bool = False) -> str:
     """技能包（skill=True）走「按流程执行」口径，默认助手走「仅据片段作答」口径。
 
     M16：file_ctx 是附件解析出的表格上下文。放在任务输入之前，并显式允许模型
     引用附件里的数字——但只允许引用附件里真实存在的，避免它"看着表头补数据"。
+    M25：grounded=True 表示这条技能挂了 llm_retrieval，检索片段是**依据**而不是
+    「可选参考」，且零命中时必须能给模型一个明确的空结果信号。
     """
     if skill:
-        # 技能包：输入由用户提供，检索片段仅作可选参考，不得覆盖技能包的输入契约
         parts = []
         if file_ctx:
             parts.append(file_ctx)
-        if ctx:
+        if grounded:
+            parts.append(f"授权检索依据（引用时逐条标注 [编号]）：\n{ctx}")
+        elif ctx:
             parts.append(f"可参考的企业授权片段（仅在技能包输入契约需要时使用）：{ctx}")
         if mem:
             parts.append(f"对话记忆：{mem.replace(chr(10), ' / ')}")
         parts.append(f"本次任务输入：\n{user_input}")
-        if file_ctx:
+        if grounded:
+            parts.append("执行要求：只依据上方授权检索依据作答，逐字引用并标 [编号]；"
+                         "多份依据冲突时并列各方与生效日期、标注「待确认」，不自行选一个；"
+                         "依据里没有答案就明确写「未查到相关规定」，不得用常识补充；"
+                         "按技能包的产出契约用 Markdown 二级标题分节输出。")
+        elif file_ctx:
             parts.append("执行要求：按技能包的产出契约输出；凡引用数据必须来自上方附件，"
                          "不得臆造行或列。结论中要落成可导出的表格（markdown 表格或 json 数组），"
                          "表头与附件列名保持一致。")
@@ -80,12 +117,13 @@ def _compose_prompt(user_input: str, ctx: str, mem: str, skill: bool,
         return "\n\n".join(parts)
     return (f"你是企业知识助手，仅基于授权片段与用户附件回答。\n"
             + (f"{file_ctx}\n" if file_ctx else "")
-            + f"授权片段：{ctx or '暂无'}\n"
+            + f"授权片段：\n{ctx or '（无）'}\n"
             + (f"对话记忆：{mem.replace(chr(10), ' / ')}\n" if mem else "")
             + f"用户问题：{user_input}")
 
 
-def build_graph(system_prompt: str | None = None, use_retrieval: bool = True):
+def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
+                grounded: bool = False):
     """构造 LangGraph 状态图（retrieve -> generate，含会话记忆状态）。
 
     M15：system_prompt / use_retrieval 由图构造参数注入，不再全局写死；
@@ -109,12 +147,14 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True):
 
     def generate(state: Dict[str, Any]) -> Dict[str, Any]:
         # 仅基于可见片段生成，越权内容已被过滤点拦截，不进上下文
-        ctx = "；".join(h["title"] for h in state.get("hits", []))
+        # 只有真检索过才拼证据块；不检索的技能不该收到「本次没有片段」这种干扰信息
+        ctx = compose_evidence(state.get("hits", [])) if use_retrieval else ""
         turn_no = 1 + sum(1 for t in state.get("history") or [] if t["role"] == "user")
         # 会话记忆：最近 N 轮对话摘要进生成上下文
         mem = session_store.build_context({"turns": state.get("history") or []}, max_turns=2)
         # M6：真实 LLM 生成（LiteLLM 探活通过时），否则确定性 stub
-        prompt = _compose_prompt(state["input"], ctx, mem, skill, state.get("file_ctx") or "")
+        prompt = _compose_prompt(state["input"], ctx, mem, skill,
+                                 state.get("file_ctx") or "", grounded=grounded)
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
         # 轮次标记只在平台助手的多轮对话上加（证明记忆生效）；
@@ -146,8 +186,12 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     history = history or []
     use_retrieval = adapter_type in RETRIEVAL_ADAPTERS if adapter_type else True
     skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    # grounded 只认「技能包明确挂了 RAG 适配器」这一种情况；
+    # 默认助手或没标 adapter_type 的旧业务包仍走原来的「片段仅作参考」口径，
+    # 避免为了查证类技能改提示词，把 115 个业务包的产出格式一起带歪。
+    grounded = skill and adapter_type in RETRIEVAL_ADAPTERS
     try:
-        app = build_graph(system_prompt, use_retrieval)
+        app = build_graph(system_prompt, use_retrieval, grounded=grounded)
         result = app.invoke({"input": user_input, "caller": caller, "history": history,
                              "file_ctx": file_context})
         citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]}
@@ -163,10 +207,11 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         # 骨架 stub：不依赖 LangGraph 也能演示「记忆→检索→生成」链路（LLM 接入见 model_gateway）
         query = session_store.rewritten_query(user_input, history) if use_retrieval else user_input
         hits, filtered = (knowledge.retrieve(query, caller, top_k=6) if use_retrieval else ([], 0))
-        ctx = "；".join(h["title"] for h in hits)
+        ctx = compose_evidence(hits) if use_retrieval else ""
         turn_no = 1 + sum(1 for t in history if t["role"] == "user")
         mem = session_store.build_context({"turns": history}, max_turns=2)
-        prompt = _compose_prompt(user_input, ctx, mem, skill, file_context)
+        prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
+                                 grounded=grounded)
         llm = _call_llm(prompt, system_prompt)
         answer = llm["text"]
         if not answer.startswith("[stub") and not skill:
