@@ -30,7 +30,7 @@ async def sso_callback(req: SsoCallbackRequest):
         "code": 0,
         "data": {
             "token": token,
-            "expires_in": 7200,
+            "expires_in": settings.DEV_TOKEN_TTL_S,
             "user": user,
             "device_bound": True,
             "need_stepup": False,

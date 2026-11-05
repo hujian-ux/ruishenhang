@@ -12,7 +12,12 @@ def get_caller(request: Request, x_caller_context: str | None = Header(default=N
     if caller is None and x_caller_context:
         caller = decode_caller_context(x_caller_context)
     if caller is None:
-        raise HTTPException(status_code=401, detail="unauthorized: missing caller context")
+        # 401 分两种原因，排障时差别很大：前端没带 token，还是 token 过期/验签失败。
+        # 之前统一报 missing caller context，看到这行根本判断不出该重新登录还是查请求头。
+        has_token = bool(request.headers.get("Authorization"))
+        detail = ("unauthorized: invalid or expired token" if has_token
+                  else "unauthorized: missing token (未携带 Authorization)")
+        raise HTTPException(status_code=401, detail=detail)
     return caller
 
 

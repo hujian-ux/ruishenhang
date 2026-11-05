@@ -34,3 +34,22 @@ export function getSession(): Session | null {
 export function clearSession(): void {
   localStorage.removeItem(KEY);
 }
+
+// 登录态是否已过期。前端也必须判：只靠后端 401 的话，用户会先看到一屏
+// "加载失败" 才知道自己掉线了（M21 就是这么被发现的）。
+// 两种 token 都解：dev token 是 `dev base64url(json).sig`，OIDC 是标准 JWT。
+export function sessionExpired(s: Session, skewSec = 60): boolean {
+  try {
+    const raw = s.idToken.startsWith("dev ")
+      ? s.idToken.slice(4).split(".")[0]
+      : s.idToken.split(".")[1];
+    if (!raw) return false; // 解不出来就别拦，交给后端判
+    const pad = raw.length % 4 ? "=".repeat(4 - (raw.length % 4)) : "";
+    const payload = JSON.parse(atob(raw.replace(/-/g, "+").replace(/_/g, "/") + pad));
+    const exp = Number(payload.exp || 0);
+    if (!exp) return false;
+    return exp - skewSec <= Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}

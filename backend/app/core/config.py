@@ -137,5 +137,10 @@ class Settings:
     OIDC_TENANT_CLAIM = _env("OIDC_TENANT_CLAIM", "")
     OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
 
+    # 演示/开发 token 有效期（秒）。默认 12 小时：默认 2 小时会让演示到一半
+    # 突然全线 401「missing caller context」，看不出是过期。
+    DEV_TOKEN_TTL_S = int(_env("DEV_TOKEN_TTL_S", "43200"))
+
+
 
 settings = Settings()

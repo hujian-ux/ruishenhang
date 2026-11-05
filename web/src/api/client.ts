@@ -1,4 +1,6 @@
 // 轻量 API 客户端：对接后端单体 /api/v1，自动携带 dev token（由 /auth/sso/callback 签发）
+import { getSession } from "../auth/session";
+
 const BASE = "/api/v1";
 
 let token = "";
@@ -7,15 +9,38 @@ export function setToken(t: string) {
   token = t;
 }
 
+const UNAUTHORIZED_EVENT = "wb-unauthorized";
+
+// 登录态不能只存内存：token 是模块级变量，Vite 热更新（或任何模块重载）会把它
+// 清空，而 main.tsx 不会跟着重跑。表现就是改完代码后每个请求都不带
+// Authorization，界面上一片 "unauthorized: missing caller context"。
+// 所以每次请求都从 localStorage 兜一次。
+function authToken(): string {
+  if (token) return token;
+  const t = getSession()?.idToken || "";
+  if (t) token = t;
+  return t;
+}
+
+function handle(res: Response, path: string) {
+  if (res.status === 401 && !path.startsWith("/auth/")) {
+    // 会话过期：通知上层清掉登录态回登录页，别让用户对着一堆"加载失败"猜原因
+    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    throw new Error("登录已过期，请重新登录");
+  }
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const t = authToken();
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: token } : {}),
+      ...(t ? { Authorization: t } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  handle(res, path);
   if (!res.ok) {
     let detail = `${res.status}`;
     try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
@@ -26,11 +51,13 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 // 文件上传走 multipart，不能带 Content-Type（浏览器自动补 boundary）
 async function uploadFile(path: string, form: FormData): Promise<any> {
+  const t = authToken();
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: token ? { Authorization: token } : {},
+    headers: t ? { Authorization: t } : {},
     body: form,
   });
+  handle(res, path);
   if (!res.ok) {
     let detail = `${res.status}`;
     try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }

@@ -6,11 +6,12 @@ import { buildAuthorizeUrl, pkceChallenge, randomString } from "../auth/oidc";
 import { setSession } from "../auth/session";
 
 // 登录页：对外产品第一屏。左侧讲清楚"这是什么、给谁用"，右侧只放登录动作。
-export function LoginPage() {
+// notice：掉线/过期回来时说明原因，别让用户以为自己点错了。
+export function LoginPage({ notice = "" }: { notice?: string }) {
   const cfg = useMemo(() => loadConfig(), []);
   const configured = isConfigured(cfg);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(notice);
   const [devBusy, setDevBusy] = useState(false);
 
   const oidcLogin = async () => {

@@ -33,7 +33,8 @@ _JWKS_TTL = 3600.0
 def create_dev_token(user_id: str, dept_id: str, role: str, tenant_id: str = "") -> str:
     """生成本地开发用 Bearer Token（明文 JSON + HMAC 签名）。仅用于 dev/test。"""
     tenant_id = tenant_id or settings.DEFAULT_TENANT
-    payload = {"u": user_id, "d": dept_id, "r": role, "t": tenant_id, "exp": int(time.time()) + 7200}
+    payload = {"u": user_id, "d": dept_id, "r": role, "t": tenant_id,
+               "exp": int(time.time()) + settings.DEV_TOKEN_TTL_S}
     raw = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
     sig = hmac.new(_SECRET, raw.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"dev {raw}.{sig}"
