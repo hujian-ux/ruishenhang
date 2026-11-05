@@ -46,9 +46,6 @@ const FORMATS: { key: string; label: string; ext: string }[] = [
   { key: "html", label: "网页", ext: "HTML" },
 ];
 
-// 欢迎页的推荐位：按真实使用频次排，不按目录顺序（办公角色 62 个是客户最先用起来的）
-const FEATURED = ["费用异常波动分析", "报销单合规预审", "周报月报自动化", "合同条款确认"];
-
 const ICONS = ["◑", "◧", "◔", "◩", "◐", "◨"];
 
 function kb(n: number) {
@@ -111,20 +108,30 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   });
   const [skillPop, setSkillPop] = useState(false);
   const [fmtPop, setFmtPop] = useState(false);
+  // 用户手动改过格式后，选技能包就不再替他改（否则会"我明明选了 PDF，它给我改回 Word"）
+  const [fmtTouched, setFmtTouched] = useState(false);
   const [q, setQ] = useState("");
 
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
+  // 技能清单跟着岗位走：选完岗位只拉本岗 + 公共库 + 通用助手。
+  // 之前拉全量 115 个，用户在「换一个」里能看到别的岗位的包，等于岗位没边界。
   useEffect(() => {
-    api.listAgents().then((r) => {
+    let alive = true;
+    api.listAgents(roleId || undefined).then((r) => {
+      if (!alive) return;
       const list = (r.data.agents || []).filter((a: any) => a.status === "published");
       setAgents(list);
-      // 默认落在内置通用助手：打开就能问，不必先挑技能包
-      setAgentId((cur) => cur || list.find((a: any) => a.builtin)?.agent_id || list[0]?.agent_id || "");
-    }).catch(() => setAgents([]));
-  }, []);
+      setAgentId((cur) => {
+        // 当前选的技能不在新岗位范围内 → 退回通用助手，避免"选了财务却在跑选品"
+        if (cur && list.some((a: any) => a.agent_id === cur)) return cur;
+        return list.find((a: any) => a.builtin)?.agent_id || list[0]?.agent_id || "";
+      });
+    }).catch(() => { if (alive) setAgents([]); });
+    return () => { alive = false; };
+  }, [roleId]);
 
   // 岗位目录只拉一次：11 个岗位 + 各自数量，用来渲染选择器
   useEffect(() => {
@@ -163,25 +170,41 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
     return agents.filter((a) => `${a.name}${a.description || ""}`.toLowerCase().includes(k));
   }, [agents, q]);
 
-  // 推荐位优先用「该岗位的核心技能」；没选岗位或后端没返回时才退到通用推荐
+  // 推荐位只用「该岗位的核心技能」；不再拿全量列表补位——那会把别的岗位的包摆到眼前，
+  // 选财务却推荐"AI选品机会发现"，用户会以为这系统乱推。
   const featured = useMemo(() => {
-    const names: string[] = ws?.core?.length ? ws.core.map((a: any) => a.name) : FEATURED;
+    const names: string[] = (ws?.core || []).map((a: any) => a.name);
+    const pool = agents.filter((a) => !a.builtin && !a.public);
     const out: any[] = [];
     for (const n of names) {
-      const hit = agents.find((a) => a.name === n);
+      const hit = pool.find((a) => a.name === n);
       if (hit && !out.includes(hit)) out.push(hit);
     }
-    for (const a of agents) {
-      if (out.length >= 4) break;
-      if (!out.includes(a) && !a.builtin) out.push(a);
-    }
+    if (!out.length) out.push(...pool.slice(0, 4));
     return out.slice(0, 4);
+  }, [agents, ws]);
+
+  // 公共库快捷入口：优先露"每天都要用"的三个（文案/PPT/表格）+ 会议纪要，
+  // 不按入库顺序取前 4 个——那样会摆出"制度起草"，而表格反而看不见。
+  const pubPicks = useMemo(() => {
+    const src: any[] = (ws?.public?.length ? ws.public : agents.filter((a) => a.public));
+    const first = ["文案生成", "PPT 制作", "表格制作", "会议纪要"];
+    const out = first.map((n) => src.find((a) => a.name === n)).filter(Boolean) as any[];
+    for (const a of src) {
+      if (out.length >= 4) break;
+      if (!out.some((x) => x.agent_id === a.agent_id)) out.push(a);
+    }
+    return out;
   }, [agents, ws]);
 
   // 点卡片必须立刻看得见结果：选中态 + 光标进输入框。之前只 setAgentId，
   // 页面上唯一变化是输入区按钮那串小字，用户会以为点了没反应。
   const pickSkill = (id: string) => {
     setAgentId(id);
+    // 技能包自带建议产出（表格类出 Excel、PPT 类出 PPTX）。用户没手动改过就跟着走，
+    // 省掉"选完还要再去设一次格式"这一步。
+    const hit = agents.find((a) => a.agent_id === id);
+    if (!fmtTouched && hit?.default_format) setFormats([hit.default_format]);
     setSkillPop(false);
     setQ("");
     requestAnimationFrame(() => taRef.current?.focus());
@@ -285,7 +308,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             ) : activeRole ? (
               <p className="lead">
                 {activeRole.name}岗已配好 {ws?.core?.length || featured.length} 个常用技能：
-                选一张卡，再说一句要处理什么，就开工；也可以直接上传台账、报表，用大白话描述。
+                选一张卡，再说一句要处理什么，就开工。公共库的文案、PPT、表格不分岗位，随时可用。
               </p>
             ) : null}
 
@@ -313,6 +336,25 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                   })}
                 </div>
 
+                <div className="w-pub">
+                  <span className="w-pub-t">公共库</span>
+                  {pubPicks.map((a: any) => (
+                    <span key={a.agent_id}
+                          className={"w-pub-i" + (agentId === a.agent_id ? " on" : "")}
+                          role="button" tabIndex={0}
+                          onClick={() => pickSkill(a.agent_id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickSkill(a.agent_id); }
+                          }}>
+                      {a.name}
+                    </span>
+                  ))}
+                  <span className="w-pub-more"
+                        onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
+                    全部 {ws?.public?.length || pubPicks.length} 个 →
+                  </span>
+                </div>
+
                 <span className="w-all" onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
                   浏览{activeRole.name}全部 {ws?.count ?? 0} 个技能包 →
                 </span>
@@ -321,7 +363,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
 
             {!activeRole && (
               <span className="w-all" onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
-                不选岗位也能用，先看看全部 {Math.max(0, agents.filter((a) => !a.builtin).length)} 个技能包 →
+                不选岗位也能用公共库（文案 / PPT / 表格），先看看 →
               </span>
             )}
           </div>
@@ -474,12 +516,18 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             <div className="pop" onClick={(e) => e.stopPropagation()}>
               <div className="pop-in">
                 <input autoFocus placeholder="搜索技能包…" value={q} onChange={(e) => setQ(e.target.value)} />
+                <div className="hint" style={{ padding: "2px 6px 6px", fontSize: 11.5 }}>
+                  {activeRole
+                    ? `只列${activeRole.name}岗 + 公共库，别的岗位不在这里`
+                    : "还没选岗位，先看公共库"}
+                </div>
                 <div className="pop-list">
                   {filtered.length === 0 && <div className="pop-empty">没有匹配的技能包</div>}
                   {filtered.map((a) => (
                     <div key={a.agent_id} className="pop-item"
                          onClick={() => pickSkill(a.agent_id)}>
                       <b>{a.name}</b>
+                      {a.public && <span className="pop-pub">公共</span>}
                       <span>{a.adapter_type === "llm_retrieval" ? "查制度" : a.adapter_type === "rule" ? "规则" : "生成"}</span>
                       {a.agent_id === agentId && <span style={{ color: "var(--blue)" }}>✓</span>}
                     </div>
@@ -497,9 +545,9 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                   const on = formats.includes(f.key);
                   return (
                     <div key={f.key} className="fmt-item"
-                         onClick={() => setFormats((s) => (
+                         onClick={() => { setFmtTouched(true); setFormats((s) => (
                            s.includes(f.key) ? (s.length > 1 ? s.filter((x) => x !== f.key) : s)
-                                             : [...s, f.key]))}>
+                                             : [...s, f.key])); }}>
                       <span style={{ width: 14, color: on ? "var(--blue)" : "#c9c9c2" }}>{on ? "✓" : "○"}</span>
                       {f.label}
                       <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--muted)", fontFamily: "var(--mono)" }}>

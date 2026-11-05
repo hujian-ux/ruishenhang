@@ -96,16 +96,23 @@ export const api = {
     req<any>("POST", "/selection/recommend", {
       input_type: inputType, deterministic, need,
     }),
-  listAgents: () => req<{ code: number; data: { agents: any[] } }>("GET", "/agents"),
+  // role 传了就只回本岗 + 公共库 + 通用助手（岗位边界的服务端保障）
+  listAgents: (role?: string) =>
+    req<{ code: number; data: { agents: any[] } }>(
+      "GET", "/agents" + (role ? `?role=${encodeURIComponent(role)}` : "")),
   // ── M15 技能包融合：分类目录 + 批量导入 ──
-  getAgentCatalog: () => req<{
+  getAgentCatalog: (role?: string) => req<{
     code: number;
-    data: { categories: any[]; roles: any[]; total: number; role_total: number };
-  }>("GET", "/agents/catalog"),
+    data: {
+      categories: any[]; roles: any[]; public: any[]; public_groups: any[];
+      total: number; role_total: number; public_total: number;
+    };
+  }>("GET", "/agents/catalog" + (role ? `?role=${encodeURIComponent(role)}` : "")),
   // M19 职业工作台：不传 role 返回职业目录；传了返回该岗位的 core + 全部
-  getRoles: () => req<{ code: number; data: { roles: any[]; total: number } }>("GET", "/agents/roles"),
+  getRoles: () => req<{ code: number; data: { roles: any[]; total: number; public: any[] } }>(
+    "GET", "/agents/roles"),
   getRoleWorkspace: (role: string) =>
-    req<{ code: number; data: { role: any; count: number; core: any[]; rest: any[] } }>(
+    req<{ code: number; data: { role: any; count: number; core: any[]; rest: any[]; public: any[] } }>(
       "GET", `/agents/roles?role=${encodeURIComponent(role)}`),
   importAgents: (body: { items: any[]; batch_name?: string; batch_approval?: boolean }) =>
     req<any>("POST", "/agents/import", body),

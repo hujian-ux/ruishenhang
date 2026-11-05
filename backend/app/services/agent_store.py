@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from app.services import pg_store, role_map
+from app.services import pg_store, public_skills, role_map
 
 _TABLE = "agents"
 
@@ -57,6 +57,37 @@ def ensure_builtin_assistant() -> Dict[str, Any]:
         # 留空表示不覆盖运行时默认提示词（agent_runtime.SYSTEM_PROMPT）
         "system_prompt": "",
     })
+
+
+def ensure_public_skills() -> int:
+    """幂等预置公共库（办公基础技能）。返回本次写入条数。
+
+    和内置通用助手的区别：
+    - 通用助手 = 空白页，什么都能聊，没有干法约束；
+    - 公共库 = 有明确干法和产出格式的手册（文案/PPT/表格/纪要…），跟岗位无关。
+
+    每次启动都按代码刷新内容：公共库是**平台资产**，改了提示词就该全租户一致。
+    只刷新内容字段，不动 status（管理员临时下架不该被启动流程覆盖）。
+    """
+    n = 0
+    for a in public_skills.build_agents():
+        cur = _AGENTS.get(a["agent_id"])
+        if cur:
+            for k in ("name", "description", "system_prompt", "tags", "sub_function",
+                      "default_format", "sort", "category", "category_cn"):
+                cur[k] = a[k]
+            cur.setdefault("status", "published")
+            cur.setdefault("knowledge_scope", "global")
+            save(cur)
+        else:
+            save(a)
+        n += 1
+    return n
+
+
+def is_public(agent: Dict[str, Any]) -> bool:
+    """公共库条目：不是业务技能包，不进 115 口径，也不挂职业标签。"""
+    return bool(agent.get("public")) or agent.get("category") == "public"
 
 
 # 技能包字段（会被原样保留并在列表接口回显）
@@ -120,19 +151,46 @@ def list_all(caller, include_all: bool = False) -> List[Dict[str, Any]]:
     return sorted(rows, key=lambda a: (a.get("category") or "", a.get("name") or ""))
 
 
-def catalog(caller) -> Dict[str, Any]:
-    """双视角目录：按 行业（categories） + 按 职业（roles）。
+def brief(a: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "agent_id": a["agent_id"], "name": a.get("name"),
+        "status": a.get("status"), "adapter_type": a.get("adapter_type"),
+        "description": (a.get("description") or "")[:120],
+        "tags": a.get("tags") or [],
+        "sub_function": a.get("sub_function") or "",
+        "default_format": a.get("default_format") or "",
+    }
+
+
+def filter_role(rows: List[Dict[str, Any]], role: str) -> List[Dict[str, Any]]:
+    """按岗位收窄可见清单：本岗业务包 + 公共库 + 通用助手。
+
+    「选完岗位只看到自己的技能和公共库」的落点。注意这是**视图过滤不是权限**：
+    权限仍由 _visible（RBAC）决定，岗位只决定在这个人面前先摆哪些。
+    主职业唯一，避免一个包在多个岗位重复出现、各岗数字加起来大于 115。
+    """
+    if not role:
+        return rows
+    return [a for a in rows
+            if is_public(a) or a.get("builtin") or a.get("role_primary") == role]
+
+
+def catalog(caller, role: str = "") -> Dict[str, Any]:
+    """双视角目录：按 行业（categories） + 按 职业（roles） + 公共库（public）。
 
     M19 起前端默认走职业视角（员工按岗位找工具），行业视角保留给老板/售前。
     注意：kind（industry/office）粒度太粗，制造业/零售/跨境电商共用 industry，
     若只按 kind 分组会把三个行业并成一个。故分组键用 category_cn（行业名），
     无 category_cn 时回退 kind。
+
+    M22：公共库单独成块，**不进 categories 也不进 total**——否则 115 口径会被
+    9 个办公基础技能污染，客户对不上数。传 role 时只回本岗 + 公共库。
     """
-    rows = list_all(caller)
+    rows = filter_role(list_all(caller), role)
     tree: Dict[str, Dict[str, Any]] = {}
     for a in rows:
-        # 内置通用助手不是业务技能包，不进技能库目录（否则 115 会变成 116，口径乱）
-        if a.get("builtin"):
+        # 内置通用助手与公共库都不是业务技能包，不进行业目录（否则 115 → 125，口径乱）
+        if a.get("builtin") or is_public(a):
             continue
         cat_cn = a.get("category_cn") or a.get("category") or "未分类"
         key = cat_cn
@@ -159,12 +217,17 @@ def catalog(caller) -> Dict[str, Any]:
                 for s, g in sorted(v["groups"].items())
             ],
         })
+    public = [ brief(a) for a in sorted(
+        (a for a in rows if is_public(a)), key=lambda a: a.get("sort", 99)) ]
     roles = role_map.catalog(rows)
     return {
         "categories": cats,
         "roles": roles,
+        "public": public,
+        "public_groups": public_skills.groups(),
         "total": sum(c["count"] for c in cats),
         "role_total": sum(r["count"] for r in roles),
+        "public_total": len(public),
     }
 
 

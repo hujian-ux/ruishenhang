@@ -80,6 +80,8 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
   const [railOpen, setRailOpen] = useState(false);
   const [roleId] = useRole();
   const [roleList, setRoleList] = useState<any[]>([]);
+  // 公共库条数：侧栏"技能库"显示的是本岗 + 公共库，不是全公司 115
+  const [pubCount, setPubCount] = useState(0);
 
   const isAdmin = session.user.role === "platform_admin" || session.user.role === "dept_admin";
   const initial = (session.user.name || "用户").trim().slice(0, 1);
@@ -102,7 +104,10 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
   }, [chatKey]);
 
   useEffect(() => {
-    api.getRoles().then((r) => setRoleList(r.data.roles || [])).catch(() => setRoleList([]));
+    api.getRoles().then((r) => {
+      setRoleList(r.data.roles || []);
+      setPubCount((r.data.public || []).length);
+    }).catch(() => setRoleList([]));
   }, []);
 
   const myRole = roleList.find((r) => r.id === roleId);
@@ -185,7 +190,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
           <div className="rail-logo">睿</div>
           <div>
             <b>睿深行 AI 工作台</b>
-            <i>企业智能体 · 115 个技能包</i>
+            <i>{isAdmin ? "企业智能体 · 115 个技能包" : "企业智能体 · 岗位工作台"}</i>
           </div>
         </div>
 
@@ -233,8 +238,10 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
             )}
           </div>
           <div className="rail-link" onClick={() => { setView("skills"); setRailOpen(false); }}>
-            <span style={{ fontSize: 13 }}>◈</span> 全部技能包
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>115</span>
+            <span style={{ fontSize: 13 }}>◈</span> 技能库
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>
+              {myRole ? myRole.count + pubCount : "—"}
+            </span>
           </div>
           {isAdmin && (
             <div className="rail-link" onClick={() => { setView("admin"); setRailOpen(false); }}>

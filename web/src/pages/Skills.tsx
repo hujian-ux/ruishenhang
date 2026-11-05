@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
+import { getSession } from "../auth/session";
+import { RoleChip, RoleGrid, type Role as RoleBase } from "../components/RolePicker";
 import { useRole } from "../role";
 
 type Agent = {
@@ -10,6 +12,8 @@ type Agent = {
   description?: string;
   tags?: string[];
   core?: boolean;
+  sub_function?: string;
+  default_format?: string;
 };
 
 type Cat = {
@@ -19,16 +23,8 @@ type Cat = {
   groups: { sub_function: string; count: number; agents: Agent[] }[];
 };
 
-type Role = {
-  id: string;
-  name: string;
-  initial: string;
-  desc: string;
-  color: string;
-  count: number;
-  core_count: number;
-  agents: Agent[];
-};
+// 岗位节点比选择器里的 Role 多一截：带本岗全部包，技能库直接渲染
+type Role = RoleBase & { count: number; core_count: number; agents: Agent[] };
 
 const ADAPTER_LABEL: Record<string, string> = {
   llm: "生成",
@@ -38,10 +34,23 @@ const ADAPTER_LABEL: Record<string, string> = {
   ml_llm_retrieval: "混合",
 };
 
-function SkillCard({ a, onUse, highlight }: { a: Agent; onUse?: (a: Agent) => void; highlight?: boolean }) {
+const FORMAT_LABEL: Record<string, string> = {
+  docx: "Word", pptx: "PPT", xlsx: "Excel", pdf: "PDF", html: "网页",
+};
+
+function SkillCard({ a, onUse, highlight, kind }: {
+  a: Agent; onUse?: (a: Agent) => void; highlight?: boolean;
+  // func = 显示职能（财务/销售），岗位视图用；industry = 显示行业（制造业/办公角色），行业视图用
+  kind?: "func" | "industry";
+}) {
   const clickable = a.status === "published";
-  // 岗位视图下不要再显示「办公角色 / 财务」——岗位已经在页面顶部选中了，重复且会让人以为还有别的维度
-  const tags = (a as any).category_cn ? [(a as any).category_cn] : (a.tags || []);
+  const isPub = !!(a as any).public || (a as any).category_cn === "公共库";
+  // 岗位视图下不要再显示「办公角色 / 财务」——岗位已经在页面顶部选中了，重复且会让人以为还有别的维度。
+  // 公共库同理，改显示它属于哪一组（写作/演示/表格…），比再写一遍"公共库"有用。
+  // 岗位视图里挂行业标签（制造业/跨境电商）是噪音：我在财务岗，为什么要知道这个包原属制造业？
+  const tags = (isPub || kind === "func")
+    ? [a.sub_function || ""].filter(Boolean)
+    : (a as any).category_cn ? [(a as any).category_cn] : (a.tags || []);
   return (
     <div
       onClick={() => clickable && onUse?.(a)}
@@ -78,6 +87,12 @@ function SkillCard({ a, onUse, highlight }: { a: Agent; onUse?: (a: Agent) => vo
           <span key={t} style={{ fontSize: 10.5, color: "var(--muted)", background: "#f6f6f2",
                                  borderRadius: 5, padding: "1px 6px" }}>{t}</span>
         ))}
+        {a.default_format && (
+          <span style={{ fontSize: 10.5, color: "var(--blue)", background: "var(--blue-l)",
+                         borderRadius: 5, padding: "1px 6px" }}>
+            出 {FORMAT_LABEL[a.default_format] || a.default_format}
+          </span>
+        )}
         {a.status !== "published" && (
           <span style={{ fontSize: 10.5, color: "var(--warn)", background: "#fffbf0",
                          borderRadius: 5, padding: "1px 6px" }}>待评审</span>
@@ -92,26 +107,47 @@ const GRID = { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(26
 // 比 3+1 的残行整齐；卡片也更大，视觉上把"先配这几个"和下面的"其他 13 个"分开。
 const GRID_CORE = { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(420px,1fr))", gap: 10 };
 
+function Section({ title, note, right }: { title: string; note?: string; right?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "22px 0 10px" }}>
+      <b style={{ fontSize: 13.5, fontWeight: 550, color: "var(--ink-2)" }}>{title}</b>
+      {note && <span className="hint" style={{ fontSize: 12 }}>{note}</span>}
+      <span style={{ flex: 1 }} />
+      {right && <span className="hint" style={{ fontSize: 12 }}>{right}</span>}
+    </div>
+  );
+}
+
 export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
   const [cats, setCats] = useState<Cat[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [pub, setPub] = useState<Agent[]>([]);
   const [total, setTotal] = useState(0);
   // ?mode=industry 直落行业视图（给培训/演示一条链接就能到指定视图）
-  const [mode, setMode] = useState<"role" | "industry">(
-    () => (new URLSearchParams(window.location.search).get("mode") === "industry" ? "industry" : "role"),
+  const [mode, setMode] = useState<"role" | "public" | "industry">(
+    () => {
+      const m = new URLSearchParams(window.location.search).get("mode");
+      return m === "industry" || m === "public" ? m : "role";
+    },
   );
   const [roleId, setRoleId] = useRole();
+  const [picking, setPicking] = useState(false);
   const [activeCat, setActiveCat] = useState("全部");
   const [activeSub, setActiveSub] = useState("全部");
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // 行业视角是给老板/售前看全公司资产的，普通员工默认没有这个视图：
+  // 岗位是边界，不是筛选器——员工不该顺手点开别人的 115 个包。
+  const isAdmin = (getSession()?.user?.role || "") === "platform_admin";
+
   useEffect(() => {
     api.getAgentCatalog()
       .then((r) => {
         setCats(r.data.categories || []);
         setRoles(r.data.roles || []);
+        setPub(r.data.public || []);
         setTotal(r.data.total || 0);
         setErr("");
       })
@@ -119,14 +155,12 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // 没选过岗位就落在第一个（财务/人事这类通用岗），避免进来是空白
-  const cur = useMemo(
-    () => roles.find((r) => r.id === roleId) || roles[0],
-    [roles, roleId],
-  );
+  // 没选岗位时不默认落到某个岗（那等于替用户做了决定，还会让他看到别人的包）
+  const cur = useMemo(() => roles.find((r) => r.id === roleId), [roles, roleId]);
+  const needPick = !cur;
 
   const match = (a: Agent) =>
-    !q || `${a.name}${a.description || ""}`.toLowerCase().includes(q.trim().toLowerCase());
+    !q || `${a.name}${a.description || ""}${a.sub_function || ""}`.toLowerCase().includes(q.trim().toLowerCase());
 
   const roleCore = useMemo(() => (cur?.agents || []).filter((a) => a.core && match(a)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,6 +168,17 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
   const roleRest = useMemo(() => (cur?.agents || []).filter((a) => !a.core && match(a)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cur, q]);
+
+  const pubList = useMemo(() => pub.filter(match),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pub, q]);
+
+  // 岗位页底部的公共库分组：按 写作/演示/表格/沟通/阅读 归堆，最多显示 6 个
+  const pubGroups = useMemo(() => {
+    const g: Record<string, Agent[]> = {};
+    for (const a of pub) (g[a.sub_function || "其他"] ||= []).push(a);
+    return g;
+  }, [pub]);
 
   const subs = useMemo(() => {
     const c = cats.find((x) => x.category_cn === activeCat);
@@ -156,22 +201,30 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cats, activeCat, activeSub, q]);
 
+  const tabs: [typeof mode, string][] = [
+    ["role", "我的岗位"],
+    ["public", "公共库"],
+    ...(isAdmin ? [["industry", "按行业"] as [typeof mode, string]] : []),
+  ];
+
   return (
     <>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-.4px" }}>
           技能库
           <span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)", marginLeft: 8 }}>
-            {total} 个业务技能包 · {roles.length} 个岗位
+            {cur ? `${cur.name}岗 ${cur.count} 个` : "还没选岗位"} · 公共库 {pub.length} 个
           </span>
         </h1>
-        <div className="hint">每张卡片都是一套完整的执行手册：输入契约 → 工作流程 → 产出契约 → 硬规则。点开即用。</div>
+        <div className="hint">
+          每张卡片都是一套完整的执行手册。你只看得到本岗位和公共库——别的岗位不在这里，避免挑花眼。
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ display: "inline-flex", border: "1px solid var(--line)", borderRadius: 9,
                       overflow: "hidden", background: "#fff" }}>
-          {([["role", "按岗位"], ["industry", "按行业"]] as const).map(([k, label]) => (
+          {tabs.map(([k, label]) => (
             <div key={k} onClick={() => setMode(k)}
                  style={{ padding: "7px 14px", fontSize: 12.5, cursor: "pointer",
                           background: mode === k ? "var(--ink)" : "#fff",
@@ -195,79 +248,114 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
       {/* 空态必须说人话：技能库空白时用户会以为是系统坏了，
           实际多半是包没导入 / 没审批发布 / 账号不在可见范围。 */}
       {!loading && !err && total === 0 && (
-        <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "34px 24px",
-                      background: "#fcfcfa", textAlign: "center" }}>
+        <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "30px 24px",
+                      background: "#fcfcfa", textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 550, color: "var(--ink)", marginBottom: 6 }}>
-            当前身份看不到技能包
+            当前身份看不到业务技能包
           </div>
-          <div className="hint" style={{ maxWidth: 460, margin: "0 auto", lineHeight: 1.75 }}>
+          <div className="hint" style={{ maxWidth: 480, margin: "0 auto", lineHeight: 1.75 }}>
             常见三种原因：技能包还没导入；导入了但未在「审批台」通过；或者你的账号不在包的可见范围内。
-            找管理员确认这三点即可。
+            公共库不受影响，下面是平台自带的通用能力。
           </div>
         </div>
       )}
 
-      {mode === "role" && total > 0 && (
+      {/* ── 我的岗位 ───────────────────────────────────────────────── */}
+      {mode === "role" && (
         <>
-          {/* 岗位横排：11 个一屏看全，带数量，方便判断哪个岗装得多 */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
-            {roles.map((r) => {
-              const on = cur?.id === r.id;
-              return (
-                <div key={r.id} onClick={() => setRoleId(r.id)}
-                     title={r.desc}
-                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px 5px 5px",
-                              borderRadius: 999, cursor: "pointer", fontSize: 12.5,
-                              border: `1px solid ${on ? "var(--ink)" : "var(--line)"}`,
-                              background: on ? "var(--ink)" : "#fff",
-                              color: on ? "#fff" : "var(--ink-2)" }}>
-                  <span className="role-ini" style={{ background: on ? "rgba(255,255,255,.22)" : r.color }}>
-                    {r.initial}
-                  </span>
-                  {r.name}
-                  <span style={{ fontSize: 11, opacity: .62, marginLeft: 1 }}>{r.count}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {cur && (
-            <>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
-                <b style={{ fontSize: 14, fontWeight: 600 }}>{cur.name}岗 · 开箱即用</b>
-                <span className="hint" style={{ fontSize: 12 }}>{cur.desc}</span>
-                <span className="grow" style={{ flex: 1 }} />
-                <span className="hint" style={{ fontSize: 12 }}>{cur.core_count} 个默认配置</span>
+          {needPick ? (
+            <div className="role-pick" style={{ marginTop: 4 }}>
+              <h4>先认一下你的岗位</h4>
+              <div className="hint">
+                选完这里只显示该岗位的技能包，加上公共库的办公基础技能。不确定就随便选，随时能换。
               </div>
+              <RoleGrid roles={roles} value={roleId} onChange={(id) => setRoleId(id)} />
+              {roles.length === 0 && !loading && (
+                <div className="hint">还没有可选岗位——通常是技能包还没导入。</div>
+              )}
+              {/* 没选岗位不该是死路：公共库不依赖岗位，直接给入口 */}
+              {pub.length > 0 && (
+                <div className="w-all" style={{ marginTop: 14 }} onClick={() => setMode("public")}>
+                  不急着选，先用公共库的文案、PPT、表格 →
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                <RoleChip role={cur!} onClick={() => setPicking((v) => !v)} title="点击换岗位" />
+                <span className="hint" style={{ fontSize: 12 }}>{cur!.desc}</span>
+              </div>
+
+              {picking && (
+                <div style={{ margin: "10px 0 6px" }}>
+                  <RoleGrid roles={roles} value={roleId}
+                            onChange={(id) => { setRoleId(id); setPicking(false); }} />
+                </div>
+              )}
+
+              <Section title={`${cur!.name}岗 · 开箱即用`} note="不用挑，直接开工"
+                       right={`${cur!.core_count ?? roleCore.length} 个默认配置`} />
               <div style={GRID_CORE}>
-                {roleCore.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} highlight />)}
+                {roleCore.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} highlight kind="func" />)}
               </div>
 
               {roleRest.length > 0 && (
                 <>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "22px 0 10px" }}>
-                    <b style={{ fontSize: 13.5, fontWeight: 550, color: "var(--ink-2)" }}>
-                      {cur.name}岗 · 其他 {roleRest.length} 个
-                    </b>
-                    <span className="hint" style={{ fontSize: 12 }}>用到再点，不必先配</span>
-                  </div>
+                  <Section title={`${cur!.name}岗 · 其他 ${roleRest.length} 个`} note="用到再点，不必先配" />
                   <div style={GRID}>
-                    {roleRest.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
+                    {roleRest.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} kind="func" />)}
                   </div>
                 </>
               )}
 
               {roleCore.length + roleRest.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--muted)", fontSize: 13 }}>
-                  没有匹配的技能包
+                <div style={{ textAlign: "center", padding: "30px 0", color: "var(--muted)", fontSize: 13 }}>
+                  该岗位没有匹配的技能包
                 </div>
               )}
+
+              {/* 岗位页也要能看见公共库：文案/PPT/表格是每天都要用的，
+                  让人为了写个通知先切 tab，是没必要的摩擦。 */}
+              <Section title={`公共库 · ${pub.length} 个办公基础技能`}
+                       note="跟岗位无关，谁都能用"
+                       right="在「公共库」页看全部" />
+              <div style={GRID}>
+                {pub.slice(0, 6).map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
+              </div>
             </>
           )}
         </>
       )}
 
-      {mode === "industry" && (
+      {/* ── 公共库 ─────────────────────────────────────────────────── */}
+      {mode === "public" && (
+        <>
+          <div className="hint" style={{ marginBottom: 4 }}>
+            平台自带的办公基础能力：写、讲、算、沟通、读文件。不需要选岗位，也不会占用业务技能包名额。
+          </div>
+          {Object.entries(pubGroups).map(([g, list]) => {
+            const shown = list.filter(match);
+            if (!shown.length) return null;
+            return (
+              <div key={g}>
+                <Section title={g} note={`${shown.length} 个`} />
+                <div style={GRID}>
+                  {shown.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
+                </div>
+              </div>
+            );
+          })}
+          {!loading && pubList.length === 0 && (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--muted)", fontSize: 13 }}>
+              公共库还没预置——重启服务会自动补齐
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 按行业（仅管理员） ──────────────────────────────────────── */}
+      {mode === "industry" && isAdmin && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
             {["全部", ...cats.map((c) => c.category_cn)].map((c) => (

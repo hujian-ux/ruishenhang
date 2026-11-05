@@ -228,6 +228,9 @@ def annotate(agent: Dict) -> Dict:
     挂在 agent_store.save 上，使 import / register / 脚本直连三种入口都自动带上，
     不需要每个调用方各写一遍。
     """
+    # 公共库不挂职业标签：文案/PPT/表格是每个岗位的活，挂给谁都会让计数重复
+    if agent.get("public") or agent.get("category") == "public":
+        return agent
     if "role_tags" not in agent:
         roles = roles_for(agent.get("name", ""), agent.get("sub_function") or "",
                           agent.get("category_cn") or "")
@@ -264,7 +267,8 @@ def catalog(agents: List[Dict]) -> List[Dict]:
     """
     bucket: Dict[str, List[Dict]] = {r["id"]: [] for r in ROLES}
     for a in agents:
-        if a.get("builtin"):
+        # 内置通用助手与公共库（办公基础技能）都不是业务技能包，不进 115 口径
+        if a.get("builtin") or a.get("public") or a.get("category") == "public":
             continue
         rid = a.get("role_primary") or primary_role(
             a.get("name", ""), a.get("sub_function", ""), a.get("category_cn", ""))

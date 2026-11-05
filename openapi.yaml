@@ -517,6 +517,33 @@ paths:
                   registered_by: "u_1024"
         '403':
           $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [agent]
+      operationId: listAgents
+      summary: 智能体清单（可按岗位 / 分类 / 状态过滤）
+      description: >
+        按可见域（RBAC）返回智能体。传 `role` 时按岗位收窄：只回本岗业务包 + 公共库 +
+        内置通用助手——这是"选完岗位只看到自己的技能和公共库"的服务端落点。
+        岗位是**视图过滤，不是权限**：可见范围仍由 RBAC 决定，岗位只决定先摆哪些。
+      parameters:
+        - $ref: '#/components/parameters/CallerContext'
+        - name: role
+          in: query
+          required: false
+          schema: { type: string }
+          description: 岗位 id 或中文名（如 finance / 财务）
+        - name: category
+          in: query
+          required: false
+          schema: { type: string, enum: [industry, office, public] }
+          description: 行业类 / 办公角色 / 公共库
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [pending_review, published, rejected] }
+      responses:
+        '200':
+          description: 智能体清单（agents / count / status_stats）
   /agents/import:
     post:
       tags: [agent]
@@ -555,17 +582,25 @@ paths:
     get:
       tags: [agent]
       operationId: agentCatalog
-      summary: 技能包分类目录（职业 + 行业 双视角）
+      summary: 技能包分类目录（职业 + 行业 + 公共库）
       description: >
-        返回两套目录：`roles` 按职业（财务/人事/销售/行政/采购供应链/生产计划/品质工程/
+        返回三套目录：`roles` 按职业（财务/人事/销售/行政/采购供应链/生产计划/品质工程/
         市场运营/电商运营/客服/管理者）分组，`categories` 按行业（制造业/零售/跨境电商/
-        办公角色）分组。前端默认展示职业视角——员工按岗位找工具，不按行业找。
-        仅返回当前身份可见的智能体。内置通用助手不计入两套口径。
+        办公角色）分组，`public` 为公共库（文案生成 / PPT 制作 / 表格制作等 10 个办公基础
+        技能，跟岗位无关）。前端默认展示职业视角——员工按岗位找工具，不按行业找。
+        仅返回当前身份可见的智能体。内置通用助手与公共库均不计入 `total` / `role_total`
+        的业务口径（115 个技能包保持 115）。
+        传 `role` 时按岗位收窄：只回本岗业务包 + 公共库。
       parameters:
         - $ref: '#/components/parameters/CallerContext'
+        - name: role
+          in: query
+          required: false
+          schema: { type: string }
+          description: 岗位 id 或中文名（如 finance / 财务）；传了只回本岗 + 公共库
       responses:
         '200':
-          description: 分类目录
+          description: 分类目录（categories / roles / public / total / role_total / public_total）
   /agents/roles:
     get:
       tags: [agent]
@@ -577,6 +612,7 @@ paths:
         `core` 为 4 个开箱即用的默认配置（按岗位最高频场景排序），`rest` 为其余可选扩展。
         同一技能包可挂多个岗位（如「对账与开票核对」既属制造业也属财务），
         但主职业唯一，故各岗位计数之和等于技能包总数。
+        两份响应都附 `public`（公共库 10 个办公基础技能）：岗位工作台 = 本岗技能 + 公共库。
       parameters:
         - $ref: '#/components/parameters/CallerContext'
         - name: role

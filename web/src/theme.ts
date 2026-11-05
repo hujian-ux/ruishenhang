@@ -133,6 +133,16 @@ button{font-family:inherit}
   -webkit-box-orient:vertical;overflow:hidden;line-height:1.55}
 .w-all{font-size:12.5px;color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .w-all:hover{text-decoration:underline}
+/* 公共库快捷行：夹在推荐卡和"浏览全部"之间，不抢主区注意力 */
+.w-pub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.w-pub-t{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.w-pub-i{font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;
+  background:#fff;cursor:pointer;color:var(--ink-2);transition:.14s;white-space:nowrap}
+.w-pub-i:hover{border-color:#cfcfc8;color:var(--ink)}
+.w-pub-i.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.w-pub-more{font-size:11.5px;color:var(--muted);cursor:pointer}
+.w-pub-more:hover{color:var(--ink);text-decoration:underline}
+.pop-pub{font-size:10px;color:var(--blue);background:var(--blue-l);border-radius:4px;padding:0 5px}
 
 /* 点卡后的"已选"态：没有它，用户点完只在下方小字里能看到变化，会以为点不动 */
 .w-card{position:relative}

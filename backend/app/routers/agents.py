@@ -156,12 +156,19 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
 
 
 @router.get("/catalog")
-async def agent_catalog(caller: CallerContext = Depends(get_caller)):
-    """双视角目录：categories（按行业）+ roles（按职业）。
+async def agent_catalog(
+    role: str = Query("", description="岗位 id 或中文名；传了只回本岗 + 公共库"),
+    caller: CallerContext = Depends(get_caller),
+):
+    """三块目录：categories（按行业）+ roles（按职业）+ public（公共库）。
 
     前端默认展示 roles——员工按岗位找工具，不按行业找。
     """
-    return {"code": 0, "data": agent_store.catalog(caller)}
+    rid = ""
+    if role:
+        hit = role_map.resolve(role)
+        rid = hit["id"] if hit else role
+    return {"code": 0, "data": agent_store.catalog(caller, rid)}
 
 
 @router.get("/roles")
@@ -173,32 +180,41 @@ async def list_roles(
 
     这是「选职业 → 相应的 AI 先配进去」的落地接口：
     core=True 的 4 个是该岗开箱即用的默认配置，其余是该岗可选扩展。
+    M22 起两份响应都带 public（公共库），因为「本岗技能 + 公共库」才是完整工作台。
     """
     rows = agent_store.list_all(caller)
+    public = [agent_store.brief(a) for a in sorted(
+        (a for a in rows if agent_store.is_public(a)), key=lambda a: a.get("sort", 99))]
     roles = role_map.catalog(rows)
     if not role:
         return {"code": 0, "data": {"roles": roles,
+                                    "public": public,
                                     "total": sum(r["count"] for r in roles)}}
     hit = role_map.resolve(role)
     if not hit:
         raise HTTPException(status_code=404, detail=f"没有这个职业：{role}")
     node = next((r for r in roles if r["id"] == hit["id"]), None)
     if node is None:
-        return {"code": 0, "data": {"role": hit, "count": 0, "core": [], "rest": []}}
+        return {"code": 0, "data": {"role": hit, "count": 0, "core": [], "rest": [],
+                                    "public": public}}
     core = [a for a in node["agents"] if a["core"]]
     rest = [a for a in node["agents"] if not a["core"]]
     return {"code": 0, "data": {"role": hit, "count": node["count"],
-                                "core": core, "rest": rest}}
+                                "core": core, "rest": rest, "public": public}}
 
 
 @router.get("")
 async def list_agents(
-    category: str = Query("", description="按分类过滤：industry|office"),
+    category: str = Query("", description="按分类过滤：industry|office|public"),
+    role: str = Query("", description="岗位 id 或中文名；传了只回本岗 + 公共库 + 通用助手"),
     status: str = Query("", description="按状态过滤：pending_review|published|rejected"),
     all_tenants: bool = Query(False, alias="all"),
     caller: CallerContext = Depends(get_caller),
 ):
     rows = agent_store.list_all(caller, include_all=all_tenants)
+    if role:
+        rid = (role_map.resolve(role) or {}).get("id", role)
+        rows = agent_store.filter_role(rows, rid)
     if category:
         rows = [a for a in rows if a.get("category") == category]
     if status:
