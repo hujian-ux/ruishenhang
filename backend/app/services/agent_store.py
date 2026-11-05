@@ -35,6 +35,11 @@ def ensure_builtin_assistant() -> Dict[str, Any]:
     """幂等注册内置通用助手；已存在则原样返回（不覆盖用户改过的配置）。"""
     cur = _AGENTS.get(BUILTIN_ASSISTANT_ID)
     if cur:
+        # 存量修补：早期版本只写了 scope，_visible 读的是 knowledge_scope，
+        # 于是内置助手对非管理员不可见，前端默认落到第一个业务技能包（选品/排产之类）。
+        if not cur.get("knowledge_scope"):
+            cur["knowledge_scope"] = "global"
+            save(cur)
         return cur
     return save({
         "agent_id": BUILTIN_ASSISTANT_ID,
@@ -42,6 +47,8 @@ def ensure_builtin_assistant() -> Dict[str, Any]:
         "description": "不套用具体技能包，直接回答、整理、起草。需要专业输出时再选技能包。",
         "adapter_type": "llm",
         "scope": "global",
+        # 可见性判据认这个字段；漏了它对员工就是隐身（e2e 用员工身份才发现）
+        "knowledge_scope": "global",
         "status": "published",
         "category": "builtin",
         "category_cn": "内置",
@@ -93,9 +100,12 @@ def _visible(agent: Dict[str, Any], caller) -> bool:
         return True
     if agent.get("registered_by") == caller.userId:
         return True
-    if agent.get("knowledge_scope") == "global":
+    # 历史写法并存：早期数据用 scope，现在统一 knowledge_scope。两者都认，
+    # 否则字段名差一个词就会让整批资产对员工隐身（M19 踩过）。
+    scope = agent.get("knowledge_scope") or agent.get("scope")
+    if scope == "global":
         return True
-    if agent.get("knowledge_scope") == "department" and agent.get("dept_id") == caller.deptId:
+    if scope == "department" and agent.get("dept_id") == caller.deptId:
         return True
     if caller.role == "dept_admin" and agent.get("dept_id") == caller.deptId:
         return True

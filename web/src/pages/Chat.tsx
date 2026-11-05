@@ -178,6 +178,26 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
     return out.slice(0, 4);
   }, [agents, ws]);
 
+  // 点卡片必须立刻看得见结果：选中态 + 光标进输入框。之前只 setAgentId，
+  // 页面上唯一变化是输入区按钮那串小字，用户会以为点了没反应。
+  const pickSkill = (id: string) => {
+    setAgentId(id);
+    setSkillPop(false);
+    setQ("");
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
+  const builtinId = useMemo(
+    () => agents.find((a: any) => a.builtin)?.agent_id || agents[0]?.agent_id || "",
+    [agents]
+  );
+
+  // 取消选中：回到内置通用助手，避免"选错了没法退"
+  const clearSkill = () => {
+    setAgentId(builtinId);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
   const pickFiles = async (files: FileList | null) => {
     if (!files || !files.length) return;
     setUploading(true); setErr("");
@@ -264,24 +284,33 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
               </div>
             ) : activeRole ? (
               <p className="lead">
-                {activeRole.name}岗已配好 {ws?.core?.length || featured.length} 个常用技能，
-                点一张卡直接开工；也可以上传台账、报表，用大白话描述要做什么。
+                {activeRole.name}岗已配好 {ws?.core?.length || featured.length} 个常用技能：
+                选一张卡，再说一句要处理什么，就开工；也可以直接上传台账、报表，用大白话描述。
               </p>
             ) : null}
 
             {activeRole && !pickRole && (
               <>
                 <div className="w-cards">
-                  {featured.map((a, i) => (
-                    <div key={a.agent_id} className="w-card"
-                         onClick={() => { setAgentId(a.agent_id); taRef.current?.focus(); }}>
-                      <div className="w-ico">{ICONS[i % ICONS.length]}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <b>{a.name}</b>
-                        <span>{a.description || "按技能包流程执行"}</span>
+                  {featured.map((a, i) => {
+                    const on = agentId === a.agent_id;
+                    return (
+                      <div key={a.agent_id} className={"w-card" + (on ? " on" : "")}
+                           role="button" tabIndex={0}
+                           aria-pressed={on}
+                           onClick={() => pickSkill(a.agent_id)}
+                           onKeyDown={(e) => {
+                             if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickSkill(a.agent_id); }
+                           }}>
+                        <div className="w-ico">{ICONS[i % ICONS.length]}</div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <b>{a.name}</b>
+                          <span>{a.description || "按技能包流程执行"}</span>
+                        </div>
+                        {on && <span className="w-on">已选</span>}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <span className="w-all" onClick={() => (onOpenSkills ? onOpenSkills() : setSkillPop(true))}>
@@ -387,11 +416,26 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             </div>
           )}
 
+          {agent && !agent.builtin && (
+            <div className="picked">
+              <span className="p-ico">◈</span>
+              <b>{agent.name}</b>
+              <span className="p-kind">
+                {agent.adapter_type === "rule" ? "按规则跑"
+                  : agent.adapter_type === "llm_retrieval" ? "先查制度再答" : "按流程生成"}
+              </span>
+              <span className="p-swap" onClick={() => { setSkillPop(true); setFmtPop(false); }}>换一个</span>
+              <span className="p-x" onClick={clearSkill} title="取消，改用通用助手">×</span>
+            </div>
+          )}
+
           <textarea
             ref={taRef}
             rows={1}
             value={input}
-            placeholder={empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件"}
+            placeholder={agent && !agent.builtin
+              ? `说明这次要处理什么，${agent.name}会按流程执行`
+              : empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -434,7 +478,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                   {filtered.length === 0 && <div className="pop-empty">没有匹配的技能包</div>}
                   {filtered.map((a) => (
                     <div key={a.agent_id} className="pop-item"
-                         onClick={() => { setAgentId(a.agent_id); setSkillPop(false); setQ(""); }}>
+                         onClick={() => pickSkill(a.agent_id)}>
                       <b>{a.name}</b>
                       <span>{a.adapter_type === "llm_retrieval" ? "查制度" : a.adapter_type === "rule" ? "规则" : "生成"}</span>
                       {a.agent_id === agentId && <span style={{ color: "var(--blue)" }}>✓</span>}

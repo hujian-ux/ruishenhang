@@ -148,3 +148,31 @@ def test_roles_list_without_param():
     assert sum(x["count"] for x in d["roles"]) == 115
     # 空职业不出现在目录里（前端不该渲染 0 个卡的岗位）
     assert all(x["count"] > 0 for x in d["roles"])
+
+
+def test_builtin_assistant_visible_to_employee():
+    """内置「通用助手」必须对员工可见。
+
+    回归用例：ensure_builtin_assistant 写的是 scope=global，而 _visible 判的是
+    knowledge_scope，字段名差一个词 → 员工列表里没有通用助手，前端把默认技能
+    落到排序第一个的业务包（AI选品机会发现），用户随便问一句就走错技能。
+    """
+    agent_store.ensure_builtin_assistant()
+    rows = client.get("/api/v1/agents", headers=EMP).json()["data"]["agents"]
+    builtin = [a for a in rows if a.get("builtin")]
+    assert len(builtin) == 1
+    assert builtin[0]["agent_id"] == agent_store.BUILTIN_ASSISTANT_ID
+    assert builtin[0].get("knowledge_scope") == "global"
+    # 前端默认选中它，所以它必须排在最前
+    assert rows[0]["agent_id"] == agent_store.BUILTIN_ASSISTANT_ID
+
+
+def test_visible_accepts_legacy_scope_field():
+    """老数据只有 scope 字段时也不能隐身（存量迁移期兼容）。"""
+    agent_store.save({
+        "agent_id": "ag_legacy_scope", "name": "老字段包",
+        "adapter_type": "llm", "status": "published",
+        "scope": "global",  # 故意不写 knowledge_scope
+    })
+    ids = [a["agent_id"] for a in client.get("/api/v1/agents", headers=EMP).json()["data"]["agents"]]
+    assert "ag_legacy_scope" in ids

@@ -134,6 +134,27 @@ button{font-family:inherit}
 .w-all{font-size:12.5px;color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .w-all:hover{text-decoration:underline}
 
+/* 点卡后的"已选"态：没有它，用户点完只在下方小字里能看到变化，会以为点不动 */
+.w-card{position:relative}
+.w-card.on{border-color:var(--blue);background:#f7faff;box-shadow:0 0 0 3px rgba(26,95,208,.08)}
+.w-card.on .w-ico{background:var(--blue);color:#fff}
+.w-card:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.w-on{position:absolute;top:9px;right:10px;font-size:10.5px;color:var(--blue);
+  background:#fff;border:1px solid #cfe0fb;border-radius:6px;padding:1px 6px}
+
+/* 输入框上方的当前技能条 */
+.picked{display:flex;align-items:center;gap:7px;margin:6px 8px 0;padding:5px 9px;
+  border-radius:8px;background:var(--blue-l);font-size:12px;color:var(--ink);min-width:0}
+.picked b{font-weight:550;font-size:12.5px;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.picked .p-kind{flex:none}
+.picked .p-ico{color:var(--blue);font-size:12px}
+.picked .p-kind{font-size:11px;color:var(--muted);border-left:1px solid #cfe0fb;padding-left:7px}
+.picked .p-swap{margin-left:auto;font-size:11.5px;color:var(--blue);cursor:pointer}
+.picked .p-swap:hover{text-decoration:underline}
+.picked .p-x{cursor:pointer;color:var(--muted);font-weight:700;padding:0 2px}
+.picked .p-x:hover{color:var(--err)}
+
 /* ── M19 岗位：让员工先认领岗位，再给工具 ── */
 .role-pick{border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px;background:#fcfcfa;margin-bottom:18px}
 .role-pick h4{margin:0 0 4px;font-size:13px;font-weight:550;color:var(--ink)}
