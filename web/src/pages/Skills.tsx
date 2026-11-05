@@ -38,6 +38,20 @@ const FORMAT_LABEL: Record<string, string> = {
   docx: "Word", pptx: "PPT", xlsx: "Excel", pdf: "PDF", html: "网页",
 };
 
+// 岗位页底部只放 6 张卡：优先「每天都要用」的四件套，再补总结与待办。
+// 不按 sort 取前 6——那样会全是写作组，表格/纪要反而看不到。
+const PUB_QUICK = ["pub_notice", "pub_ppt", "pub_sheet", "pub_minutes", "pub_summary", "pub_followup"];
+
+// 公共库每组一句话，说明这组能干什么（23 条不分层会让人不知道从哪看）
+const PUB_GROUP_NOTE: Record<string, string> = {
+  "写作": "通知公告、制度办法、总结述职、方案、请示",
+  "演示": "汇报 PPT、周报月报、内训课件",
+  "表格": "规范台账、数据速览、比价选型、项目排期",
+  "沟通与会议": "邮件消息、会议纪要、润色翻译、待办跟进、会前准备",
+  "阅读": "合同条款审阅、文件提字段、长文速读带出处",
+  "方法与沉淀": "SOP 手册、复盘、语音转结构化记录",
+};
+
 function SkillCard({ a, onUse, highlight, kind }: {
   a: Agent; onUse?: (a: Agent) => void; highlight?: boolean;
   // func = 显示职能（财务/销售），岗位视图用；industry = 显示行业（制造业/办公角色），行业视图用
@@ -173,11 +187,20 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pub, q]);
 
-  // 岗位页底部的公共库分组：按 写作/演示/表格/沟通/阅读 归堆，最多显示 6 个
+  // 岗位页底部的公共库分组：按 写作/演示/表格/沟通与会议/阅读/方法与沉淀 归堆
   const pubGroups = useMemo(() => {
     const g: Record<string, Agent[]> = {};
     for (const a of pub) (g[a.sub_function || "其他"] ||= []).push(a);
     return g;
+  }, [pub]);
+
+  // 岗位页底部露出的 6 条：四件套优先，缺哪条就用后面的补上
+  const pubQuick = useMemo(() => {
+    const byId = new Map(pub.map((a) => [a.agent_id, a]));
+    const head = PUB_QUICK.map((k) => byId.get("ag_" + k)).filter(Boolean) as Agent[];
+    const used = new Set(head.map((a) => a.agent_id));
+    const tail = pub.filter((a) => !used.has(a.agent_id));
+    return [...head, ...tail].slice(0, 6);
   }, [pub]);
 
   const subs = useMemo(() => {
@@ -321,7 +344,7 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
                        note="跟岗位无关，谁都能用"
                        right="在「公共库」页看全部" />
               <div style={GRID}>
-                {pub.slice(0, 6).map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
+                {pubQuick.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
               </div>
             </>
           )}
@@ -332,14 +355,16 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
       {mode === "public" && (
         <>
           <div className="hint" style={{ marginBottom: 4 }}>
-            平台自带的办公基础能力：写、讲、算、沟通、读文件。不需要选岗位，也不会占用业务技能包名额。
+            平台自带的办公基础能力：写材料、做汇报、弄表格、沟通开会、看文件、沉淀方法。
+            不需要选岗位，也不会占用业务技能包名额。
           </div>
           {Object.entries(pubGroups).map(([g, list]) => {
             const shown = list.filter(match);
             if (!shown.length) return null;
             return (
               <div key={g}>
-                <Section title={g} note={`${shown.length} 个`} />
+                <Section title={g}
+                         note={[`${shown.length} 个`, PUB_GROUP_NOTE[g]].filter(Boolean).join(" · ")} />
                 <div style={GRID}>
                   {shown.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
                 </div>

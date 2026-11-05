@@ -1,7 +1,8 @@
 """M22 · 公共库与岗位边界。
 
 验收三件事：
-1. 公共库是平台预置的（10 条办公基础技能），重启即有，内容随代码刷新；
+1. 公共库是平台预置的（办公基础技能），重启即有，内容随代码刷新；
+   （条数不写死：M23 从 10 条扩到 23 条，条数红线由 test_m23 守）
 2. 公共库**不进 115 口径**（categories / total / role_total 都不含它）；
 3. 选完岗位后，接口按岗位收窄：只回本岗业务包 + 公共库 + 通用助手。
 """
@@ -57,8 +58,8 @@ def seeded():
 
 
 def test_public_library_is_preset():
-    """公共库 10 条，形态正确：global / published / 有真提示词 / 带建议产出格式。"""
-    assert len(public_skills.PUBLIC_SKILLS) == 10
+    """公共库形态正确：global / published / 有真提示词 / 带建议产出格式。"""
+    assert len(public_skills.PUBLIC_SKILLS) >= 10
     names = [d["name"] for d in public_skills.PUBLIC_SKILLS]
     for must in ("文案生成", "PPT 制作", "表格制作"):
         assert must in names, f"缺基础技能：{must}"
@@ -78,7 +79,7 @@ def test_public_skills_idempotent(seeded):
     agent_store.ensure_public_skills()
     agent_store.ensure_public_skills()
     n_after = len([a for a in agent_store._AGENTS.values() if agent_store.is_public(a)])
-    assert n_before == n_after == 10
+    assert n_before == n_after == len(public_skills.PUBLIC_SKILLS)
 
 
 def test_public_not_counted_in_business_total(seeded):
@@ -93,7 +94,7 @@ def test_public_not_counted_in_business_total(seeded):
 
     d = client.get("/api/v1/agents/catalog", headers=ADMIN).json()["data"]
     assert d["total"] == len(business)
-    assert d["public_total"] == 10
+    assert d["public_total"] == len(public_skills.PUBLIC_SKILLS)
     assert d["role_total"] == len(tagged)
     # 行业目录里不许出现"公共库"这一格
     assert "公共库" not in [c["category_cn"] for c in d["categories"]]
@@ -134,7 +135,7 @@ def test_role_narrows_agents_endpoint(seeded):
 def test_role_workspace_includes_public(seeded):
     d = client.get("/api/v1/agents/roles?role=finance", headers=ADMIN).json()["data"]
     assert d["count"] == 3
-    assert len(d["public"]) == 10
+    assert len(d["public"]) == len(public_skills.PUBLIC_SKILLS)
     assert {a["name"] for a in d["core"]} | {a["name"] for a in d["rest"]} == {
         "费用异常波动分析", "报销单合规预审", "应收账款账龄分析"}
 
@@ -144,7 +145,7 @@ def test_catalog_with_role_filter(seeded):
     d = client.get("/api/v1/agents/catalog?role=sales", headers=ADMIN).json()["data"]
     names = {a["name"] for c in d["categories"] for g in c["groups"] for a in g["agents"]}
     assert names == {"客户信用速查卡", "报价单生成"}
-    assert d["public_total"] == 10
+    assert d["public_total"] == len(public_skills.PUBLIC_SKILLS)
     assert [r["id"] for r in d["roles"]] == ["sales"]
 
 
