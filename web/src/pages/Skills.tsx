@@ -14,6 +14,10 @@ type Agent = {
   core?: boolean;
   sub_function?: string;
   default_format?: string;
+  // M24：技能契约（什么时候用 / 要给什么 / 会拿到什么）。公共库有，业务包可能没有。
+  when_to_use?: string;
+  inputs_contract?: string;
+  outputs_contract?: string;
 };
 
 type Cat = {
@@ -48,7 +52,7 @@ const PUB_GROUP_NOTE: Record<string, string> = {
   "演示": "汇报 PPT、周报月报、内训课件",
   "表格": "规范台账、数据速览、比价选型、项目排期",
   "沟通与会议": "邮件消息、会议纪要、润色翻译、待办跟进、会前准备",
-  "阅读": "合同条款审阅、文件提字段、长文速读带出处",
+  "阅读": "合同审阅、文件提字段、长文速读、制度查证（带出处）",
   "方法与沉淀": "SOP 手册、复盘、语音转结构化记录",
 };
 
@@ -68,6 +72,13 @@ function SkillCard({ a, onUse, highlight, kind }: {
   return (
     <div
       onClick={() => clickable && onUse?.(a)}
+      // 卡片不塞第四行文字：契约信息放在悬停里，需要的人一眼能查到，
+      // 不需要的人看到的还是原来的密度（M23 定下的「重可读性轻装饰」）。
+      title={[
+        a.when_to_use && `什么时候用：${a.when_to_use}`,
+        a.inputs_contract && `要给什么：${a.inputs_contract}`,
+        a.outputs_contract && `会拿到：${a.outputs_contract}`,
+      ].filter(Boolean).join("\n") || undefined}
       style={{
         border: highlight ? "1px solid #cfcfc8" : "1px solid var(--line)",
         borderRadius: 14, padding: "14px 16px",
@@ -173,8 +184,11 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
   const cur = useMemo(() => roles.find((r) => r.id === roleId), [roles, roleId]);
   const needPick = !cur;
 
+  // 搜索要能命中「什么时候用」：用户搜的是自己的话（"请个假""签合同前"），
+  // 不是技能名。M24 之前只搜 name/description，用户得先猜我们怎么命名。
   const match = (a: Agent) =>
-    !q || `${a.name}${a.description || ""}${a.sub_function || ""}`.toLowerCase().includes(q.trim().toLowerCase());
+    !q || `${a.name}${a.description || ""}${a.sub_function || ""}${a.when_to_use || ""}`
+      .toLowerCase().includes(q.trim().toLowerCase());
 
   const roleCore = useMemo(() => (cur?.agents || []).filter((a) => a.core && match(a)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -356,7 +370,8 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
         <>
           <div className="hint" style={{ marginBottom: 4 }}>
             平台自带的办公基础能力：写材料、做汇报、弄表格、沟通开会、看文件、沉淀方法。
-            不需要选岗位，也不会占用业务技能包名额。
+            不需要选岗位，也不会占用业务技能包名额。搜自己的话就行（如"签合同前""请个假"）；
+            鼠标停在卡片上可看「什么时候用 / 要给什么 / 会拿到什么」。
           </div>
           {Object.entries(pubGroups).map(([g, list]) => {
             const shown = list.filter(match);

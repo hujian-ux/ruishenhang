@@ -21,6 +21,10 @@
        ④ 开箱即用：不依赖公司专有系统、主数据、模板库。
     5. **数量控制在 20-25 条、每组 3-5 条**。再多就变成第二个"不知道点哪个"。
        扩张靠分组，不靠增加同质条目（比如"周报""月报""日报"合成一条"汇报框架"）。
+    6. **M24 参考 WorkBuddy 内置技能的定义范式**（不是抄技能名单）：每条都写清
+       「什么时候用 / 要给什么 / 会拿到什么」，并区分纯生成与「先检索再答」。
+       WorkBuddy 的 skill 都有触发条件和输入输出契约，用户不用猜该点哪个；
+       平台侧则靠 adapter_type 决定要不要先查知识库（llm_retrieval 走 RAG）。
 
 新增一条：在 PUBLIC_SKILLS 里补一个 dict 即可，ensure_public_skills() 幂等写入。
 排序即 sort 值，同一 sub_function 的条目要连着写，前端按出现顺序分组。
@@ -41,6 +45,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "写作",
         "default_format": "docx",
         "description": "通知、公告、朋友圈、公众号开头、产品介绍。给要点出成稿，可直接发布。",
+        "when_to_use": "要发通知、公告、朋友圈、公众号开头，或给产品写段介绍",
+        "inputs_contract": "事情要点、发给谁、发在哪（企微/邮件/朋友圈）、截止时间",
+        "outputs_contract": "Word：主标题与备选、正文、发布前自查",
         "tags": ["通知", "公告", "公众号", "朋友圈"],
         "system_prompt": """你是企业里写内部通知和对外文案的老手。用户会给你零散要点，你负责写成能直接发出去的成稿。
 
@@ -74,6 +81,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "写作",
         "default_format": "docx",
         "description": "把口头规矩写成可执行的办法：适用范围、职责、流程、罚则、附件。",
+        "when_to_use": "把口头规矩写成能执行的办法，或修订现有制度",
+        "inputs_contract": "规矩原文、适用范围、涉及角色、已知阈值",
+        "outputs_contract": "Word：目的、职责、规则、流程、例外、生效六节",
         "tags": ["制度", "流程", "办法", "规范"],
         "system_prompt": """你是企业制度起草顾问。用户会口述一条规矩（比如"出差住宿超标要审批"），你写成能落地执行的制度条文。
 
@@ -110,6 +120,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "写作",
         "default_format": "docx",
         "description": "周报之外的那份大总结：季度、年度、述职、转正。把做过的事翻译成对目标的贡献。",
+        "when_to_use": "季度年度总结、述职、转正报告、评优材料",
+        "inputs_contract": "本期做过的事、目标数字、可核对的成果、读者是谁",
+        "outputs_contract": "Word：本期贡献、关键结果表、方法、不足、下期承诺",
         "tags": ["总结", "述职", "转正", "年度"],
         "system_prompt": """你帮人写工作总结和述职报告。用户会给一堆做过的事，可能很零散，甚至像流水账。
 
@@ -150,6 +163,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "写作",
         "default_format": "docx",
         "description": "客户方案、内部立项、活动方案。给几个能拍板的选项，加成本和风险，不是自我介绍。",
+        "when_to_use": "写客户方案、内部立项、活动策划，需要给领导几个能拍板的选项",
+        "inputs_contract": "背景与目的、预算、时间窗口、谁拍板",
+        "outputs_contract": "Word：问题、2-3 个选项、推荐与理由、落地步骤、需要什么支持",
         "tags": ["方案", "立项", "提案", "策划"],
         "system_prompt": """你写方案初稿。用户给背景、目的、约束（预算/时间/人），你出可以直接拿去讨论的版本。
 
@@ -194,6 +210,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "写作",
         "default_format": "docx",
         "description": "要钱、要人、要特批、要延期。一页纸说清要什么、为什么现在、不批会怎样。",
+        "when_to_use": "要钱、要人、要特批、要延期，需要一页纸说服审批人",
+        "inputs_contract": "要什么（金额/人数/天数）、依据、不批的后果",
+        "outputs_contract": "Word：请示事项、为什么现在、依据、方案对比、不批影响、风险兜底",
         "tags": ["请示", "审批", "申请", "特批"],
         "system_prompt": """你帮人写请示和审批说明。用户要申请预算、加人、特批流程、延期交付，或者报销超标说明。
 
@@ -233,6 +252,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "演示",
         "default_format": "pptx",
         "description": "给主题或要点，出逐页大纲 + 讲稿：每页一句话结论、要点、配图建议。",
+        "when_to_use": "做汇报、路演、培训 PPT，先定逐页大纲和讲稿",
+        "inputs_contract": "主题、听众、时长、要听众做什么决定",
+        "outputs_contract": "PPT：每页一句结论 + 要点 + 图表建议 + 讲稿",
         "tags": ["汇报", "路演", "培训", "大纲"],
         "system_prompt": """你是做汇报材料的顾问。用户给主题、受众、时长，你出可以直接照着讲的逐页大纲。
 
@@ -268,6 +290,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "演示",
         "default_format": "docx",
         "description": "周报、月报、项目汇报的骨架：结论、进展、问题、要什么支持。",
+        "when_to_use": "写周报月报、项目进展、给领导的阶段性报告",
+        "inputs_contract": "本期零散记录、目标、当前进度、卡点",
+        "outputs_contract": "Word：结论、进展表、问题与风险、下期计划",
         "tags": ["周报", "月报", "项目汇报", "复盘"],
         "system_prompt": """你是帮人写工作汇报的顾问。用户会给一周/一月的零散记录，你整理成领导愿意看、且不会被追问的汇报。
 
@@ -301,6 +326,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "演示",
         "default_format": "pptx",
         "description": "给团队讲一次课：学完能做什么、方法步骤、真实例子、常见错误、练习题。",
+        "when_to_use": "给团队讲一次课、做内训或经验分享",
+        "inputs_contract": "主题、听众水平、时长、学完要能做什么",
+        "outputs_contract": "PPT：学习目标、痛点场景、方法示例、常见错误、练习题",
         "tags": ["培训", "课件", "内训", "分享"],
         "system_prompt": """你做培训课件。用户给主题、听众、时长，你出逐页内容，讲完听众能上手做。
 
@@ -339,6 +367,9 @@ PUBLIC_SKILLS: List[Dict[str, Any]] = [
         "sub_function": "表格",
         "default_format": "xlsx",
         "description": "把口述或杂乱数据整理成规范表：统一列名、单位、口径，带合计与说明。",
+        "when_to_use": "把零散口述或杂乱数据整理成能汇总的规范表",
+        "inputs_contract": "原始信息、这张表一行代表什么、数据时间范围",
+        "outputs_contract": "Excel：表格说明、主表、汇总、数据问题清单",
         "tags": ["台账", "清单", "统计表", "汇总"],
         "system_prompt": """你是做表的人。用户会给一堆零散信息（口述、截图文字、乱序数据），你要输出一张别人能直接用、能汇总、不会看错的规范表。
 
@@ -373,6 +404,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "表格",
         "default_format": "xlsx",
         "description": "一堆数字先给结论：总量、变化、异常点、口径提醒。适合月度经营数据快看。",
+        "when_to_use": "拿到月度经营数据，先快速看总量、变化、异常",
+        "inputs_contract": "数据表或数字、对比基期、口径说明",
+        "outputs_contract": "Excel：一句话结论、关键指标表、结构拆解、异常点、口径提醒",
         "tags": ["分析", "趋势", "异常", "对比"],
         "system_prompt": """你是帮业务看数的人。用户丢来一份数据（可能已上传表格），你要在最短篇幅内说清：现在什么水平、比之前怎么样、哪里不对劲。
 
@@ -408,6 +442,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "表格",
         "default_format": "xlsx",
         "description": "多份报价、多个供应商、几款工具怎么选。先统一口径再比，最后给条件和结论。",
+        "when_to_use": "多份报价、多个供应商、几款工具不知道选哪个",
+        "inputs_contract": "各家报价原文、数量、含税情况、交付与付款条件",
+        "outputs_contract": "Excel：口径统一说明、明细对照、非价格因素、条件化结论、谈判弹药",
         "tags": ["比价", "选型", "供应商", "采购"],
         "system_prompt": """你做比价和选型对照。用户会给几份报价、几个方案或几款产品的资料，可能是不同格式、不同口径。
 
@@ -451,6 +488,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "表格",
         "default_format": "xlsx",
         "description": "把一件事拆成能追踪的任务：负责人、交付物、依赖、缓冲。排依赖不是排日期。",
+        "when_to_use": "一件跨多人的事要排期、盯里程碑、开周会",
+        "inputs_contract": "目标与截止日、参与人、已知节点、依赖关系",
+        "outputs_contract": "Excel：验收标准、里程碑、关键路径、风险缓冲、本周三件事",
         "tags": ["排期", "项目计划", "里程碑", "进度"],
         "system_prompt": """你做项目排期和进度表。用户给目标、截止日、参与的人，你出能直接拿去周会用的计划。
 
@@ -489,6 +529,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "沟通与会议",
         "default_format": "docx",
         "description": "把讨论整理成决议 + 待办：谁、做什么、什么时候交。散会就能发。",
+        "when_to_use": "开完会要把讨论整理成决议和待办，散会就能发群",
+        "inputs_contract": "速记、语音转写或聊天记录、参会人",
+        "outputs_contract": "Word：决议、待办表、待定事项、关键分歧",
         "tags": ["纪要", "决议", "待办", "跟进"],
         "system_prompt": """你把会议记录（速记、语音转写、聊天记录）整理成能直接发群的纪要。
 
@@ -521,6 +564,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "沟通与会议",
         "default_format": "docx",
         "description": "催进度、道歉、拒绝、报价说明、跨部门协调。按场合给措辞，不伤关系也不含糊。",
+        "when_to_use": "催进度、道歉、拒绝、报价说明、跨部门协调，需要拿捏措辞",
+        "inputs_contract": "对方是谁、想要的结果、渠道、已有时间线",
+        "outputs_contract": "Word：邮件版、企微版、措辞说明",
         "tags": ["邮件", "企微", "催办", "沟通"],
         "system_prompt": """你帮人写工作沟通消息（邮件 / 企微 / 钉钉）。用户会说"我要催他交数据但别太硬"这类需求。
 
@@ -552,6 +598,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "沟通与会议",
         "default_format": "docx",
         "description": "把稿子改顺、去掉 AI 味和官腔；中英互译保留术语与语气。",
+        "when_to_use": "稿子别扭、有 AI 味或官腔，或者要中英互译",
+        "inputs_contract": "原文、用途（对内/对外）、目标语言",
+        "outputs_contract": "Word：改后版本、改了什么、可选建议",
         "tags": ["润色", "改写", "翻译", "去AI味"],
         "system_prompt": """你改稿子。用户给你一段文字，你要让它读起来像人写的、像这个行业的人写的。
 
@@ -587,6 +636,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "沟通与会议",
         "default_format": "xlsx",
         "description": "多个会、多个人交代的事混在一起。一条一条盯到闭环，逾期和卡点单独拎出来。",
+        "when_to_use": "多个会、多个人交代的事混在一起，要盯到闭环",
+        "inputs_contract": "纪要、群消息、口头交代内容、上期台账",
+        "outputs_contract": "Excel：本期变化、待办台账、逾期项、需要升级项",
         "tags": ["待办", "跟进", "闭环", "逾期"],
         "system_prompt": """你做待办台账和进度跟进。用户会给一堆散落的事：会议纪要里的、群里说的、领导口头交代的，可能有重复、有冲突。
 
@@ -627,6 +679,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "沟通与会议",
         "default_format": "docx",
         "description": "重要会议前的一页纸：要定什么、背景事实、谁会反对、材料谁准备。",
+        "when_to_use": "重要会议前，要让大家 3 分钟进入状态",
+        "inputs_contract": "会议目的、要做的决定、参会人、已有材料",
+        "outputs_contract": "Word：一页纸背景、分歧预判、议程、材料清单",
         "tags": ["会前", "议程", "背景材料", "预判"],
         "system_prompt": """你准备会前资料包。用户要开一个重要的会（评审、汇报、谈判、跨部门协调），你出一页纸让参会人 3 分钟进入状态。
 
@@ -668,6 +723,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "阅读",
         "default_format": "xlsx",
         "description": "合同、发票、报价单、截图文字 → 结构化字段表，逐项标出处。",
+        "when_to_use": "合同发票报价单要抠字段，或截图文字要结构化",
+        "inputs_contract": "文件原文或截图文字、关心的字段",
+        "outputs_contract": "Excel：字段值出处置信度、需人工确认、缺失项",
         "tags": ["提取", "合同", "发票", "字段"],
         "system_prompt": """你从文件里抠字段。用户会给合同、报价单、发票、截图或粘贴的文字，你输出结构化结果。
 
@@ -700,6 +758,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "阅读",
         "default_format": "docx",
         "description": "签之前看一遍：出事时谁承担、缺哪些条款、哪几句要改。出可发给对方的修改清单。",
+        "when_to_use": "签合同前想找出事时谁承担，或要一份能发给对方的修改清单",
+        "inputs_contract": "合同全文、我方关注点、商务约定",
+        "outputs_contract": "Word：结论、高风险条款、缺失条款、要点核对、修改清单",
         "tags": ["合同", "条款", "风险", "审阅"],
         "system_prompt": """你帮人审合同和协议。用户会贴条款或上传合同，你要找出"出问题时谁承担代价"的地方。
 
@@ -738,6 +799,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "阅读",
         "default_format": "docx",
         "description": "报告、制度、政策、论文太长。先回答你的问题，再给原文位置，不替作者编话。",
+        "when_to_use": "报告制度政策太长，只想快速得到答案和原文位置",
+        "inputs_contract": "长文原文、你具体想问什么",
+        "outputs_contract": "Word：直接回答、带出处的依据、关键数据表、原文没说的、值得追问",
         "tags": ["速读", "摘要", "出处", "查资料"],
         "system_prompt": """你帮人读长材料。用户会给你一份报告、制度、政策文件、论文或会议材料，并带着问题来。
 
@@ -769,6 +833,50 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
 - 政策文件要标发文号、生效日期、适用范围；过期文件必须提示。
 - 材料太长读不完时，明说"只读了第 X-Y 页"，不要假装读完了全部。""",
     },
+    {
+        "key": "pub_kb_qa",
+        "name": "制度查证（带出处）",
+        "sub_function": "阅读",
+        "default_format": "docx",
+        # WorkBuddy 的 library / knowledge_search 是「先检索再答」，不是凭记忆编。
+        # 平台已有 /rag/retrieve 和 adapter_type=llm_retrieval，公共库以前一条都没挂，
+        # 导致「公司规定怎么定的」只能走空白页，答出来没有出处，谁也不敢用。
+        "adapter_type": "llm_retrieval",
+        "description": "问公司制度、流程、报销标准、假期规定：先查知识库片段，再答，每条标出处。",
+        "when_to_use": "想问公司规定怎么定的、某个流程找谁批、以前有没有类似文件",
+        "inputs_contract": "你的问题；可选：相关制度名、时间范围、涉及部门",
+        "outputs_contract": "Word：直接回答、引用片段与出处、适用范围、未覆盖的部分、建议找谁确认",
+        "tags": ["制度", "查证", "知识库", "出处"],
+        "system_prompt": """你回答关于公司内部制度和流程的问题。你**先检索授权知识库**，再基于检索到的片段作答。
+
+判断标准：这条问答的价值不在"答得快"，在"能拿去执行、能追溯到原文"。一个没有出处的制度回答，等于没答——员工照着做错了，谁也说不清依据。
+
+输出结构（Markdown）：
+
+## 直接回答
+3 行以内，说清：能不能做、要谁批、有什么条件。
+如果检索片段不足以回答，第一句就写"现有资料里没查到明确规定"，然后给建议找谁确认，不要硬答。
+
+## 依据
+表格：结论 | 引用原文（摘录，不改字）| 出处（文档名 / 章节或条款号）| 生效日期。
+每条结论必须能指回一段原文；指不回去的删掉。
+
+## 适用范围
+这份规定管哪些人、哪些情形；明确不适用的要写出来。多份文件口径不一时，按"新文件优先、专门规定优先于通用规定"排，并把冲突点单独列出。
+
+## 未覆盖的部分
+用户问题里、资料没写到的部分，逐条列出。不推断、不用"通常来说"补。
+
+## 建议确认
+给出该找谁（岗位或部门）、带什么材料去问，以及一句可以直接发出去的问题。
+
+硬规则：
+- **只用检索到的片段作答**。片段里没有的数字、期限、金额、审批层级一律不写；不确定就写"资料未明确"。
+- 引用原文必须逐字照抄，标出文档名和条款号；文档名不确定就写【文档名待确认】。
+- 不把自己的常识当公司制度（"一般企业都是……"不许写）。
+- 发现新旧文件冲突，不替公司选一个，两个都列出来并提示"需归口部门确认以哪个为准"。
+- 不做法律判断，也不替审批人拍板；涉及例外和特批的，一律指回"由谁审批"。""",
+    },
     # ---------------------------------------------------------------- 方法与沉淀
     {
         "key": "pub_sop",
@@ -776,6 +884,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "方法与沉淀",
         "default_format": "docx",
         "description": "把一件反复做的事写成手册：新人照着做也能做出一样的结果，附检查清单。",
+        "when_to_use": "一件反复做的事每次做法都不一样，要写成新人能照做的手册",
+        "inputs_contract": "现有做法、执行人、系统/工具、常见异常",
+        "outputs_contract": "Word：适用范围、角色分工、操作步骤、异常处理、检查清单",
         "tags": ["SOP", "手册", "流程", "交接"],
         "system_prompt": """你写 SOP 和操作手册。用户会描述一件团队反复做、但每次做法都不一样的事。
 
@@ -819,6 +930,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "方法与沉淀",
         "default_format": "docx",
         "description": "项目结束、丢单、出事故之后：结果对照、根因到可控层、下次改哪个动作。",
+        "when_to_use": "项目结束、丢单、出事故，要找出下次改哪个动作",
+        "inputs_contract": "目标与实际结果、过程记录、参与角色",
+        "outputs_contract": "Word：结果对照、做对的、5why 根因、下次动作、是否入制度",
         "tags": ["复盘", "总结", "根因", "改进"],
         "system_prompt": """你做复盘。用户会给一个已经发生的结果（项目结束、丢单、事故、活动办完），可能情绪还在。
 
@@ -861,6 +975,9 @@ Markdown 表格，列顺序按"标识 → 时间 → 分类 → 数值 → 状�
         "sub_function": "方法与沉淀",
         "default_format": "docx",
         "description": "一段录音、一段转写文字 → 结论、对方原话、承诺与待办、风险信号。",
+        "when_to_use": "一段录音或拜访转写，要变成能贴进 CRM 的记录",
+        "inputs_contract": "转写文字、沟通对象、时间",
+        "outputs_contract": "Word：结论、对方原话、承诺与待办、风险信号、下次切入点",
         "tags": ["转写", "录音", "沟通记录", "CRM"],
         "system_prompt": """你把语音转写整理成结构化记录。用户会给一段会议、拜访、电话的转写文字（可能有错字、有口语、有重复）。
 
@@ -901,14 +1018,23 @@ def _agent_id(key: str) -> str:
 
 
 def build_agents() -> List[Dict[str, Any]]:
-    """把定义转成 agent_store 能直接 save 的记录。"""
+    """把定义转成 agent_store 能直接 save 的记录。
+
+    M24：每条都带 when_to_use / inputs_contract / outputs_contract。
+    这是参考 WorkBuddy 内置技能的定义范式——技能不只给名字和提示词，
+    还要写清「什么时候该点它」「要给什么」「会拿到什么」，用户才不用靠猜。
+    adapter_type 可被单条覆盖：接知识库的查证类要挂 llm_retrieval 才走 RAG。
+    """
     out: List[Dict[str, Any]] = []
     for i, d in enumerate(PUBLIC_SKILLS):
         out.append({
             "agent_id": _agent_id(d["key"]),
             "name": d["name"],
             "description": d["description"],
-            "adapter_type": "llm",
+            "when_to_use": d.get("when_to_use", ""),
+            "inputs_contract": d.get("inputs_contract", ""),
+            "outputs_contract": d.get("outputs_contract", ""),
+            "adapter_type": d.get("adapter_type", "llm"),
             "system_prompt": d["system_prompt"],
             "scope": "global",
             # 可见性判据读这个字段（M19/M20 踩过：只写 scope 会对员工隐身）

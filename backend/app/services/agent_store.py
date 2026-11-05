@@ -74,7 +74,8 @@ def ensure_public_skills() -> int:
         cur = _AGENTS.get(a["agent_id"])
         if cur:
             for k in ("name", "description", "system_prompt", "tags", "sub_function",
-                      "default_format", "sort", "category", "category_cn"):
+                      "default_format", "sort", "category", "category_cn",
+                      "when_to_use", "inputs_contract", "outputs_contract", "adapter_type"):
                 cur[k] = a[k]
             cur.setdefault("status", "published")
             cur.setdefault("knowledge_scope", "global")
@@ -94,7 +95,7 @@ def is_public(agent: Dict[str, Any]) -> bool:
 PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
     "sub_function", "tags", "source_path", "inputs_contract", "outputs_contract",
-    "role_tags", "role_primary", "role_core",
+    "when_to_use", "role_tags", "role_primary", "role_core",
 )
 
 
@@ -159,6 +160,11 @@ def brief(a: Dict[str, Any]) -> Dict[str, Any]:
         "tags": a.get("tags") or [],
         "sub_function": a.get("sub_function") or "",
         "default_format": a.get("default_format") or "",
+        # M24：技能使用契约。缺省空串，业务包不受影响；公共库有了之后，
+        # 前端可以按「什么时候用」搜到技能，卡片上也能说清要给什么、会拿到什么。
+        "when_to_use": a.get("when_to_use") or "",
+        "inputs_contract": a.get("inputs_contract") or "",
+        "outputs_contract": a.get("outputs_contract") or "",
     }
 
 
