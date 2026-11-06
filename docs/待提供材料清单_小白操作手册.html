@@ -138,6 +138,7 @@
 <!-- A 语料 -->
 <div class="card" id="a">
   <h3>A. 真实制度文件 <span class="tag p0">P0 必须</span> <span class="tag done">只需拖文件</span></h3>
+  <div class="box teal"><b>策略定位</b>：语料由贵公司<b>自行投放</b>，平台只提供「收件箱 + 自动转文字 + 干跑确认」这套工具，<b>不代填、不代写、不碰制度原文内容</b>。我拿到文件后只做：转换 → 先干跑列清单给你过目 → 你点头才正式导入 → 跑隔离与召回验收；说「撤销这批」可整批删。</div>
   <dl class="kv">
     <dt>为什么需要</dt><dd>现在检索、跨部门隔离、召回率这些结论，全是拿<b>模拟语料</b>跑出来的。没有真文件，就没法给客户演示「查我们公司自己的制度」。</dd>
     <dt>不给我会怎样</dt><dd>系统照常能跑，但演示时只能用示例文档；上线前这一关迟早要补。</dd>
@@ -173,10 +174,18 @@
     <dt>花不花钱</dt><dd>各家都有免费额度或低价档，<b>具体以官网当期价格为准，我不替平台承诺免费</b>。可以先只注册不充值，够跑验收就行。</dd>
     <dt>大概多久</dt><dd>注册 + 复制密钥约 5–10 分钟。</dd>
   </dl>
-  <div class="box blue"><b>不知道选哪家？就选「博查」</b>：中文检索效果最好，和平台里 <code>BOCHA_API_KEY</code> 对应。备选是 Serper（Google 结果，英文/海外资料好）。也可以两家都配，平台会自动挑。</div>
+  <div class="box blue"><b>不知道选哪家？就选「博查」</b>：中文检索效果最好，和平台里 <code>BOCHA_API_KEY</code> 对应。备选是 Serper（Google 结果，英文/海外资料好）、Tavily（无需信用卡、每月免费额度，海外资料好）。也可以两家都配，平台会自动挑。</div>
+  <table>
+    <tr><th style="width:16%">服务商</th><th style="width:30%">去哪申请</th><th>免费情况（以官网当期为准）</th><th style="width:11%">中文友好</th></tr>
+    <tr><td><b>博查</b>（推荐）</td><td>官网 <a href="https://bocha.cn" target="_blank" rel="noopener">bocha.cn</a> →「开放平台 / API」→ 注册 → 控制台创建 Key</td><td>有免费额度，先注册不充值够跑验收</td><td>★★★★★</td></tr>
+    <tr><td>Tavily</td><td>官网 <a href="https://app.tavily.com" target="_blank" rel="noopener">app.tavily.com</a> 注册（邮箱/GitHub/Google），控制台复制 Key</td><td><b>每月 1000 credits，无需信用卡</b>（2026-11 核实）</td><td>★★★☆☆</td></tr>
+    <tr><td>Serper</td><td>官网 serper.dev 注册，送少量搜索额度</td><td>注册送额度，按量计费</td><td>★★★☆☆</td></tr>
+    <tr><td>Bing</td><td>微软 Azure 门户 → 创建「Bing Search v7」资源（需绑定信用卡）</td><td>按 Azure 用量计费</td><td>★★★★☆</td></tr>
+    <tr><td>自建 SearXNG</td><td>自己部署一台 SearXNG 服务，填它的地址</td><td>完全免费，但要有一台服务器</td><td>取决于源</td></tr>
+  </table>
   <ol class="steps">
-    <li>浏览器搜「<b>博查 AI 搜索 API 官网</b>」进官网（或搜 Serper / Tavily，别进到第三方代理站）。</li>
-    <li>用手机号注册、登录，进入<b>控制台 / 开发者中心</b>。</li>
+    <li>从上面的表里挑一家（中文为主选<b>博查</b>，想先零成本试选 <b>Tavily</b>），点官网链接进去。</li>
+    <li>注册、登录，进入<b>控制台 / 开发者中心</b>。</li>
     <li>找 <b>API Key 管理 / 密钥管理</b> → 点「<b>创建新密钥</b>」。</li>
     <li>复制那串以 <code>sk-</code> 开头的字符（只显示一次，先粘到记事本存着）。</li>
     <li>在对话里发我一行：<code>BOCHA_API_KEY=你复制的那串</code>。我来写进本地配置，<b>你不用碰任何配置文件</b>。</li>
