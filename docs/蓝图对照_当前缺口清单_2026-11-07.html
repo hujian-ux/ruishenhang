@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 蓝图 v1.15 当前缺口清单（2026-11-07）</title>
+<style>
+  :root{
+    --navy:#0a2540; --blue:#1565c0; --blue2:#2196f3; --line:#dbe6f2;
+    --bg:#f5f8fc; --card:#fff; --ink:#1f2d3d; --muted:#5b7185;
+    --ok:#1b7f4b; --part:#b26a00; --no:#b03a3a; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       line-height:1.65;font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px 72px}
+  header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;
+         padding:34px 0 28px;margin-bottom:26px}
+  header .inner{max-width:1180px;margin:0 auto;padding:0 26px}
+  header .tag{display:inline-block;border:1px solid rgba(255,255,255,.4);
+       border-radius:3px;padding:2px 10px;font-size:12px;letter-spacing:1px;margin-bottom:12px}
+  h1{margin:0 0 6px;font-size:26px;font-weight:800;letter-spacing:.5px}
+  header p{margin:3px 0;opacity:.9;font-size:13px}
+  h2{color:var(--navy);font-size:19px;margin:38px 0 12px;padding-bottom:8px;
+     border-bottom:2px solid var(--line)}
+  h3{color:var(--blue);font-size:15px;margin:22px 0 8px}
+  .concl{background:var(--soft);border-left:5px solid var(--blue);
+         padding:16px 20px;margin:18px 0 24px;border-radius:4px;font-size:15px}
+  .concl b{color:var(--blue)}
+  .concl.warn{border-left-color:var(--no);background:#fdeeec}
+  table{border-collapse:collapse;width:100%;margin:12px 0 18px;background:var(--card);
+        border:1px solid var(--line);font-size:13px}
+  th{background:var(--navy);color:#fff;text-align:left;padding:9px 11px;font-weight:600}
+  td{padding:8px 11px;border-top:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#fafcff}
+  .s{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;
+     font-weight:700;color:#fff;white-space:nowrap}
+  .ok{background:var(--ok)} .part{background:var(--part)} .no{background:var(--no)} .doc{background:#7a8b9c}
+  .p0{color:var(--no);font-weight:700} .p1{color:var(--part);font-weight:700} .p2{color:var(--ok);font-weight:700}
+  .note{background:#fff8e1;border:1px solid #ffe082;border-radius:4px;
+        padding:11px 15px;margin:14px 0;font-size:13px}
+  ul{margin:8px 0 8px 2px;padding-left:20px} li{margin:5px 0}
+  code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:12px}
+  .now{color:var(--muted);font-size:12px}
+  footer{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<header><div class="inner">
+  <div class="tag">蓝图对账 / 当前缺口</div>
+  <h1>蓝图 v1.15 × 工程现状 · 当前缺口清单</h1>
+  <p>企业 AI 智能体中台 · 更新于 2026-11-07 · 基线：台账（2026-11-06）→ M27 收口 → 真模型验收 → 容器化/移动端脚手架</p>
+  <p>数据源：docs/蓝图对照_未完成项台账.html、docs/M27_蓝图缺口收口.md、docs/验收/*、git log、代码扫描、本机实跑</p>
+</div></header>
+
+<div class="wrap">
+
+<div class="concl">
+  <b>一句话结论：工程底座（单体 + 115 包 + RAG + 护栏 + 反馈 + 运维 + 联网）已做完，真模型验收也全绿了；蓝图 44 章里「完整落地」仍只有 5 章，「部分」约 24 章，「未启动」约 11 章。现在真正的缺口分四类——① 卡你的 2 个外部输入（真实语料、Casdoor 参数）；② 卡你硬件/环境的 4 个脚手架（移动端原生编译、容器化本机实测、桌面文件网关、PS/CAD 工具对接）；③ 需写代码的工程能力空白（AI 安全三层、L2/L3 可视化编排、IM/OA 集成、生产级监控等）；④ 几个具体遗留待办（166 个 xlsx few-shot、115 包补硬规则）。</b>
+</div>
+
+<h2>一、相比台账基线，已经新收口了什么</h2>
+<table>
+  <tr><th style="width:24%">项</th><th>推进结果</th><th>状态</th></tr>
+  <tr><td>真模型跑分（原 4 输入①）</td><td>硅基流动账户充值解锁，<code>Qwen/Qwen2.5-7B-Instruct</code> 真跑；M17 财务 80%、M25 三项语义全 PASS、M26 联网退出码 0 全通过</td><td><span class="s ok">已解</span></td></tr>
+  <tr><td>官方搜索 key（原 4 输入②）</td><td>Tavily 接入 <code>WEB_SEARCH_PROVIDER=tavily</code>，真返回政策源，<code>mode=api</code> 非降级</td><td><span class="s ok">已解</span></td></tr>
+  <tr><td>容器化（原 P0-3）</td><td>重写生产级 <code>backend/Dockerfile</code> + <code>docker-compose.yml</code> 加 backend 服务（profile 可选）；<code>docker compose config</code> 语法通过</td><td><span class="s part">脚手架✓ 未实测</span></td></tr>
+  <tr><td>移动端（原 P2）</td><td>P1 响应式基线完成（tsc+build 通过）；P2 Capacitor 脚手架完成（<code>capacitor.config.ts</code>）</td><td><span class="s part">P1/P2✓ P3卡</span></td></tr>
+  <tr><td>invoke 顶层 <code>llm_real</code> 透传</td><td>修复导致 M25 误判 stub 的 bug（纯增量字段），378 passed 无回归</td><td><span class="s ok">已修</span></td></tr>
+  <tr><td>小白操作手册 / 语料收件箱</td><td><code>corpus_inbox/</code> + <code>convert_corpus.py</code> + 可填空 AI 守则模板 + 待提供材料清单</td><td><span class="s ok">已落地</span></td></tr>
+</table>
+
+<h2>二、还缺什么 · 分类清单</h2>
+
+<h3>A · 卡你（必须你提供材料/参数，代码已就绪）</h3>
+<table>
+  <tr><th style="width:30%">缺口</th><th>现状</th><th>你需做</th></tr>
+  <tr><td><b>真实语料投 <code>corpus_inbox/</code></b><br><span class="now">原 4 输入④</span></td><td>流水线已用虚构样例实测通过：拖文件 → <code>convert_corpus.py</code> → <code>ingest_corpus.py</code> 灌库全通；收件箱目录就位</td><td>把公司制度文件拖进 <code>raw/{global,dept_finance,dept_sales,dept_hr}/</code>，说"语料放好了"</td></tr>
+  <tr><td><b>Casdoor 企业登录参数</b><br><span class="now">原 4 输入③</span></td><td>OIDC 对接代码已完整（<code>/oidc/exchange</code> 换 id_token + RS256/JWKS 验签 + 账号落地）；本地起 Casdoor 还需 Docker Desktop</td><td>提供 <code>OIDC_ISSUER</code>（Casdoor 地址）+ <code>OIDC_AUDIENCE</code>（Application 的 Client ID）</td></tr>
+</table>
+
+<h3>B · 卡你环境/硬件（脚手架已搭，未实测/未编译）</h3>
+<table>
+  <tr><th style="width:30%">缺口</th><th>现状</th><th>卡点</th></tr>
+  <tr><td><b>移动端 P3 原生编译/上架</b></td><td>Capacitor 脚手架已好，路线=包壳复用 React 前端（非 Swift/Kotlin 重写）</td><td>iOS 需 <b>Mac + 苹果开发者 ¥688/年</b>；Android 需 <b>Studio/SDK + Google Play ¥25 + 签名</b>；本机 Windows 编不了。前端 API base 现为相对 <code>/api/v1</code>，原生包须改指向部署后后端域名</td></tr>
+  <tr><td><b>容器化本机实测</b></td><td>Dockerfile + compose 已写，<code>docker compose config</code> 通过</td><td>本环境 <b>Docker 守护进程（Desktop）未运行</b>，无法 build/run 真验证。你启动 Docker Desktop 后 <code>docker compose --profile app up -d</code> 查 <code>:8080/healthz</code></td></tr>
+  <tr><td><b>桌面本地文件网关</b><br><span class="now">第23章</span></td><td>M16 网页上传 xlsx→解析→代理下载已通</td><td>桌面客户端、NAS/SMB/网盘连接器、ACL→scope 映射、拖入即切片未做（需排期+客户授权目录）</td></tr>
+  <tr><td><b>PS/CAD 等专业工具对接</b><br><span class="now">第22章</span></td><td>工具鉴权闸门 <code>guard_tool_call()</code> 已落地（白名单+脱敏+审计）</td><td>无工具注册中心、无 API/CLI/桌面桥、无沙箱与人工审核节点（需客户指定软件版本+授权目录）</td></tr>
+</table>
+
+<h3>C · 工程能力空白（需写代码，部分已有底座/骨架）</h3>
+<table>
+  <tr><th style="width:8%">级</th><th style="width:26%">缺口（蓝图章）</th><th>现状</th><th>还差什么</th></tr>
+  <tr><td><span class="p0">P0</span></td><td>AI 行为安全三层（27/44）</td><td><span class="s part">部分</span> 正则启发式注入检测/输出打码/工具白名单已就位</td><td>提示注入 DNS 解析、入库防投毒、输出泄密/幻觉语义过滤、工具调用统一过第18章过滤点、出网脱敏网关、入参出参全审计；生产需接内容安全服务</td></tr>
+  <tr><td><span class="p0">P0</span></td><td>上生产最小三件套实测</td><td><span class="s part">部分</span> 容器化脚手架✓、备份脚本✓、监控中间件✓</td><td>PG/Qdrant/MinIO 备份恢复<b>真演练</b>；Prometheus+OTel+告警阈值接<b>后端</b>（Grafana/Loki 未部署）；RTO/RPO 演练；灰度发布</td></tr>
+  <tr><td><span class="p0">P0</span></td><td>LLM-as-Judge + 提示词回归门禁（28）</td><td><span class="s part">部分</span> 评测体系有 <code>heuristic</code> 判分，golden 集 252 条</td><td>真 LLM-as-Judge（<b>现在 key 已具备，可直接做</b>）；每部门 ≥50 条 golden；提示词回归门禁；覆盖率 ≥70%</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>L2 业务转智能体 + L3 可视化编排（19/21）</td><td><span class="s part">部分</span> <code>agent_builder.py</code> 草稿生成已落地；<code>workflows.py</code> 有节点式后端</td><td><b>没有可视化编排画布</b>（员工自己串工作流）；模板中心未做——蓝图最大能力空白</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>反馈闭环 A/B 灰度（20/30/41）</td><td><span class="s part">部分</span> <code>feedback.py</code> P0 段（赞踩/知识缺口/演化建议台/人在环审批/版本快照）已落地</td><td>A/B 测试、灰度发布、采纳率/渗透率/ROI 看板未做</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>审计留存与合规（29）</td><td><span class="s part">部分</span> M13 审计+trace_id+脱敏+三级隔离</td><td>180/365 天留存、审计库只读加密、等保/ISO 映射、员工数据导出/删除级联清向量</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>统一身份收口与 IM/OA 集成（31）</td><td><span class="s part">部分</span> OIDC 可插拔已接，登录/回调/自助连接页就位</td><td>目录同步、入转离生命周期、企微/钉钉机器人、OA/ERP/CRM 连接器、事件总线（<code>events.py</code> 有骨架）</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>集团租户物理隔离（32）</td><td><span class="s doc">文档</span> 租户模型说明已写</td><td>集团级策略下发、按租户配额/计费汇总、跨租户白名单、物理隔离部署</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>法律责任文本（33）</td><td><span class="s doc">文档</span> 可交法务的 AI 使用守则模板已生成</td><td>正式法务文本、数据出境评估定稿</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>非 LLM MLOps（38）</td><td><span class="s part">骨架</span> <code>/mlops/*</code> 四项 <code>done=False</code></td><td>特征存储→训练流水线→模型注册表→漂移检测→重训与灰度回滚闭环</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>语义缓存与模型路由（40）</td><td><span class="s part">骨架</span> 字符 3-gram 缓存观测、复杂度路由建议（<code>applied:false</code>）</td><td>真向量语义缓存、模型按难度路由、网关节流削峰、向量库冷热分离</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>置信降级转人工（42）</td><td><span class="s part">部分</span> stub 兜底 + 显式报错</td><td>置信分、可配降级链、低置信自动转人工工单</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>中文特化（43）</td><td><span class="s part">部分</span> 默认 bge-m3 中文 embedding</td><td>中文语义切分、中文 Prompt 模板库、C-Eval/CMMLU 内部基准集</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>可视化编排画布 / MCP 协议（3.2/3.4/22/44）</td><td><span class="s part">部分</span> 后端节点式编排有底座</td><td>无前端画布、无 MCP 协议、无第三方插件接入</td></tr>
+</table>
+
+<h2>三、4 个外部输入 · 最新状态</h2>
+<table>
+  <tr><th style="width:30%">输入</th><th>状态</th><th>说明</th></tr>
+  <tr><td>① LLM 模型 key</td><td><span class="s ok">已解</span></td><td>硅基流动充值解锁，<code>Qwen/Qwen2.5-7B-Instruct</code> 真跑，M17/M25/M26 全绿</td></tr>
+  <tr><td>② 官方搜索 key</td><td><span class="s ok">已解</span></td><td>Tavily 接入，真返回政策源，非降级</td></tr>
+  <tr><td>③ IdP（Casdoor）</td><td><span class="s no">待你提供</span></td><td>代码完整，等你给 <code>OIDC_ISSUER</code> + <code>OIDC_AUDIENCE</code></td></tr>
+  <tr><td>④ 真实语料</td><td><span class="s no">待你投放</span></td><td>流水线实测通过，等你把公司制度文件拖进 <code>corpus_inbox/raw/</code></td></tr>
+</table>
+
+<h2>四、几个具体遗留待办（非蓝图章节，属交付质量）</h2>
+<ul>
+  <li><b>166 个 xlsx 交付物做 few-shot</b>：提升产出物一致性（M17 财务 2 处 7B 措辞细节即源于此）</li>
+  <li><b>115 业务包补硬规则</b>：现仅 17/115 带硬规则，剩余靠提示词兜底</li>
+  <li><b>搜索词三轮拆解、来源可信度代码打分</b>：M26 遗留的检索质量增强</li>
+  <li><b>密钥轮换</b>：硅基流动、博查两串 key 曾在对话明文出现，你表态"暂不管"</li>
+</ul>
+
+<h2>五、建议下一步顺序</h2>
+<table>
+  <tr><th style="width:10%">级</th><th>动作</th><th>谁来做</th></tr>
+  <tr><td><span class="p0">P0</span></td><td>拖公司语料进 <code>corpus_inbox/raw/</code> + 给 Casdoor 两参数 → 我跑导入与企业登录验收</td><td>你提供 + 我执行</td></tr>
+  <tr><td><span class="p0">P0</span></td><td>启动 Docker Desktop → 我跑容器 build/run + <code>backup_restore</code> 演练 + 接 Prometheus 后端</td><td>你开环境 + 我执行</td></tr>
+  <tr><td><span class="p0">P0</span></td><td>LLM-as-Judge 真跑（key 已备）+ 提示词回归门禁</td><td>我执行</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>AI 安全三层生产级（提示注入/DNS、入库防投毒、输出泄密过滤、工具统一过滤）</td><td>我执行</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>L2/L3 可视化编排画布 + 反馈 A/B 灰度</td><td>我执行（较大工作量）</td></tr>
+  <tr><td><span class="p1">P1</span></td><td>统一身份收口 + 企微/钉钉/IM-OA 集成</td><td>我执行 + 你给连接器凭据</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>移动端 P3 原生编译（你备 Mac/Studio/账号后我跑 <code>cap add</code> + 编包）</td><td>你环境 + 我执行</td></tr>
+  <tr><td><span class="p2">P2</span></td><td>集团隔离 / 法务文本 / MLOps / 语义缓存 / 中文基准</td><td>排期</td></tr>
+</table>
+
+<div class="note">
+  <b>诚实口径：</b>本清单中"部分/骨架"均不冒充完成——正则安全是启发式、语义缓存标 <code>char_3gram_jaccard</code>、MLOps 四项标 <code>done=False</code>、自助删除未覆盖项标 <code>manual_review</code>。所有"已解"项都带可复跑命令或测试（pytest 378 passed、M17/M25/M26 真验收报告在 <code>docs/验收/</code>）。
+</div>
+
+<footer>
+  本文件为蓝图对账的"当前缺口清单"，非交付验收。基线：docs/蓝图对照_未完成项台账.html（2026-11-06）+ docs/M27_蓝图缺口收口.md + 2026-11-06 下午至 2026-11-07 的推进（commit ccc58b6 → 9c51ecf）。
+</footer>
+
+</div>
+</body>
+</html>
