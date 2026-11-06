@@ -1634,6 +1634,1129 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenericResponse'
 
+  # M27-AUTOGEN-BEGIN
+  # 以下由 scripts/sync_m27_openapi.py 从运行时路由自动生成；字段级定义见各 router
+  # 覆盖蓝图第 19/20/21/26/27/28/29/30/31/34/38/39/40/41/42/43/44 章缺口
+  /agents/my-role:
+    get:
+      tags: [agent]
+      summary: My Role
+      operationId: my_role_api_v1_agents_my_role_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /audit/health:
+    get:
+      tags: [audit]
+      summary: Audit Health
+      operationId: audit_health_api_v1_audit_health_get
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/agents:
+    post:
+      tags: [builder]
+      summary: Post Agent
+      operationId: post_agent_api_v1_builder_agents_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    get:
+      tags: [builder]
+      summary: Get Agents
+      operationId: get_agents_api_v1_builder_agents_get
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/agents/{agent_id}/publish:
+    post:
+      tags: [builder]
+      summary: Post Agent Publish
+      operationId: post_agent_publish_api_v1_builder_agents__agent_id__publish_post
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/departments:
+    post:
+      tags: [builder]
+      summary: Post Department
+      operationId: post_department_api_v1_builder_departments_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    get:
+      tags: [builder]
+      summary: Get Departments
+      operationId: get_departments_api_v1_builder_departments_get
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/departments/templates:
+    get:
+      tags: [builder]
+      summary: Get Department Templates
+      operationId: get_department_templates_api_v1_builder_departments_templates_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/departments/{did}/approve:
+    post:
+      tags: [builder]
+      summary: Post Department Approve
+      operationId: post_department_approve_api_v1_builder_departments__did__approve_post
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/templates:
+    get:
+      tags: [builder]
+      summary: Get Templates
+      operationId: get_templates_api_v1_builder_templates_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/workflows:
+    post:
+      tags: [builder]
+      summary: Post Workflow
+      operationId: post_workflow_api_v1_builder_workflows_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    get:
+      tags: [builder]
+      summary: Get Workflows
+      operationId: get_workflows_api_v1_builder_workflows_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /builder/workflows/{wid}/run:
+    post:
+      tags: [builder]
+      summary: Post Workflow Run
+      operationId: post_workflow_run_api_v1_builder_workflows__wid__run_post
+      parameters:
+        - name: wid
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /eval/judge:
+    post:
+      tags: [quality]
+      summary: Eval Judge
+      operationId: eval_judge_api_v1_eval_judge_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /eval/prompt-regression:
+    post:
+      tags: [quality]
+      summary: Eval Prompt Regression
+      operationId: eval_prompt_regression_api_v1_eval_prompt_regression_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /eval/zh-bench:
+    get:
+      tags: [quality]
+      summary: Eval Zh Bench
+      operationId: eval_zh_bench_api_v1_eval_zh_bench_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /events:
+    get:
+      tags: [events]
+      summary: List Events
+      operationId: list_events_api_v1_events_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /events/publish:
+    post:
+      tags: [events]
+      summary: Publish
+      operationId: publish_api_v1_events_publish_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /events/subscribe:
+    post:
+      tags: [events]
+      summary: Subscribe
+      operationId: subscribe_api_v1_events_subscribe_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /events/subscriptions:
+    get:
+      tags: [events]
+      summary: List Subscriptions
+      operationId: list_subscriptions_api_v1_events_subscriptions_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /evolution/gaps:
+    get:
+      tags: [feedback]
+      summary: Get Gaps
+      operationId: get_gaps_api_v1_evolution_gaps_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /evolution/proposals:
+    get:
+      tags: [feedback]
+      summary: Get Proposals
+      operationId: get_proposals_api_v1_evolution_proposals_get
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [feedback]
+      summary: Post Proposal
+      operationId: post_proposal_api_v1_evolution_proposals_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /evolution/proposals/{pid}/decide:
+    post:
+      tags: [feedback]
+      summary: Decide Proposal
+      operationId: decide_proposal_api_v1_evolution_proposals__pid__decide_post
+      parameters:
+        - name: pid
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /evolution/rollback:
+    post:
+      tags: [feedback]
+      summary: Post Rollback
+      operationId: post_rollback_api_v1_evolution_rollback_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /evolution/versions:
+    get:
+      tags: [feedback]
+      summary: Get Versions
+      operationId: get_versions_api_v1_evolution_versions_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /feedback:
+    post:
+      tags: [feedback]
+      summary: Post Feedback
+      operationId: post_feedback_api_v1_feedback_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /feedback/stats:
+    get:
+      tags: [feedback]
+      summary: Get Feedback Stats
+      operationId: get_feedback_stats_api_v1_feedback_stats_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /guardrails/grounding:
+    post:
+      tags: [guardrails]
+      summary: 关键数字与证据的字面比对
+      operationId: grounding_api_v1_guardrails_grounding_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /guardrails/policy:
+    get:
+      tags: [guardrails]
+      summary: 回显当前策略开关与规则数量（不含密钥）
+      operationId: policy_api_v1_guardrails_policy_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /guardrails/scan-input:
+    post:
+      tags: [guardrails]
+      summary: 输入提示注入 / 越狱扫描
+      operationId: scan_input_api_v1_guardrails_scan_input_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /guardrails/scan-output:
+    post:
+      tags: [guardrails]
+      summary: 输出脱敏 / 泄密 / 引用覆盖评估
+      operationId: scan_output_api_v1_guardrails_scan_output_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /guardrails/tool-check:
+    post:
+      tags: [guardrails]
+      summary: 工具调用前置安全校验
+      operationId: tool_check_api_v1_guardrails_tool_check_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /handoff:
+    post:
+      tags: [quality]
+      summary: Handoff Create
+      operationId: handoff_create_api_v1_handoff_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    get:
+      tags: [quality]
+      summary: Handoff List
+      operationId: handoff_list_api_v1_handoff_get
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /handoff/{hid}/resolve:
+    post:
+      tags: [quality]
+      summary: Handoff Resolve
+      operationId: handoff_resolve_api_v1_handoff__hid__resolve_post
+      parameters:
+        - name: hid
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /kb/documents/{doc_id}/content:
+    get:
+      tags: [kb]
+      summary: Get Document Content
+      operationId: get_document_content_api_v1_kb_documents__doc_id__content_get
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /kb/guardrails/last:
+    get:
+      tags: [kb]
+      summary: Last Ingest Guard
+      operationId: last_ingest_guard_api_v1_kb_guardrails_last_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /metrics/adoption:
+    get:
+      tags: [feedback]
+      summary: Get Adoption
+      operationId: get_adoption_api_v1_metrics_adoption_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /metrics/quality:
+    get:
+      tags: [feedback]
+      summary: Get Quality
+      operationId: get_quality_api_v1_metrics_quality_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [feedback]
+      summary: Post Quality
+      operationId: post_quality_api_v1_metrics_quality_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /mlops/drift:
+    post:
+      tags: [quality]
+      summary: Mlops Drift
+      operationId: mlops_drift_api_v1_mlops_drift_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /mlops/models:
+    get:
+      tags: [quality]
+      summary: Mlops Models
+      operationId: mlops_models_api_v1_mlops_models_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /mlops/pipeline:
+    get:
+      tags: [quality]
+      summary: Mlops Pipeline
+      operationId: mlops_pipeline_api_v1_mlops_pipeline_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /mlops/register:
+    post:
+      tags: [quality]
+      summary: Mlops Register
+      operationId: mlops_register_api_v1_mlops_register_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /models/tiers:
+    get:
+      tags: [quality]
+      summary: Models Tiers
+      operationId: models_tiers_api_v1_models_tiers_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/alerts:
+    get:
+      tags: [ops]
+      summary: Get Alerts
+      operationId: get_alerts_api_v1_ops_alerts_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/audit-export:
+    get:
+      tags: [ops]
+      summary: Audit Export
+      operationId: audit_export_api_v1_ops_audit_export_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/cache/clear:
+    post:
+      tags: [quality]
+      summary: Ops Cache Clear
+      operationId: ops_cache_clear_api_v1_ops_cache_clear_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/cache/stats:
+    get:
+      tags: [quality]
+      summary: Ops Cache Stats
+      operationId: ops_cache_stats_api_v1_ops_cache_stats_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/health:
+    get:
+      tags: [ops]
+      summary: Health
+      operationId: health_api_v1_ops_health_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/me/data:
+    delete:
+      tags: [ops]
+      summary: Delete My Data
+      operationId: delete_my_data_api_v1_ops_me_data_delete
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/metrics:
+    get:
+      tags: [ops]
+      summary: Metrics
+      operationId: metrics_api_v1_ops_metrics_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /ops/readiness:
+    get:
+      tags: [ops]
+      summary: Readiness
+      operationId: readiness_api_v1_ops_readiness_get
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /routing/preview:
+    post:
+      tags: [quality]
+      summary: Routing Preview
+      operationId: routing_preview_api_v1_routing_preview_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /selection/recommend:
+    post:
+      tags: [selection]
+      summary: 模型选型决策（第35章）
+      operationId: recommend_api_v1_selection_recommend_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /usage/summary:
+    get:
+      tags: [usage]
+      summary: Query Usage
+      operationId: query_usage_api_v1_usage_summary_get
+      parameters:
+        - name: dimension
+          in: query
+          required: false
+          schema: {type: string}
+        - name: days
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /zh/segment:
+    post:
+      tags: [quality]
+      summary: Zh Segment
+      operationId: zh_segment_api_v1_zh_segment_post
+      parameters:
+        - name: x-caller-context
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: 统一响应（code=0 表示成功）
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GenericResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  # M27-AUTOGEN-END
 components:
   securitySchemes:
     bearerAuth:

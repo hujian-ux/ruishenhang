@@ -11,6 +11,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.models.schemas import (
@@ -25,6 +26,43 @@ router = APIRouter(prefix="/agents", tags=["agent"])
 
 VALID_ADAPTERS = set(framework.ADAPTER_META.keys())
 VALID_SCOPES = {"personal", "owner", "department", "global"}
+
+
+def org_role_for(caller: CallerContext) -> str:
+    """第31章 / M22 遗留：岗位由组织（deptId）下发，而不是员工浏览器里自选。
+
+    组织侧真实映射到位后改 `ORG_DEPT_ROLE_MAP` 即可；未配置的部门返回空串，
+    此时保持原有「先自选一次」的体验，不把没数据的部门全拦在门外。
+    """
+    pairs = (p.strip() for p in settings.ORG_DEPT_ROLE_MAP.split(",") if ":" in p)
+    mapping = dict(p.split(":", 1) for p in pairs)
+    return mapping.get(caller.deptId, "")
+
+
+def _effective_role(requested: str, caller: CallerContext) -> str:
+    if not settings.ROLE_FROM_ORG or not requested or caller.role == "platform_admin":
+        return requested
+    org = org_role_for(caller)
+    if not org:
+        return requested
+    resolved = (role_map.resolve(requested) or {}).get("id", requested)
+    if resolved == org:
+        return org
+    raise HTTPException(
+        status_code=403,
+        detail=(f"岗位由组织分配：部门 {caller.deptId} 对应岗位 {org}，"
+                f"不接受自选 {requested}（第31章组织身份收口）"),
+    )
+
+
+@router.get("/my-role")
+async def my_role(caller: CallerContext = Depends(get_caller)):
+    """前端启动时取一次：ROLE_FROM_ORG=1 时应以这里返回的岗位为准。"""
+    return {"code": 0, "data": {
+        "role": org_role_for(caller), "dept_id": caller.deptId,
+        "source": "org" if settings.ROLE_FROM_ORG else "self",
+        "enforced": bool(settings.ROLE_FROM_ORG and org_role_for(caller)),
+    }}
 
 # 兼容旧引用（approval.py / invoke.py 直接读该 dict）；真实写入统一走 agent_store.save
 _AGENTS = agent_store._AGENTS
@@ -166,7 +204,7 @@ async def agent_catalog(
     """
     rid = ""
     if role:
-        hit = role_map.resolve(role)
+        hit = role_map.resolve(_effective_role(role, caller))
         rid = hit["id"] if hit else role
     return {"code": 0, "data": agent_store.catalog(caller, rid)}
 
@@ -190,7 +228,7 @@ async def list_roles(
         return {"code": 0, "data": {"roles": roles,
                                     "public": public,
                                     "total": sum(r["count"] for r in roles)}}
-    hit = role_map.resolve(role)
+    hit = role_map.resolve(_effective_role(role, caller))
     if not hit:
         raise HTTPException(status_code=404, detail=f"没有这个职业：{role}")
     node = next((r for r in roles if r["id"] == hit["id"]), None)
@@ -213,7 +251,7 @@ async def list_agents(
 ):
     rows = agent_store.list_all(caller, include_all=all_tenants)
     if role:
-        rid = (role_map.resolve(role) or {}).get("id", role)
+        rid = (role_map.resolve(_effective_role(role, caller)) or {}).get("id", role)
         rows = agent_store.filter_role(rows, rid)
     if category:
         rows = [a for a in rows if a.get("category") == category]

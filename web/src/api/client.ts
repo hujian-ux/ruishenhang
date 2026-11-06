@@ -205,6 +205,37 @@ export const api = {
   gatewayHealth: () => req<any>("GET", "/models/gateway"),
   toggleModel: (modelId: string, status: "active" | "inactive") =>
     req<any>("PATCH", `/models/${modelId}`, { status }),
+
+  // ── M27：蓝图缺口收口 ──
+  getReadiness: () => req<any>("GET", "/ops/readiness"),
+  getOpsHealth: () => req<any>("GET", "/ops/health"),
+  getOpsAlerts: () => req<any>("GET", "/ops/alerts"),
+  getOpsMetrics: () => fetch(`${BASE}/ops/metrics`, {
+    headers: authToken() ? { Authorization: authToken() } : {},
+  }).then((r) => r.text()),
+  getQualityMetrics: () => req<any>("GET", "/metrics/quality"),
+  getAdoptionMetrics: () => req<any>("GET", "/metrics/adoption"),
+  getGuardPolicy: () => req<any>("GET", "/guardrails/policy"),
+  getMyRole: () => req<any>("GET", "/agents/my-role"),
+  getEvolutionGaps: () => req<any>("GET", "/evolution/gaps"),
+  listProposals: (status = "") => req<any>("GET", `/evolution/proposals${status ? `?status=${status}` : ""}`),
+  decideProposal: (pid: string, decision: "approve" | "reject") =>
+    req<any>("POST", `/evolution/proposals/${pid}/decide`, { decision }),
+  listHandoffs: (status = "") => req<any>("GET", `/handoff${status ? `?status=${status}` : ""}`),
+  resolveHandoff: (hid: string, resolution: string) =>
+    req<any>("POST", `/handoff/${hid}/resolve`, { resolution }),
+  listBuilderTemplates: () => req<any>("GET", "/builder/templates"),
+  createDepartment: (body: any) => req<any>("POST", "/builder/departments", body),
+  listDepartments: () => req<any>("GET", "/builder/departments"),
+  approveDepartment: (did: string) => req<any>("POST", `/builder/departments/${did}/approve`),
+  createAgentDraft: (body: any) => req<any>("POST", "/builder/agents", body),
+  listAgentDrafts: () => req<any>("GET", "/builder/agents"),
+  createWorkflow: (body: any) => req<any>("POST", "/builder/workflows", body),
+  listWorkflows: () => req<any>("GET", "/builder/workflows"),
+  runWorkflow: (wid: string, input: string) => req<any>("POST", `/builder/workflows/${wid}/run`, { input }),
+  getModelTiers: () => req<any>("GET", "/models/tiers"),
+  getCacheStats: () => req<any>("GET", "/ops/cache/stats"),
+  getMlopsPipeline: () => req<any>("GET", "/mlops/pipeline"),
 };
 
 // 下载必须带鉴权头，所以不能直接用 <a href>（浏览器不会补 Authorization）。

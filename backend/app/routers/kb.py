@@ -11,12 +11,55 @@ M8 试点化（本文件变薄，逻辑下沉 services/kb_store.py）：
 """
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.core.config import settings
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import KbDocumentRequest, KbDocumentResponse, KbIngestRequest
-from app.services import audit, ingest_jobs, kb_store, object_store
+from app.services import audit, guardrails, ingest_jobs, kb_store, object_store
 
 router = APIRouter(prefix="/kb", tags=["kb"])
+
+# 最近一次入库护栏结论：给运维看「这条语料为什么被标 / 被拦」，不落库、不进索引
+_LAST_GUARD: dict = {}
+
+
+def _content_guard(content: str, scope: str, source: str,
+                   caller: CallerContext, trace_id: str = "") -> dict:
+    """第27章知识侧防护：来源可信度 + 入库内容投毒/注入扫描。
+
+    默认只标记并留痕；GUARDRAILS_STRICT=1 且确实命中模式才拒绝入库。
+    不改写正文（原文照存，避免影响去重与召回口径）。
+    """
+    global _LAST_GUARD
+    trust = guardrails.check_source(source or "", scope)
+    scan = guardrails.scan_input(content[:4000])
+    hits = scan.get("hits") or []
+    verdict = {
+        "source_trust": trust,
+        "content_risk": scan.get("risk", 0.0),
+        "patterns": [h.get("kind", "") for h in hits],
+        "action": "flag",
+        "scope": scope,
+    }
+    blocked = bool(settings.GUARDRAILS_STRICT and scan.get("blocked") and hits)
+    if blocked:
+        verdict["action"] = "reject"
+    _LAST_GUARD = verdict
+    if hits or not trust.get("trusted") or blocked:
+        audit.record("kb_write", caller, target=source or "manual",
+                     result="blocked_poisoning" if blocked else "flagged",
+                     meta={"patterns": verdict["patterns"], "risk": verdict["content_risk"],
+                           "scope": scope, "action": verdict["action"]},
+                     trace_id=trace_id or None)
+    if blocked:
+        raise HTTPException(status_code=400, detail="文档内容命中投毒/注入护栏，已拒绝入库")
+    return verdict
+
+
+@router.get("/guardrails/last")
+async def last_ingest_guard(caller: CallerContext = Depends(get_caller)):
+    """运维自检：最近一次入库的来源可信度与内容风险结论。"""
+    return {"code": 0, "data": dict(_LAST_GUARD)}
 
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024        # 单文件 2MB（超长原文照存，入索引截断）
 MAX_BULK_FILES = 50                       # 单次批量上传文件数（更大规模走目录导入 CLI）
@@ -71,6 +114,7 @@ async def _read_upload(file: UploadFile) -> tuple[str, str]:
 async def create_document(req: KbDocumentRequest, caller: CallerContext = Depends(get_caller)):
     """手工粘贴正文入库（M6 契约保留；M7 起同时入检索语料，可直接被召回）。"""
     _guard_scope(req.scope, req.dept_id, caller)
+    _content_guard(req.content, req.scope, "manual", caller)
     d = kb_store.register(req.title, req.content, req.scope, caller,
                           dept_id=req.dept_id, source="manual")
     return {
@@ -99,9 +143,11 @@ async def upload_document(
     """单文件上传（multipart）：落对象存储 + 落库 + 入检索语料，一步到位可被召回。"""
     name, content = await _read_upload(file)
     _guard_scope(scope, dept_id or None, caller)
+    guard = _content_guard(content, scope, f"upload:{name}", caller)
     d = kb_store.register(title.strip() or name.rsplit(".", 1)[0], content, scope, caller,
                           dept_id=dept_id or None, source="upload", filename=name)
-    return {"code": 0, "data": {**d, "object_store_available": object_store.available()}}
+    return {"code": 0, "data": {**d, "object_store_available": object_store.available(),
+                               "guardrails": guard}}
 
 
 @router.post("/documents/bulk")
@@ -129,6 +175,7 @@ async def bulk_upload_documents(
         except HTTPException as e:
             failed.append({"filename": f.filename, "reason": str(e.detail)})
             continue
+        _content_guard(content, scope, f"bulk_upload:{name}", caller)
         rows.append({"title": name.rsplit(".", 1)[0], "content": content, "filename": name})
 
     res = kb_store.register_many(rows, caller, scope=scope, dept_id=dept_id or None,
@@ -163,6 +210,8 @@ async def create_ingest_job(req: KbIngestRequest, caller: CallerContext = Depend
              "content": d.content, "filename": d.filename or ""} for d in req.documents]
     if not rows:
         raise HTTPException(status_code=400, detail="documents 为空")
+    _content_guard("\n".join(r["content"] for r in rows[:20])[:4000], req.scope,
+                   req.source or "async_ingest", caller)
     try:
         job = ingest_jobs.submit(rows, caller, scope=req.scope,
                                  dept_id=req.dept_id, source=req.source or "async_ingest")

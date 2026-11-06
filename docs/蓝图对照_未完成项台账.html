@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 · 蓝图 v1.15 对照与未完成项台账</title>
+<style>
+  :root{
+    --navy:#0a2540; --blue:#1565c0; --blue2:#2196f3; --line:#dbe6f2;
+    --bg:#f5f8fc; --card:#fff; --ink:#1f2d3d; --muted:#5b7185;
+    --ok:#1b7f4b; --part:#b26a00; --no:#b03a3a; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       line-height:1.65;font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px 72px}
+  header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;
+         padding:34px 0 28px;margin-bottom:26px}
+  header .inner{max-width:1180px;margin:0 auto;padding:0 26px}
+  header .tag{display:inline-block;border:1px solid rgba(255,255,255,.4);
+       border-radius:3px;padding:2px 10px;font-size:12px;letter-spacing:1px;margin-bottom:12px}
+  h1{margin:0 0 6px;font-size:26px;font-weight:800;letter-spacing:.5px}
+  header p{margin:3px 0;opacity:.9;font-size:13px}
+  h2{color:var(--navy);font-size:19px;margin:38px 0 12px;padding-bottom:8px;
+     border-bottom:2px solid var(--line)}
+  h3{color:var(--blue);font-size:15px;margin:22px 0 8px}
+  .concl{background:var(--soft);border-left:5px solid var(--blue);
+         padding:16px 20px;margin:18px 0 24px;border-radius:4px;font-size:15px}
+  .concl b{color:var(--blue)}
+  table{border-collapse:collapse;width:100%;margin:12px 0 18px;background:var(--card);
+        border:1px solid var(--line);font-size:13px}
+  th{background:var(--navy);color:#fff;text-align:left;padding:9px 11px;font-weight:600}
+  td{padding:8px 11px;border-top:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#fafcff}
+  td.c{text-align:center;white-space:nowrap}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+  .kpi div{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  .kpi b{display:block;color:var(--navy);font-size:21px;line-height:1.3}
+  .kpi span{color:var(--muted);font-size:12px}
+  .s{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;
+     font-weight:700;color:#fff;white-space:nowrap}
+  .ok{background:var(--ok)} .part{background:var(--part)} .no{background:var(--no)}
+  .doc{background:#7a8b9c}
+  .note{background:#fff8e1;border:1px solid #ffe082;border-radius:4px;
+        padding:11px 15px;margin:14px 0;font-size:13px}
+  .p0{color:var(--no);font-weight:700} .p1{color:var(--part);font-weight:700}
+  .p2{color:var(--ok);font-weight:700}
+  ul{margin:8px 0 8px 2px;padding-left:20px} li{margin:5px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 18px}
+  code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:12px}
+  .chk{list-style:none;padding-left:0}
+  .chk li{padding-left:24px;position:relative}
+  .chk li:before{content:"□";position:absolute;left:2px;color:var(--blue);font-size:16px}
+  footer{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+  @media(max-width:760px){.kpi{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="inner">
+  <div class="tag">盘点 / 非交付验收</div>
+  <h1>蓝图 v1.15 × 工程现状对照台账</h1>
+  <p>企业 AI 智能体中台 · 2026-11-06 · 基线提交 b0a1b21（M26）</p>
+  <p>数据源：docs/企业AI智能体中台蓝图.html（v1.15 通用版）、README、docs/M0–M26、git log、代码扫描、本机实跑</p>
+</div></header>
+
+<div class="wrap">
+
+<div class="concl">
+  <b>一句话结论：工程侧把「底座 + 红线 + 员工能用的界面 + 联网通道」做完了，但蓝图 44 章里完整落地的只有 5 章，最大欠账不是写代码，是 4 个外部输入（模型 key / 搜索 key / IdP / 真实语料）和 3 块能力空白（员工自建智能体与工作流、上生产的运维安全、运营与验收）。</b>
+  <br>按本次人工判定，39 章可评章节中：完整落地 5、部分落地 22、未启动 12；另 5 章属定位 / 组织 / 摘要类文档，不计工程量。
+</div>
+
+<div class="concl" style="border-left-color:var(--ok);background:#f1f8f4">
+  <b>M27 收口更新（2026-11-06 08:00）：本轮已按本台账逐项补足。</b>
+  下方第 3 节逐章表与「未启动 12 章」是<b>收口前快照</b>，保留作为对账依据；逐章的新状态见
+  <code>docs/M27_蓝图缺口收口.md</code> 第一节。
+  <br>变化：12 个「未启动」章节里 <b>8 个已推到「有代码 + 有测试」</b>（20 反馈演化 / 21 自助建部门 / 22 工具鉴权闸门 / 26 运维可观测 / 30 运营度量 / 38 MLOps 骨架 / 40 成本路由与缓存 / 41 质量可观测）；
+  剩 4 个（16/17 移动端、32 集团租户、33 法律）属必须客户侧输入的文档型，已写成可排期清单、租户模型说明与可交法务的使用守则。
+  <br>实测：pytest <b>248 → 369 passed</b>；openapi <b>41 → 93 paths</b>（新增 58 个操作，脚本幂等同步）；
+  新增 6 组路由 + <code>/agent/invoke</code> / <code>/kb/*</code> / <code>/agents?role=</code> 主链路接入 + 管理后台「平台运营台」二级页。
+  <br><b>仍不能算完成的</b>：① 4 个外部输入（模型 key / 官方搜索 key / Casdoor IdP / 真实语料）只能由你提供，已做成 <code>GET /ops/readiness</code> + 一键验收命令，绝不伪造 PASS；
+  ② 可视化编排画布、MCP、原生移动端、PS/CAD 工具、桌面文件网关、集团物理隔离需客户硬件或排期；
+  ③ Grafana/Loki/OTel、LLM-as-Judge、向量语义缓存、A/B 灰度仍是底座或骨架，接口里均明确标注。
+</div>
+
+<h2>一、收口前基线快照（2026-11-06 01:30 本机实跑口径）</h2>
+<div class="kpi">
+  <div><b>248 passed</b><span>pytest 全量实跑，36s</span></div>
+  <div><b>41 paths</b><span>openapi 接口契约</span></div>
+  <div><b>115 + 28</b><span>业务包 / 公共库（7 组）</span></div>
+  <div><b>11 岗</b><span>岗位工作台映射</span></div>
+</div>
+<table>
+  <tr><th style="width:22%">项</th><th>当前状态</th></tr>
+  <tr><td>里程碑</td><td>M0–M26 全部本地提交并已推 origin/main；最新 <code>b0a1b21</code></td></tr>
+  <tr><td>运行环境</td><td>后端 8080 / 前端 5173 <b>已关闭</b>（按要求）；无 PG、无 Qdrant，<b>内存模式</b>，重启需重灌 <code>scripts/seed_live_demo.py</code></td></tr>
+  <tr><td>模型</td><td>仍为占位 stub。硅基流动 key 有效但 402 余额不足；<code>verify_rag_answers.py</code>、<code>verify_web_search.py</code>、<code>accept_real_llm.py</code> 的语义层全部 SKIP，未冒充通过</td></tr>
+  <tr><td>联网搜索</td><td>M26 已通（<code>sogou_html → bing_html</code> 免费兜底），竞品调研会召到电商聚合页；生产需官方 key</td></tr>
+  <tr><td>身份</td><td>dev SSO + OIDC 可插拔（Casdoor 方案已定，未接真实 IdP）；生产会拒绝 <code>dev</code> 前缀 token</td></tr>
+  <tr><td>数据口径差异</td><td>M26 文档记 247 passed，本机实跑 <b>248 passed</b>；以实跑为准，差异不影响结论</td></tr>
+  <tr><td>本轮是否联网</td><td>否。全部结论来自本地蓝图、代码、测试与既有验收文档</td></tr>
+</table>
+
+<h2>二、已变更的技术决策（不算欠账）</h2>
+<div class="note">蓝图写于选型阶段，工程落地时有意换过几处。这些是决策变更，不是漏做；但要意识到<strong>替换掉的能力也随之缺失</strong>。</div>
+<table>
+  <tr><th style="width:20%">蓝图写法</th><th style="width:32%">实际落地</th><th>带来的缺口</th></tr>
+  <tr><td>Dify 可视化工作流 / Agent 编排</td><td>自研 FastAPI 单体 + LangGraph 固定图</td><td><b>没有可视化编排器、员工无法自己串工作流</b>（第 3.4 / 19.3 章）</td></tr>
+  <tr><td>MCP 标准技能 / 插件生态</td><td>prompt-as-skill 115 包 + 内置检索/搜索工具</td><td>无 MCP 协议、无工具注册中心、无第三方插件接入（第 3.2 / 22 / 44 章）</td></tr>
+  <tr><td>One API 网关</td><td>LiteLLM / 直连双通道（M17）</td><td>无统一插件生态，但计费与配额已自建，功能等价</td></tr>
+  <tr><td>Authing（企业版收费）</td><td>Casdoor 免费自建 + 标准 OIDC/JWKS</td><td>需客户自备 IdP 与企微/钉钉资料才能收口</td></tr>
+</table>
+
+<h2>三、44 章逐章对账</h2>
+<p style="color:var(--muted);font-size:13px">状态口径：<span class="s ok">完整</span> 有实现且有测试或验收 &nbsp; <span class="s part">部分</span> 有可用底座但缺关键能力 &nbsp; <span class="s no">未启动</span> 代码中无对应实现（关键词扫描为 0） &nbsp; <span class="s doc">文档类</span> 定位/组织/摘要，不计工程量</p>
+
+<h3>A · 设计态（第 1–18 章）</h3>
+<table>
+  <tr><th style="width:6%">章</th><th style="width:19%">蓝图要求</th><th style="width:9%">状态</th><th>工程现状 / 缺口</th></tr>
+  <tr><td class="c">1</td><td>定位与价值</td><td class="c"><span class="s doc">文档</span></td><td>立项依据，非工程项</td></tr>
+  <tr><td class="c">2</td><td>总体架构</td><td class="c"><span class="s part">部分</span></td><td>单体 + 基础设施 compose 已跑通；蓝图的多服务架构、容器拆分未做</td></tr>
+  <tr><td class="c">3</td><td>核心能力模块</td><td class="c"><span class="s part">部分</span></td><td>RAG(3.3)、五格式文档产出(3.5) 已落地；<b>多 Agent 协作 Orchestrator、MCP 技能体系、可视化工作流、连接器、定时自动化 5 项全无</b></td></tr>
+  <tr><td class="c">4</td><td>技术选型</td><td class="c"><span class="s part">部分</span></td><td>LangGraph / React / Qdrant / bge-m3 / Casdoor 已定；Dify、MCP、One API 被替换（见第二节）</td></tr>
+  <tr><td class="c">5</td><td>知识库分级与权限 P0</td><td class="c"><span class="s part">部分</span></td><td>四级 scope（personal/owner/department/global）+ 第18章单一过滤点 + 部门级隔离已验（M10/M14 零泄露）；<b>多库联邦/关联、多维标签体系、部门入驻 SOP/RACI 的功能化</b>未做</td></tr>
+  <tr><td class="c">6</td><td>数据安全与合规 P0</td><td class="c"><span class="s part">部分</span></td><td>RBAC、审批红线、审计、私有化、M26 SSRF 防护已有；<b>入库防投毒、输出泄密检测、公网模型回传拦截</b>未做（归第 27 章）</td></tr>
+  <tr><td class="c">7</td><td>实施路线图</td><td class="c"><span class="s part">部分</span></td><td>Phase 0（MVP 底座）已等价完成、Phase 1 的部门隔离已验；<b>部门专属 Agent / 连接器、Phase 2 定时自动化与治理巡检</b>未做</td></tr>
+  <tr><td class="c">8</td><td>团队与资源</td><td class="c"><span class="s doc">文档</span></td><td>组织事项，需客户侧输入</td></tr>
+  <tr><td class="c">9</td><td>MVP 启动检查清单</td><td class="c"><span class="s part">部分</span></td><td>最小流程（制度问答）、验收门禁、部署脚本齐；<b>模型供应商 API Key、第一批真实全域素材、指定试点部门</b>仍未到位</td></tr>
+  <tr><td class="c">10</td><td>风险与应对</td><td class="c"><span class="s doc">文档</span></td><td>风险台账，非工程项</td></tr>
+  <tr><td class="c">11</td><td>下一步建议</td><td class="c"><span class="s doc">文档</span></td><td>写于蓝图阶段，已被 M0–M26 取代</td></tr>
+  <tr><td class="c">12</td><td>多部门场景 / 九部门卡片</td><td class="c"><span class="s part">部分</span></td><td>M19 已建 11 岗 × 115 包映射；九部门落地卡片仍是文档，未变成产品内引导</td></tr>
+  <tr><td class="c">13</td><td>权限矩阵总表</td><td class="c"><span class="s ok">完整</span></td><td>员工/部门管理员/平台管理员三角色 + 越权测试，M5/M7/M12–14 已验</td></tr>
+  <tr><td class="c">14</td><td>管理层摘要</td><td class="c"><span class="s doc">文档</span></td><td>汇报材料</td></tr>
+  <tr><td class="c">15</td><td>给 IT 的部署清单</td><td class="c"><span class="s part">部分</span></td><td>Dockerfile + compose（仅基础设施）、Qdrant/PG/MinIO 可接；<b>HTTPS 域名、备份策略与恢复演练、SSO 收口、access_list 白名单、真实语料导入</b>未做</td></tr>
+  <tr><td class="c">16</td><td>移动端操作设计</td><td class="c"><span class="s no">未启动</span></td><td>只有 M18 的 430px 响应式，无独立移动端设计、移动安全、弱网离线</td></tr>
+  <tr><td class="c">17</td><td>移动端 MVP 清单</td><td class="c"><span class="s no">未启动</span></td><td>无移动页面/权限点/接口专项；蓝图估 4–6 周</td></tr>
+  <tr><td class="c">18</td><td>PC 与移动权限一致</td><td class="c"><span class="s part">部分</span></td><td>PC 侧单一过滤点已实现且有测试；移动端不存在，谈不上一致性验证</td></tr>
+</table>
+
+<h3>B · 启动期、生产态与运营态（第 19–34 章）</h3>
+<table>
+  <tr><th style="width:6%">章</th><th style="width:19%">蓝图要求</th><th style="width:9%">状态</th><th>工程现状 / 缺口</th></tr>
+  <tr><td class="c">19</td><td>启动期 L1/L2/L3 P0</td><td class="c"><span class="s part">部分</span></td><td>L1 近似完成（28 条公共库 + 通用助手 + 岗位工作台）；<b>L2 员工零代码「业务转智能体」、L3 多智能体编排器、模板中心</b>全无，是最大的产品缺口</td></tr>
+  <tr><td class="c">20</td><td>平台自演化 P1</td><td class="c"><span class="s no">未启动</span></td><td>M7 计量 / M13 审计可当数据底座，但<b>用户赞踩与纠错、知识缺口探测、提示词 A/B、演化建议台、人在环审批、灰度回滚</b>代码均为 0 命中</td></tr>
+  <tr><td class="c">21</td><td>自助建部门 P0</td><td class="c"><span class="s no">未启动</span></td><td>部门仍靠管理员/脚本配置；无向导、无模板库、无权限自动初始化</td></tr>
+  <tr><td class="c">22</td><td>外部专业工具（PS/CAD）P0</td><td class="c"><span class="s no">未启动</span></td><td>无工具注册中心、无 API/CLI/桌面桥、无沙箱与人工审核节点</td></tr>
+  <tr><td class="c">23</td><td>本地文件与存储 P0</td><td class="c"><span class="s part">部分</span></td><td>M16 网页上传 xlsx + 代理下载已通；<b>桌面客户端本地文件网关、NAS/网盘连接器、ACL→scope 映射、拖入即切片</b>未做</td></tr>
+  <tr><td class="c">24</td><td>UI 设计规范 P1</td><td class="c"><span class="s part">部分</span></td><td>M18 员工向改版 + 响应式已验；设计令牌、暗色主题、移动线框未系统化</td></tr>
+  <tr><td class="c">25</td><td>模型网关与计量计费 P0</td><td class="c"><span class="s ok">完整</span></td><td>M6/M7/M17：双通道网关、真实 token 记账、五维聚合、配额红线（429）</td></tr>
+  <tr><td class="c">26</td><td>部署运维与可观测 P0</td><td class="c"><span class="s no">未启动</span></td><td><b>无 Prometheus/Grafana、无 OpenTelemetry、无日志聚合、无告警值班、无 RTO/RPO 备份演练、无灰度发布</b>——上生产硬门槛</td></tr>
+  <tr><td class="c">27</td><td>AI 行为安全 P0</td><td class="c"><span class="s part">部分</span></td><td>有硬规则(8条)、审批红线、审计、联网 SSRF/URL 白名单；<b>提示注入检测、入库防投毒、输出层泄密/幻觉过滤、越权二次防线</b>未做</td></tr>
+  <tr><td class="c">28</td><td>测试与评测体系 P0</td><td class="c"><span class="s part">部分</span></td><td>248 测试、golden 集、Recall 门禁、M17 规则打分、冲突夹具已备；<b>LLM-as-Judge、每部门 ≥50 条 golden、提示词回归门禁、覆盖率 ≥70%</b>未做</td></tr>
+  <tr><td class="c">29</td><td>审计与合规留存 P1</td><td class="c"><span class="s part">部分</span></td><td>M13 审计 + trace_id + 脱敏 + 三级隔离；<b>180 天留存、审计库只读加密、等保/ISO 映射、员工数据导出/删除级联清向量</b>未做</td></tr>
+  <tr><td class="c">30</td><td>运营推广与价值度量 P1</td><td class="c"><span class="s no">未启动</span></td><td>无 DAU/采纳率/部门渗透率/ROI 看板，无培训体系，无试点→放大→常态化推广机制</td></tr>
+  <tr><td class="c">31</td><td>统一身份与集成 P1</td><td class="c"><span class="s part">部分</span></td><td>M12 OIDC 可插拔 + 登录页/回调/自助连接页；<b>目录同步、入转离生命周期、企微/钉钉机器人、OA/ERP/CRM 连接器、事件总线</b>未做</td></tr>
+  <tr><td class="c">32</td><td>多租户集团化 P2</td><td class="c"><span class="s no">未启动</span></td><td>目前是单公司 + 部门级 tenant_id 参数；无集团租户模型、无跨租户白名单、无按租户配额</td></tr>
+  <tr><td class="c">33</td><td>法律与责任界定 P2</td><td class="c"><span class="s no">未启动</span></td><td>产出归属、免责声明、使用守则、数据出境评估均无法务文本</td></tr>
+  <tr><td class="c">34</td><td>性能与成本优化 P2</td><td class="c"><span class="s part">部分</span></td><td>M9/M10/M11 已做倒排预筛、embedding 缓存、索引压缩、1 万篇 p50 31.9ms；<b>模型按难度路由、语义缓存、网关节流削峰、向量库冷热分离</b>未做</td></tr>
+</table>
+
+<h3>C · 工程深水区（第 35–44 章）</h3>
+<table>
+  <tr><th style="width:6%">章</th><th style="width:19%">蓝图要求</th><th style="width:9%">状态</th><th>工程现状 / 缺口</th></tr>
+  <tr><td class="c">35</td><td>模型选型决策框架 P0</td><td class="c"><span class="s ok">完整</span></td><td>M1 四分支选型服务化，与原型向导同源</td></tr>
+  <tr><td class="c">36</td><td>RAG 质量工程 P0</td><td class="c"><span class="s ok">完整</span></td><td>M2/M9/M11：混合检索 + 父子切分 + 真实 bge-m3 + Qdrant，Recall@100=1.0 / @5=0.98</td></tr>
+  <tr><td class="c">37</td><td>ML 级评测门禁 P0</td><td class="c"><span class="s ok">完整</span></td><td>M3：客观指标 + CI 非零退出阻断，不依赖 LLM-as-Judge</td></tr>
+  <tr><td class="c">38</td><td>非 LLM MLOps P1</td><td class="c"><span class="s no">未启动</span></td><td>无特征存储、训练流水线、模型注册表、漂移检测与重训</td></tr>
+  <tr><td class="c">39</td><td>幻觉抑制与 Grounding P1</td><td class="c"><span class="s part">部分</span></td><td>M25 编号证据块 + snippets、M26 公网 [W] 编号、8 条硬规则「不许编」已落地；<b>事实校验「声明-证据」比对、低置信拒答、输出合规校验层</b>未做，且真模型下遵守率未验</td></tr>
+  <tr><td class="c">40</td><td>成本与延迟优化 P1</td><td class="c"><span class="s no">未启动</span></td><td>无任务复杂度路由、无语义缓存、无模型分层预算与熔断（验收线：小模型 &gt;40%、缓存命中 &gt;20%）</td></tr>
+  <tr><td class="c">41</td><td>模型质量可观测 P1</td><td class="c"><span class="s no">未启动</span></td><td>计量只有 token/成本，无成功率、幻觉率、转人工率、满意度、p95/p99 与质量看板</td></tr>
+  <tr><td class="c">42</td><td>优雅降级与人工升级 P2</td><td class="c"><span class="s part">部分</span></td><td>M7 stub 兜底 + LLM_STRICT 显式报错已有；<b>无置信分、无可配降级链、无低置信转人工工单</b></td></tr>
+  <tr><td class="c">43</td><td>中文语言特化 P2</td><td class="c"><span class="s part">部分</span></td><td>默认 bge-m3 中文 embedding 已接；中文语义切分、中文 Prompt 模板库、内部中文基准集未做</td></tr>
+  <tr><td class="c">44</td><td>Agent/工具层安全闭环 P2</td><td class="c"><span class="s part">部分</span></td><td>M26 联网工具做了 URL 白名单、SSRF、审计与「公网不入库」；<b>工具调用统一过权限过滤器、出网脱敏网关、工具入参出参全审计</b>未做</td></tr>
+</table>
+
+<h2>四、卡住的不是代码：4 个外部输入</h2>
+<table>
+  <tr><th style="width:5%">#</th><th style="width:22%">缺什么</th><th style="width:33%">卡住了什么</th><th>拿到后一键复跑</th></tr>
+  <tr><td class="c">1</td><td><b>有效 LLM API Key</b></td><td>硅基流动 402 余额不足。3 个验收脚本的语义层全部 SKIP：RAG「查不到会不会说没查到 / 新旧冲突会不会并列」、联网「逐条标 [W编号]」、M17 技能包 80 分达标线</td><td><code>verify_rag_answers.py</code> / <code>verify_web_search.py</code> / <code>accept_real_llm.py</code></td></tr>
+  <tr><td class="c">2</td><td><b>官方搜索 Key</b></td><td>博查 / Serper 之一。免费网页源只保证「能通」，竞品调研会召到阿里巴巴聚合页</td><td>配 <code>BOCHA_API_KEY</code> 或 <code>SERPER_API_KEY</code> 后复跑 <code>verify_web_search.py</code></td></tr>
+  <tr><td class="c">3</td><td><b>真实 IdP 参数</b></td><td>Casdoor issuer / client_id + 企微或钉钉 CorpID/Secret；M12 只做到「可插拔」，没做端到端联调</td><td><code>/auth/oidc/health</code> → <code>/auth/oidc/exchange</code> → 前端 <code>/setup</code></td></tr>
+  <tr><td class="c">4</td><td><b>真实语料</b></td><td>全域制度/SOP/产品手册 + 第二部门文档目录。当前召回、冲突、隔离结论全部基于模拟语料与 3 份冲突夹具</td><td><code>ingest_corpus.py</code> + <code>pilot_second_dept.py</code></td></tr>
+</table>
+<div class="note">另有一条悬空项：你上次列的第 4 点是空的（M25 文档已记为「待确认」），补充后才能排期。</div>
+
+<h2>五、下一轮怎么排（建议顺序）</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">P0 · 先做（不依赖外部输入或很便宜）</h3>
+    <ul>
+      <li><span class="p0">P0-1</span> <b>岗位由组织下发，不由员工自选</b>：M22 遗留的真实越权面——员工可切成「管理者」看到别人的包。接 IdP 的 dept→role 映射，服务端校验。</li>
+      <li><span class="p0">P0-2</span> <b>真模型 + 官方搜索 key 到手后立即复跑三项验收</b>，把 3 个 SKIP 变成 PASS/FAIL；不达标先分清提示词问题还是证据问题。</li>
+      <li><span class="p0">P0-3</span> <b>上生产最小三件套</b>：容器化编排（后端 + 前端 + 基础设施）、PG/Qdrant/MinIO 备份与恢复演练、Prometheus + OTel + 告警阈值。</li>
+      <li><span class="p0">P0-4</span> <b>AI 行为安全三层</b>（第 27/44 章）：提示注入拦截、入库来源校验、输出泄密与幻觉过滤；工具调用统一过第 18 章过滤点。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">P1 · 接着做（决定「能不能被用起来」）</h3>
+    <ul>
+      <li><span class="p1">P1-1</span> <b>L2 业务转智能体 + L3 工作流编排</b>（第 19/21 章）：蓝图最大能力空白，也是员工从「用技能」到「造技能」的分水岭。</li>
+      <li><span class="p1">P1-2</span> <b>反馈闭环与演化建议台</b>（20/30/41）：赞踩纠错 → 知识缺口 → 提示词 A/B → 人在环审批 → 灰度，先做 P0 段「埋点+反馈+建议台+审批」。</li>
+      <li><span class="p1">P1-3</span> <b>审计留存与合规</b>（29）、<b>统一身份收口与 IM/OA 集成</b>（31）、LLM-as-Judge 与提示词回归门禁（28）。</li>
+      <li><span class="p1">P1-4</span> 既有遗留：搜索词三轮拆解、来源可信度代码打分、166 个 xlsx 做 few-shot、115 业务包补硬规则（现仅 17/115）。</li>
+    </ul>
+  </div>
+</div>
+<div class="card" style="margin-top:16px">
+  <h3 style="margin-top:0">P2 · 规模化再说（第 16/17/22/23/32/33/38/40/42/43 章）</h3>
+  <p style="margin:4px 0">移动端 MVP（4–6 周）、外部专业工具与本地文件网关、集团租户、法律责任文本、非 LLM MLOps、语义缓存与模型路由、置信降级转人工、中文基准集。这些都不阻塞首个客户试点，但在政企验收时会被逐条问到。</p>
+</div>
+
+<h2>六、可勾选检查清单</h2>
+<div class="grid2">
+  <div class="card"><ul class="chk">
+    <li>模型 key 可用（或换智谱 id.secret 格式）</li>
+    <li>官方搜索 key 已配，免费源只留作降级</li>
+    <li>Casdoor issuer / client_id 已联调</li>
+    <li>真实全域语料 + 第二部门语料已灌</li>
+    <li>第 4 点待办已补充</li>
+    <li>岗位改服务端下发，员工不可自选越权</li>
+  </ul></div>
+  <div class="card"><ul class="chk">
+    <li>三项语义验收由 SKIP 转 PASS</li>
+    <li>PG/Qdrant 常驻（告别内存模式重启丢数据）</li>
+    <li>备份恢复演练报告归档</li>
+    <li>监控三支柱 + 告警值班上线</li>
+    <li>提示注入 / 输出过滤 / 工具鉴权有测试守着</li>
+    <li>L2 或 L3 主线选定并排期</li>
+  </ul></div>
+</div>
+
+<footer>
+  口径说明：章节状态为本次按「有无实现 + 有无测试/验收」的人工判定，非自动扫描结论；「未启动」指后端 <code>app/</code> 与前端 <code>src/</code> 关键词零命中（mcp / workflow / orchestrator / prometheus / opentelemetry / scheduler / feedback / semantic_cache / prompt_injection / tool_registry 等）。本轮未联网，未改动任何业务代码，仅新增本台账。测试数 248 为 2026-11-06 本机实跑值。
+</footer>
+</div>
+</body>
+</html>

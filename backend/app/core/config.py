@@ -159,6 +159,55 @@ class Settings:
     # 突然全线 401「missing caller context」，看不出是过期。
     DEV_TOKEN_TTL_S = int(_env("DEV_TOKEN_TTL_S", "43200"))
 
+    # ── M27 蓝图缺口收口（第 19/20/21/26/27/28/29/30/31/34/38/39/40/41/42/43/44 章）──
+    # 总原则：默认「记录 + 提示」，不默认改变既有 248 条测试依赖的行为；
+    # 只有 *_STRICT=1 才阻断。生产环境应由运维显式打开严格模式。
+    GUARDRAILS_ENABLED = _env("GUARDRAILS_ENABLED", "1") == "1"
+    GUARDRAILS_STRICT = _env("GUARDRAILS_STRICT", "0") == "1"
+    GUARDRAILS_SOURCE_ALLOWLIST = _env("GUARDRAILS_SOURCE_ALLOWLIST", "")  # 逗号分隔可信域名
+    GUARDRAILS_TOOL_AUTH = _env("GUARDRAILS_TOOL_AUTH", "1") == "1"
+    GUARDRAILS_OUTPUT_MASK = _env("GUARDRAILS_OUTPUT_MASK", "1") == "1"
+    GUARDRAILS_MAX_INJECTION_HITS = int(_env("GUARDRAILS_MAX_INJECTION_HITS", "3"))
+
+    FEEDBACK_ENABLED = _env("FEEDBACK_ENABLED", "1") == "1"
+    EVOLUTION_REQUIRE_APPROVAL = _env("EVOLUTION_REQUIRE_APPROVAL", "1") == "1"
+    AUDIT_RETENTION_DAYS = int(_env("AUDIT_RETENTION_DAYS", "180"))
+    SECURITY_EVENT_RETENTION_DAYS = int(_env("SECURITY_EVENT_RETENTION_DAYS", "365"))
+
+    OBSERVABILITY_ENABLED = _env("OBSERVABILITY_ENABLED", "1") == "1"
+    OPS_ALERT_ERROR_RATE = float(_env("OPS_ALERT_ERROR_RATE", "0.01"))
+    OPS_ALERT_P95_MS = float(_env("OPS_ALERT_P95_MS", "3000"))
+    OPS_ALERT_MODEL_429_SPIKE = int(_env("OPS_ALERT_MODEL_429_SPIKE", "10"))
+
+    SEMANTIC_CACHE_ENABLED = _env("SEMANTIC_CACHE_ENABLED", "1") == "1"
+    SEMANTIC_CACHE_THRESHOLD = float(_env("SEMANTIC_CACHE_THRESHOLD", "0.92"))
+    SEMANTIC_CACHE_TTL_S = int(_env("SEMANTIC_CACHE_TTL_S", "3600"))
+    SEMANTIC_CACHE_MAX_ENTRIES = int(_env("SEMANTIC_CACHE_MAX_ENTRIES", "500"))
+
+    ROUTING_ENABLED = _env("ROUTING_ENABLED", "1") == "1"
+    ROUTING_SMALL_MODEL = _env("ROUTING_SMALL_MODEL", "glm-4.6-air")
+    ROUTING_LARGE_MODEL = _env("ROUTING_LARGE_MODEL", "glm-4.6")
+    ROUTING_SMALL_TIER_PRICE = float(_env("ROUTING_SMALL_TIER_PRICE", "0.0005"))
+    ROUTING_LARGE_TIER_PRICE = float(_env("ROUTING_LARGE_TIER_PRICE", "0.005"))
+
+    CONFIDENCE_THRESHOLD = float(_env("CONFIDENCE_THRESHOLD", "0.45"))
+    HANDOFF_ENABLED = _env("HANDOFF_ENABLED", "1") == "1"
+    DEPT_SELF_SERVICE = _env("DEPT_SELF_SERVICE", "1") == "1"
+    WORKFLOW_MAX_NODES = int(_env("WORKFLOW_MAX_NODES", "12"))
+    WEBHOOK_TOKEN_SECRET = _env("WEBHOOK_TOKEN_SECRET", "dev-only-change-me")
+    WEBHOOK_TIMEOUT_S = float(_env("WEBHOOK_TIMEOUT_S", "3.0"))
+    # 岗位由组织下发：1 = 服务端按 deptId 解析岗位，忽略前端自选的越权岗位
+    ROLE_FROM_ORG = _env("ROLE_FROM_ORG", "0") == "1"
+    # deptId → 岗位映射（组织侧真实数据到位后改这里 / 换成 IdP 下发）
+    ORG_DEPT_ROLE_MAP = _env(
+        "ORG_DEPT_ROLE_MAP",
+        "d_sales:sales,d_finance:finance,d_hr:hr,d_admin:admin,d_marketing:marketing,"
+        "d_production:manufacturing,d_crossborder:crossborder,d_it:it,d_design:design,"
+        "d_procurement:procurement,d_service:service,d_quality:quality,d_platform:admin",
+    )
+
+    # M27 默认只「观测 + 建议」，不改变既有生成结果；低置信自动转人工需显式打开
+    HANDOFF_AUTO = _env("HANDOFF_AUTO", "0") == "1"
 
 
 settings = Settings()

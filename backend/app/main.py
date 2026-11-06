@@ -4,15 +4,43 @@
 并承载第18章单一过滤点；所有下游路由信任 caller 上下文。
 """
 from contextlib import asynccontextmanager
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
-from app.routers import (agents, approval, audit, auth, eval as eval_router, files,
-                        invoke, kb, models, rag, search, selection, usage)
-from app.services import agent_store, approval_store, file_store, kb_store, pg_store, session_store, usage_store
+from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
+                        events, feedback, files, guardrails, invoke, kb, models, ops,
+                        quality, rag, search, selection, usage)
+from app.services import (agent_store, approval_store, file_store, kb_store,
+                          observability, pg_store, session_store, usage_store)
+
+
+class ObservabilityMiddleware(BaseHTTPMiddleware):
+    """第26章可观测性：每请求耗时 / 状态码 / trace_id 进指标层。
+
+    只观测、不拦截、不改写响应；`X-Trace-Id` 由 AuditTraceMiddleware 在最内层
+    写好响应头，这里从响应头取，避免打乱既有中间件顺序。
+    """
+
+    async def dispatch(self, request, call_next):
+        t0 = time.time()
+        try:
+            response = await call_next(request)
+            status = response.status_code
+        except Exception:
+            observability.observe_request(request.method, request.url.path, 500,
+                                          (time.time() - t0) * 1000, "")
+            raise
+        observability.observe_request(
+            request.method, request.url.path, status,
+            (time.time() - t0) * 1000,
+            response.headers.get("X-Trace-Id", ""),
+        )
+        return response
 
 
 @asynccontextmanager
@@ -43,6 +71,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if settings.OBSERVABILITY_ENABLED:
+    app.add_middleware(ObservabilityMiddleware)  # M27：最外层，记录所有请求含 4xx/5xx
 
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(rag.router, prefix=settings.API_PREFIX)
@@ -57,6 +87,13 @@ app.include_router(approval.router, prefix=settings.API_PREFIX)
 app.include_router(audit.router, prefix=settings.API_PREFIX)  # M13：审计日志查询
 app.include_router(eval_router.router, prefix=settings.API_PREFIX)  # M8：基线评测最近报告
 app.include_router(search.router, prefix=settings.API_PREFIX)       # M26：联网查资料 / 竞品调研
+# ── M27：蓝图缺口收口（第 19/20/21/26/27/28/29/30/31/34/38/39/40/41/42/43/44 章）──
+app.include_router(guardrails.router, prefix=settings.API_PREFIX)   # 输入/输出/工具三层安全
+app.include_router(feedback.router, prefix=settings.API_PREFIX)     # 反馈、演化建议台、度量
+app.include_router(ops.router, prefix=settings.API_PREFIX)          # 指标 / 告警 / 就绪度 / 数据主体权利
+app.include_router(events.router, prefix=settings.API_PREFIX)       # webhook 事件总线
+app.include_router(quality.router, prefix=settings.API_PREFIX)      # 评测 / 路由 / 缓存 / 降级 / MLOps
+app.include_router(builder.router, prefix=settings.API_PREFIX)      # 自助建部门 / L2 建包 / L3 编排
 
 
 @app.get("/healthz")

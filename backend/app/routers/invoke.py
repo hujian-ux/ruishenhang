@@ -16,10 +16,83 @@ from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import AgentInvokeRequest
 from app.routers.agents import _AGENTS
-from app.services import (agent_runtime, artifact, audit, file_store, model_gateway,
+from app.services import (agent_runtime, artifact, audit, degrade, feedback, file_store,
+                          guardrails, model_gateway, model_router, semantic_cache,
                           session_store, tabular, usage_store)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
+
+
+def _evidence_text(result: dict) -> str:
+    """把内部引用片段与公网摘要拼成可字面核对的证据文本（第39章声明-证据比对用）。"""
+    parts: list[str] = []
+    for c in result.get("citations") or []:
+        parts.append(str(c.get("title") or ""))
+        parts.append(str(c.get("snippet") or ""))
+        parts.extend(str(s) for s in (c.get("snippets") or []))
+    for w in result.get("web_sources") or []:
+        parts.append(str(w.get("snippet") or ""))
+    return "\n".join(p for p in parts if p)
+
+
+def _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard):
+    """M27 旁路：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信与质量埋点。
+
+    关键取舍：**不改写 result["answer"]**。脱敏后的文本只作为建议放在响应里，
+    否则会动到 M4/M17/M25 一系列依赖答案原文的断言。严格阻断由 GUARDRAILS_STRICT
+    在调用前决定，这里只做「看得见、可追溯」的观测层。
+    """
+    out: dict = {"guardrails": {}, "cache": {}, "routing": {}, "confidence": None,
+                 "handoff": None, "quality_recorded": False, "errors": []}
+    try:
+        evidence = _evidence_text(result)
+        g = guardrails.scan_output(result["answer"], caller=caller,
+                                   hits=result.get("citations") or [], evidence=evidence)
+        g["grounding"] = (guardrails.grounding_check(result["answer"], evidence)
+                          if evidence else
+                          {"checked": 0, "unsupported": [], "score": 1.0,
+                           "skipped": "no_evidence_in_this_turn"})
+        g["input"] = {"blocked": bool(input_guard.get("blocked")),
+                      "hits": len(input_guard.get("hits") or []),
+                      "risk": input_guard.get("risk", 0.0)}
+        out["guardrails"] = g
+    except Exception as exc:
+        out["errors"].append(f"guardrails: {type(exc).__name__}: {exc}")
+
+    try:
+        cached = semantic_cache.get(req.input, req.agent_id)
+        if not cached:
+            semantic_cache.put(req.input, result["answer"], req.agent_id,
+                               {"run_id": run_id, "real": bool((result.get("usage") or {}).get("real"))})
+        out["cache"] = {"hit": bool(cached), "applied": False,
+                        "note": "只做命中率观测，stub 结果不复用", **semantic_cache.stats()}
+    except Exception as exc:
+        out["errors"].append(f"semantic_cache: {type(exc).__name__}: {exc}")
+
+    try:
+        out["routing"] = {**model_router.route(req.input, agent), "applied": False}
+    except Exception as exc:
+        out["errors"].append(f"model_router: {type(exc).__name__}: {exc}")
+
+    try:
+        u = result.get("usage") or {}
+        conf = degrade.confidence(result["answer"], _evidence_text(result),
+                                  bool(u.get("real")), out.get("guardrails") or {})
+        out["confidence"] = conf
+        feedback.record_quality({
+            "success": True, "real": bool(u.get("real")), "latency_ms": elapsed_ms,
+            "hallucination_flag": bool((out["guardrails"].get("grounding") or {}).get("unsupported")),
+            "handoff": False, "agent_id": req.agent_id,
+            "userId": caller.userId, "deptId": caller.deptId, "confidence": conf,
+        })
+        out["quality_recorded"] = True
+        if settings.HANDOFF_AUTO and conf < settings.CONFIDENCE_THRESHOLD:
+            out["handoff"] = degrade.handoff(
+                run_id, req.agent_id, f"置信 {conf:.2f} 低于阈值 {settings.CONFIDENCE_THRESHOLD}",
+                {"input": req.input[:300], "answer": result["answer"][:500]}, caller)
+    except Exception as exc:
+        out["errors"].append(f"degrade/feedback: {type(exc).__name__}: {exc}")
+    return out
 
 
 def _load_attachments(file_ids: list[str], caller: CallerContext):
@@ -136,6 +209,22 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         file_context = "\n\n".join(tabular.to_prompt_context(p, budget) for _, p in attachments)
 
     run_id = "run_" + uuid.uuid4().hex[:12]
+    # M27 第27章：输入侧护栏。默认只记录；GUARDRAILS_STRICT=1 且确实命中注入模式才拦截，
+    # 避免「严格模式把正常问题也全拦掉」这种把安全做成不可用的写法。
+    input_guard: dict = {"blocked": False, "hits": [], "risk": 0.0}
+    if settings.GUARDRAILS_ENABLED:
+        try:
+            input_guard = guardrails.scan_input(req.input)
+        except Exception:
+            input_guard = {"blocked": False, "hits": [], "risk": 0.0,
+                           "error": "guard_unavailable"}
+        if (settings.GUARDRAILS_STRICT and input_guard.get("blocked")
+                and input_guard.get("hits")):
+            audit.record("generate", caller, target=req.agent_id,
+                         result="blocked_injection",
+                         meta={"run_id": run_id, "hits": len(input_guard["hits"])},
+                         trace_id=trace_id)
+            raise HTTPException(status_code=400, detail="输入命中提示注入 / 越权指令护栏，已拒绝执行")
     t0 = time.time()
     # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
     try:
@@ -154,6 +243,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
                      meta={"run_id": run_id, "error": str(exc)[:300]}, trace_id=trace_id)
         raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
     elapsed_ms = int((time.time() - t0) * 1000)
+    # M27：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信 / 质量埋点（旁路，不改答案）
+    m27 = _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard)
 
     # 记忆落账：用户轮 + 助手轮
     session_store.append_turn(sess["session_id"], "user", req.input)
@@ -177,7 +268,12 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     # 用户第二天翻记录会把占位内容当成模型结论。
     extra = {"llm_real": bool(u.get("real")),
              "web_sources": result.get("web_sources") or [],
-             "web_search": result.get("web_search")}
+             "web_search": result.get("web_search"),
+             # M27：置信与护栏摘要也挂轮次，翻历史时仍能看出「这轮是低置信/被标了什么」
+             "confidence": m27.get("confidence"),
+             "guardrails": {"input_risk": ((m27.get("guardrails") or {}).get("input") or {}).get("risk"),
+                            "flags": (m27.get("guardrails") or {}).get("flags", []),
+                            "leaks": (m27.get("guardrails") or {}).get("leaks", [])}}
     if artifact_views:
         # 产出物挂到这一轮上：刷新页面 / 换设备打开历史会话时仍能下载
         extra.update({"artifacts": artifact_views, "run_id": run_id})
@@ -231,6 +327,13 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         },
         "output_formats": [a["meta"].get("format") for a in artifact_views],
         "quota": usage_store.quota_status(caller),
+        # ── M27 观测层：全部是「看得见」的附加信息，不改动上面任何既有字段 ──
+        "guardrails": m27.get("guardrails") or {},
+        "confidence": m27.get("confidence"),
+        "cache": m27.get("cache") or {},
+        "routing": m27.get("routing") or {},
+        "handoff": m27.get("handoff"),
+        "m27_errors": m27.get("errors") or [],
     }
     # M13 审计：必须在 return 之前 —— 原先写在 return 之后是不可达代码，
     # 导致「生成」这一类审计事件从未落库（M13 单测直接调 audit.record 没暴露）。
@@ -270,8 +373,9 @@ async def get_session_memory(session_id: str, caller: CallerContext = Depends(ge
                                 # 对外界面要能点开历史对话继续聊，所以回完整轮次；
                                 # context_preview 仍保留——它才是真正进模型的那段（截断后）
                                 "turns": [{k: v for k, v in t.items()
-                                           if k in ("role", "content", "ts", "artifacts",
-                                                    "run_id", "llm_real")}
+                                          if k in ("role", "content", "ts", "artifacts",
+                                                   "run_id", "llm_real", "confidence",
+                                                   "guardrails", "web_sources")}
                                           for t in sess["turns"]],
                                 "context_preview": session_store.build_context(sess)}}
 
