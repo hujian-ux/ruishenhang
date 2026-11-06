@@ -320,6 +320,7 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         },
         # M17：把「这次到底是真模型还是 stub」摆在响应顶层。
         # 之前只隐含在 usage.real 里，前端与验收脚本都容易漏看。
+        "llm_real": bool(u.get("real")),
         "llm": {
             "real": bool(u.get("real")),
             "provider": model_gateway.settings.LLM_PROVIDER,

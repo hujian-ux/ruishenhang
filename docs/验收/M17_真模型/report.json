@@ -1,14 +1,14 @@
 {
-  "mode": "dry-run",
-  "started_at": "2026-11-04 00:44:00",
-  "model": "glm-4.6",
+  "mode": "real-llm",
+  "started_at": "2026-11-06 18:48:02",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
   "provider": "direct",
   "cases": [
     {
       "case": "费用异常波动分析",
-      "agent_id": "ag_fae78c04",
-      "score": 1.0,
-      "passed": 8,
+      "agent_id": "ag_3c5d5bfd",
+      "score": 0.75,
+      "passed": 6,
       "total": 8,
       "checks": [
         {
@@ -25,11 +25,11 @@
         },
         {
           "label": "涨幅算对 20%",
-          "pass": true
+          "pass": false
         },
         {
           "label": "量差判定为 0（用量未变）",
-          "pass": true
+          "pass": false
         },
         {
           "label": "价差算出 2000（纯价涨）",
@@ -45,42 +45,50 @@
         }
       ],
       "usage": {
-        "real": false,
-        "model_id": "dry-run",
-        "prompt_tokens": 0,
-        "completion_tokens": 0,
-        "cost": 0
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "prompt_tokens": 930,
+        "completion_tokens": 1383,
+        "total_tokens": 2313,
+        "cost": 0.0,
+        "currency": "CNY",
+        "real": true,
+        "latency_ms": 29878,
+        "llm": {
+          "real": true,
+          "provider": "direct",
+          "error": ""
+        }
       },
-      "latency_ms": 823,
+      "latency_ms": 31315,
       "artifacts": [
         {
-          "file": "费用异常波动分析_20261104-0044.xlsx",
-          "size": 7300
+          "file": "费用异常波动分析_fei-yong-tai-zhang_20261106-1848.xlsx",
+          "size": 11298
         },
         {
-          "file": "费用异常波动分析_20261104-0044.docx",
-          "size": 37767
+          "file": "费用异常波动分析_fei-yong-tai-zhang_20261106-1848.docx",
+          "size": 38891
         },
         {
-          "file": "费用异常波动分析_20261104-0044.pptx",
-          "size": 36231
+          "file": "费用异常波动分析_fei-yong-tai-zhang_20261106-1848.pptx",
+          "size": 46241
         },
         {
-          "file": "费用异常波动分析_20261104-0044.html",
-          "size": 4250
+          "file": "费用异常波动分析_fei-yong-tai-zhang_20261106-1848.html",
+          "size": 7761
         },
         {
-          "file": "费用异常波动分析_20261104-0044.pdf",
-          "size": 85119
+          "file": "费用异常波动分析_fei-yong-tai-zhang_20261106-1848.pdf",
+          "size": 109582
         }
       ],
       "files_used": 2
     },
     {
       "case": "报销单合规预审",
-      "agent_id": "ag_a56bffe1",
-      "score": 1.0,
-      "passed": 7,
+      "agent_id": "ag_34de9265",
+      "score": 0.8571428571428571,
+      "passed": 6,
       "total": 7,
       "checks": [
         {
@@ -101,7 +109,7 @@
         },
         {
           "label": "王五这笔判待复核（品名与事由不一致）",
-          "pass": true
+          "pass": false
         },
         {
           "label": "退单理由挂到制度/条款",
@@ -113,50 +121,73 @@
         }
       ],
       "usage": {
-        "real": false,
-        "model_id": "dry-run",
-        "prompt_tokens": 0,
-        "completion_tokens": 0,
-        "cost": 0
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "prompt_tokens": 1196,
+        "completion_tokens": 809,
+        "total_tokens": 2005,
+        "cost": 0.0,
+        "currency": "CNY",
+        "real": true,
+        "latency_ms": 21042,
+        "llm": {
+          "real": true,
+          "provider": "direct",
+          "error": ""
+        }
       },
-      "latency_ms": 231,
+      "latency_ms": 21250,
       "artifacts": [
         {
-          "file": "报销单合规预审_20261104-0044.xlsx",
-          "size": 7336
+          "file": "报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.xlsx",
+          "size": 10992
         },
         {
-          "file": "报销单合规预审_20261104-0044.docx",
-          "size": 37792
+          "file": "报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.docx",
+          "size": 38383
         },
         {
-          "file": "报销单合规预审_20261104-0044.pptx",
-          "size": 34970
+          "file": "报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.pptx",
+          "size": 41888
         },
         {
-          "file": "报销单合规预审_20261104-0044.html",
-          "size": 4212
+          "file": "报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.html",
+          "size": 6512
         },
         {
-          "file": "报销单合规预审_20261104-0044.pdf",
-          "size": 97343
+          "file": "报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.pdf",
+          "size": 112313
         }
       ],
       "files_used": 3
     }
   ],
   "artifacts": [
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.xlsx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.docx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.pptx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.html",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_20261104-0044.pdf",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.xlsx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.docx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.pptx",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.html",
-    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_20261104-0044.pdf"
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_fei-yong-tai-zhang_20261106-1848.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_fei-yong-tai-zhang_20261106-1848.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_fei-yong-tai-zhang_20261106-1848.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_fei-yong-tai-zhang_20261106-1848.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\费用异常波动分析\\费用异常波动分析_fei-yong-tai-zhang_20261106-1848.pdf",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.xlsx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.docx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.pptx",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.html",
+    "D:\\enterprise-ai-platform\\docs\\验收\\M17_真模型\\报销单合规预审\\报销单合规预审_fei-yong-bao-xiao-dan_20261106-1849.pdf"
   ],
-  "avg_score": 1.0,
+  "probe": {
+    "ok": true,
+    "model_id": "Qwen/Qwen2.5-7B-Instruct",
+    "status_code": 200,
+    "reply": "通了",
+    "error": "",
+    "hint": "",
+    "latency_ms": 808,
+    "provider": "direct",
+    "vendor": "siliconflow",
+    "vendor_label": "硅基流动（聚合）",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "key_configured": true,
+    "key_hint": "SILICONFLOW_API_KEY"
+  },
+  "avg_score": 0.8035714285714286,
   "verdict": "达标"
 }
