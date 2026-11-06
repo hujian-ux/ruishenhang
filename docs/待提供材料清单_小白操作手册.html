@@ -191,6 +191,7 @@
     <li>在对话里发我一行：<code>BOCHA_API_KEY=你复制的那串</code>。我来写进本地配置，<b>你不用碰任何配置文件</b>。</li>
   </ol>
   <div class="box amber"><b>密钥安全</b>：私聊发我即可，别发群里、别贴公开文档。这串等于账号权限，用完建议在控制台轮换一次。平台配置写在被忽略的本地 <code>.env</code>，不会进代码仓库。</div>
+  <div class="box amber"><b>配了 key 仍 403？别慌，不是 key 错。</b>实测博查返回「You do not have enough money or package quota」是<b>账号额度 / 套餐不足</b>：key 本身是对的，但账号还没拿到可用额度。去 bocha.cn 控制台看「额度 / 套餐」，<b>领取免费额度或买一个最小套餐</b>即可立刻生效（平台会自动切到官方通道）。<b>嫌麻烦就换 Tavily</b>：注册即送每月 1000 credits、无需信用卡，注册完把 <code>TAVILY_API_KEY=…</code> 发我即可。无论哪家，<b>配 key 之前平台会自动走免费网页抓取，联网查资料、竞品调研照常可用，只是「生产就绪度」这一项不判通过</b>。</div>
   <p class="small">对应字段（给我看一眼即可，不用记）：<code>BOCHA_API_KEY</code> / <code>SERPER_API_KEY</code> / <code>TAVILY_API_KEY</code> / <code>BING_SEARCH_KEY</code>；自建搜索填 <code>SEARXNG_BASE_URL</code>。</p>
 </div>
 
