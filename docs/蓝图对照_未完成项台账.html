@@ -178,7 +178,7 @@
 <h2>四、卡住的不是代码：4 个外部输入</h2>
 <table>
   <tr><th style="width:5%">#</th><th style="width:22%">缺什么</th><th style="width:33%">卡住了什么</th><th>拿到后一键复跑</th></tr>
-  <tr><td class="c">1</td><td><b>有效 LLM API Key</b></td><td>硅基流动 402 余额不足。3 个验收脚本的语义层全部 SKIP：RAG「查不到会不会说没查到 / 新旧冲突会不会并列」、联网「逐条标 [W编号]」、M17 技能包 80 分达标线</td><td><code>verify_rag_answers.py</code> / <code>verify_web_search.py</code> / <code>accept_real_llm.py</code></td></tr>
+  <tr><td class="c">1</td><td><b>有效 LLM API Key</b></td><td>硅基流动 402 余额不足。3 个验收脚本的语义层全部 SKIP：RAG「查不到会不会说没查到 / 新旧冲突会不会并列」、联网「逐条标 [W编号]」、M17 技能包 80 分达标线。<br><b>2026-11-06 复核：</b>换过 key 仍 402，根因是<b>账户现金余额 0 触发平台级欠费拦截</b>，连官方标「免费」的模型也被拦；6 个模型名全部在清单里、配置链路已验证，只差实名 + 充最小额解锁。详见 <code>docs/真模型接入诊断_硅基流动.md</code></td><td><code>verify_rag_answers.py</code> / <code>verify_web_search.py</code> / <code>accept_real_llm.py</code></td></tr>
   <tr><td class="c">2</td><td><b>官方搜索 Key</b></td><td>博查 / Serper 之一。免费网页源只保证「能通」，竞品调研会召到阿里巴巴聚合页</td><td>配 <code>BOCHA_API_KEY</code> 或 <code>SERPER_API_KEY</code> 后复跑 <code>verify_web_search.py</code></td></tr>
   <tr><td class="c">3</td><td><b>真实 IdP 参数</b></td><td>Casdoor issuer / client_id + 企微或钉钉 CorpID/Secret；M12 只做到「可插拔」，没做端到端联调</td><td><code>/auth/oidc/health</code> → <code>/auth/oidc/exchange</code> → 前端 <code>/setup</code></td></tr>
   <tr><td class="c">4</td><td><b>真实语料</b></td><td>全域制度/SOP/产品手册 + 第二部门文档目录。当前召回、冲突、隔离结论全部基于模拟语料与 3 份冲突夹具</td><td><code>ingest_corpus.py</code> + <code>pilot_second_dept.py</code></td></tr>
