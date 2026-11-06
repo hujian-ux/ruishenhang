@@ -92,14 +92,14 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
       </div>
       {err && <div className="card" style={{ borderColor: "#e57373", color: "#b03a3a", marginBottom: 12 }}>加载或操作失败：{err}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+      <div className="grid4">
         <KV label="外部输入未就绪" value={notReady} hint={`共 ${readyList.length} 项，需真实凭据或语料`} />
         <KV label="当前告警" value={alerts.length} hint={health.insufficient_data ? "样本不足，未误报" : "按阈值实时计算"} />
         <KV label="待批演化建议" value={proposals.filter((p: Any) => p.status === "pending").length} hint="默认不自动生效" />
         <KV label="人工工单" value={handoffs.filter((h: Any) => h.status === "open").length} hint="低置信转人工" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div className="grid2">
         <div className="card">
           <h3>① 外部输入就绪度（第 9/15/31 章）</h3>
           <div style={small}>configured 只表示检测到配置，不代表验收通过；免费网页源不算生产就绪。</div>
@@ -131,7 +131,7 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
 
         <div className="card">
           <h3>③ 质量与运营度量（第 28/30/41 章）</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div className="grid2">
             <div style={box}><div style={small}>质量指标</div><Json data={quality.insufficient_data ? { insufficient_data: true, ...quality } : quality} /></div>
             <div style={box}><div style={small}>采纳度 / ROI</div><Json data={adoption.insufficient_data ? { insufficient_data: true, ...adoption } : adoption} /></div>
           </div>
@@ -176,7 +176,7 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
 
         <div className="card">
           <h3>⑥ 成本 / 缓存 / MLOps（第 34/38/40 章）</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div className="grid2">
             <div style={box}><div style={small}>模型分档</div><Json data={tiers} /></div>
             <div style={box}><div style={small}>语义缓存</div><Json data={cache} /></div>
           </div>
@@ -205,7 +205,7 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
             ],
           }), (d) => { const id = d?.data?.id; if (id) act(() => api.runWorkflow(id, "差旅住宿标准是多少"), (r) => setFlowRun(r?.data || {})); })}>建并试跑工作流</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 10 }}>
+        <div className="grid3">
           <div style={box}><div style={small}>部门 {depts.length}</div><Json data={(depts || []).slice(0, 3).map((d: Any) => ({ name: d.name, status: d.status }))} /></div>
           <div style={box}><div style={small}>技能草稿 {drafts.length}</div><Json data={(drafts || []).slice(0, 3).map((d: Any) => ({ name: d.name, status: d.status }))} /></div>
           <div style={box}><div style={small}>工作流 {flows.length} / 试跑</div><Json data={Object.keys(flowRun).length ? flowRun : (flows || []).slice(0, 2).map((f: Any) => ({ name: f.name }))} /></div>

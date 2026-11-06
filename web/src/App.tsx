@@ -277,6 +277,9 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
       </aside>
 
+      {/* 移动端侧栏抽屉遮罩：点遮罩关抽屉（桌面端 display:none） */}
+      {railOpen && <div className="rail-backdrop" onClick={() => setRailOpen(false)} />}
+
       {/* ── 主舞台 ── */}
       <main className="stage">
         <div className="topbar">
@@ -317,7 +320,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
 
         {view === "admin" && (
           <>
-            <div style={{ padding: "0 22px", borderBottom: "1px solid var(--line-2)", display: "flex", gap: 2 }}>
+            <div className="admin-tabs">
               {ADMIN_TABS.map((t) => (
                 <div key={t.k} className={"tool" + (adminTab === t.k ? " on" : "")}
                      style={{ borderRadius: 0, padding: "11px 12px",

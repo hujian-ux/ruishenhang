@@ -98,6 +98,14 @@ button{font-family:inherit}
   cursor:pointer;font-size:12.5px;color:var(--ink-2);background:#fff;white-space:nowrap}
 .seg:hover{border-color:#d6d6cf}
 .seg.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* 响应式网格：桌面多列，≤860px 由底部媒体查询退化为单列 */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+/* 管理后台标签栏（替代内联 flex，便于移动端横滚） */
+.admin-tabs{display:flex;gap:2px;padding:0 22px;border-bottom:1px solid var(--line-2);overflow-x:auto}
+/* 移动端侧栏抽屉遮罩：默认隐藏，≤860px 显示，点遮罩关抽屉 */
+.rail-backdrop{display:none}
 .ok{margin-top:10px;padding:10px 13px;border-radius:10px;background:#f2fbf5;border:1px solid #cdebd8;color:var(--ok);font-size:13px}
 .warn{margin-top:10px;padding:10px 13px;border-radius:10px;background:#fffbf0;border:1px solid #f3e3bd;color:var(--warn);font-size:13px}
 .err{margin-top:10px;padding:10px 13px;border-radius:10px;background:#fdf3f2;border:1px solid #f3cdc8;color:var(--err);font-size:13px}
@@ -278,6 +286,23 @@ button{font-family:inherit}
   .artifact{width:100%}
   .foot-note{padding:0 6px}
   .content{padding:18px 14px 0}
+  /* 卡片内表格横向滚动，避免窄屏被长表撑破布局 */
+  .card{overflow-x:auto}
+  /* 管理标签栏：横向滚动且不压缩每个标签 */
+  .admin-tabs .tool{flex:none;white-space:nowrap}
+  /* 多列网格退化单列 */
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  /* 移动端侧栏抽屉遮罩（点它关抽屉） */
+  .rail-backdrop{display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.28)}
+}
+@media (max-width:560px){
+  .content{padding:14px 10px 0}
+  .card{padding:14px 15px;margin-bottom:12px}
+  .page{padding-bottom:24px}
+  .topbar h2{font-size:13px}
+  .welcome h1{font-size:21px}
+  .kpi{flex:1 1 100%}
+  .composer textarea{font-size:16px} /* iOS 聚焦不缩放页面 */
 }
 `;
 
