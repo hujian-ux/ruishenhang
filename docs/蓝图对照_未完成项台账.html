@@ -176,6 +176,15 @@
 </table>
 
 <h2>四、卡住的不是代码：4 个外部输入</h2>
+<div class="note" style="border-left-color:var(--ok);background:#f1f8f4">
+  <b>2026-11-06 补充：</b>已给非技术同事出了一份
+  <a href="./待提供材料清单_小白操作手册.html">《待提供材料清单 · 小白操作手册》</a>：
+  三样材料逐项写明「去哪拿、点哪个菜单、复制什么、发我什么格式、花不花钱、不给会怎样」，
+  支持勾选进度、决策单选、填完一键复制成文本、打印。
+  同时已把「真实语料」从「要写说明」降级为「拖文件即可」——
+  新增 <code>corpus_inbox/</code> 收件箱、Word/Excel/PDF 自动转文字（9 项测试通过）、
+  语料目录已排除出版本库；AI 使用守则给了只填 8 个空的模板。
+</div>
 <table>
   <tr><th style="width:5%">#</th><th style="width:22%">缺什么</th><th style="width:33%">卡住了什么</th><th>拿到后一键复跑</th></tr>
   <tr><td class="c">1</td><td><b>有效 LLM API Key</b></td><td>硅基流动 402 余额不足。3 个验收脚本的语义层全部 SKIP：RAG「查不到会不会说没查到 / 新旧冲突会不会并列」、联网「逐条标 [W编号]」、M17 技能包 80 分达标线。<br><b>2026-11-06 复核：</b>换过 key 仍 402，根因是<b>账户现金余额 0 触发平台级欠费拦截</b>，连官方标「免费」的模型也被拦；6 个模型名全部在清单里、配置链路已验证，只差实名 + 充最小额解锁。详见 <code>docs/真模型接入诊断_硅基流动.md</code></td><td><code>verify_rag_answers.py</code> / <code>verify_web_search.py</code> / <code>accept_real_llm.py</code></td></tr>

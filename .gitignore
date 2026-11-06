@@ -44,3 +44,13 @@ backend/wheels/
 # 本地截图用的开发登录跳板（绕过登录，禁止入库）
 web/public/__devlogin.html
 web/public/__measure.html
+
+# 真实语料投递包（客户制度/SOP 可能涉密）——除占位文件外一律不入库。
+# 目录结构保留，方便 clone 后直接拖文件；用户放进去的 docx/pdf/xlsx 全部忽略。
+corpus_inbox/raw/**
+corpus_inbox/converted/**
+!corpus_inbox/raw/
+!corpus_inbox/converted/
+!corpus_inbox/raw/**/
+!corpus_inbox/converted/**/
+!corpus_inbox/**/PLACE_FILES_HERE.txt

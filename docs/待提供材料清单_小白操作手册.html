@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>还需要你提供什么 · 小白操作手册</title>
+<style>
+  :root{
+    --bg:#f6f8fc; --card:#ffffff; --ink:#162033; --ink2:#4a5670; --ink3:#7a869d;
+    --line:#dfe5ef; --blue:#1a56db; --blue-bg:#eef3ff; --teal:#0f766e;
+    --teal-bg:#e9f7f4; --amber:#a35b07; --amber-bg:#fff5e6; --red:#b42318;
+    --red-bg:#fdf0ef; --ok:#15803d; --ok-bg:#edf8f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+       font-size:16px;line-height:1.75}
+  .wrap{max-width:1020px;margin:0 auto;padding:32px 22px 80px}
+  header{background:linear-gradient(135deg,#12306e,#1a56db);color:#fff;border-radius:18px;
+         padding:34px 38px;margin-bottom:26px;box-shadow:0 8px 26px rgba(26,86,219,.18)}
+  header h1{margin:0 0 10px;font-size:30px;letter-spacing:.5px}
+  header p{margin:0;font-size:17px;opacity:.94;line-height:1.8}
+  .lead{background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);
+        border-radius:12px;padding:18px 22px;margin-bottom:24px;font-size:17px}
+  .lead b{color:var(--blue)}
+  h2{font-size:22px;margin:38px 0 16px;padding-bottom:10px;border-bottom:2px solid var(--line)}
+  h2 .n{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;
+        width:32px;height:32px;line-height:32px;text-align:center;margin-right:10px;font-size:16px}
+  h3{font-size:18px;margin:0 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:22px 24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(20,40,80,.04)}
+  .tag{display:inline-block;border-radius:6px;padding:2px 10px;font-size:13px;
+       font-weight:700;vertical-align:middle;margin-left:8px}
+  .p0{background:var(--red-bg);color:var(--red);border:1px solid #f3c6c1}
+  .p1{background:var(--amber-bg);color:var(--amber);border:1px solid #f0d6a8}
+  .p2{background:var(--blue-bg);color:var(--blue);border:1px solid #c9d9ff}
+  .done{background:var(--ok-bg);color:var(--ok);border:1px solid #bfe6c9}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:#f0f4fb;color:var(--ink2);font-weight:700}
+  td code,.code{font-family:Consolas,Monaco,monospace;background:#f1f4f9;
+       padding:2px 6px;border-radius:5px;color:#1c3f8f;font-size:14px;word-break:break-all}
+  .box{border-radius:10px;padding:14px 18px;margin:12px 0;font-size:15px}
+  .box.blue{background:var(--blue-bg);border:1px solid #c9d9ff;color:#183a86}
+  .box.amber{background:var(--amber-bg);border:1px solid #f0d6a8;color:#7a4605}
+  .box.teal{background:var(--teal-bg);border:1px solid #b9e5db;color:#0b5c56}
+  .box.red{background:var(--red-bg);border:1px solid #f3c6c1;color:#8f1d15}
+  .steps{counter-reset:s;list-style:none;padding:0;margin:14px 0}
+  .steps li{counter-increment:s;position:relative;padding:10px 0 10px 44px;border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:10px;width:28px;height:28px;
+      background:var(--blue);color:#fff;border-radius:50%;text-align:center;line-height:28px;
+      font-size:14px;font-weight:700}
+  .steps li b{color:var(--blue)}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:15px;margin:10px 0}
+  .kv dt{color:var(--ink3)}
+  .kv dd{margin:0;color:var(--ink)}
+  label.chk{display:flex;align-items:flex-start;gap:10px;padding:9px 0;cursor:pointer;font-size:15px}
+  label.chk input{margin-top:6px;width:17px;height:17px;accent-color:var(--blue);flex:none}
+  .field{margin:14px 0}
+  .field label{display:block;font-weight:700;margin-bottom:6px;font-size:15px}
+  .field .hint{font-weight:400;color:var(--ink3);font-size:13px;margin-left:6px}
+  input[type=text],input[type=password],select,textarea{
+      width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+      font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:2px solid #b9cdff;border-color:var(--blue)}
+  textarea{min-height:110px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .btn{display:inline-block;border:0;border-radius:9px;padding:11px 22px;font-size:15px;
+       font-weight:700;cursor:pointer;font-family:inherit;margin:6px 8px 6px 0}
+  .btn.primary{background:var(--blue);color:#fff}
+  .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+  .btn.plain{background:#eef1f7;color:var(--ink2)}
+  .progress{height:12px;background:#e3e9f4;border-radius:99px;overflow:hidden;margin:10px 0 4px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#1a56db,#0f9b8e);
+       width:0;transition:width .3s}
+  .small{font-size:14px;color:var(--ink3)}
+  .mono{font-family:Consolas,Monaco,monospace;font-size:14px;background:#16233b;color:#e8eefc;
+        border-radius:10px;padding:14px 16px;white-space:pre-wrap;word-break:break-all;margin:10px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .decision{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:12px;background:#fcfdff}
+  .decision h3{font-size:16px;margin-bottom:4px}
+  .decision .small{margin-bottom:8px;display:block}
+  .decision label{display:block;padding:5px 0;font-size:15px;cursor:pointer}
+  .decision input{accent-color:var(--blue);margin-right:8px}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);
+         color:var(--ink3);font-size:14px;text-align:center}
+  @media (max-width:760px){.row,.grid2{grid-template-columns:1fr}header{padding:26px 22px}header h1{font-size:24px}}
+  @media print{
+    body{background:#fff;font-size:13px}.wrap{max-width:none;padding:0}
+    header{background:#12306e!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .btn,.progress{display:none}.card{break-inside:avoid;box-shadow:none}
+    h2{break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>还需要你提供什么 · 小白操作手册</h1>
+  <p>模型那件事你稍后自己处理，我先记着。这份手册只讲剩下三样：<b>要你准备什么、去哪拿、怎么给我</b>。<br>
+     不用懂技术，不用敲命令。填完最后一页，点一个按钮复制，粘到对话里发我就行。</p>
+</header>
+
+<div class="lead">
+  <b>一句话</b>：真正卡住平台的只有 3 样材料（联网搜索密钥、企业登录参数、真实制度文件），
+  其中<b>只有「真实制度文件」是必须的</b>，另外两样不给我也能继续跑，只是效果和生产就绪度打折。
+  下面第 1 部分是我<b>已经替你做完</b>的，不用你操心。
+</div>
+
+<div class="card">
+  <h3>你的进度 <span class="small">（勾选会自动保存，关掉页面也不会丢）</span></h3>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="small" id="barText">0 / 3 项已备好</div>
+  <label class="chk"><input type="checkbox" class="milestone" data-k="m1"><span><b>真实制度文件</b>已拖进语料文件夹 <span class="tag p0">P0 必须</span></span></label>
+  <label class="chk"><input type="checkbox" class="milestone" data-k="m2"><span><b>联网搜索密钥</b>已拿到 <span class="tag p1">P1 建议</span></span></label>
+  <label class="chk"><input type="checkbox" class="milestone" data-k="m3"><span><b>企业登录参数</b>已确认 <span class="tag p1">P1 建议</span></span></label>
+</div>
+
+<h2><span class="n">1</span>不用你管，我已经做完了</h2>
+<div class="card">
+  <p>这一轮你说「先把其它的处理了」，下面这些<b>不需要你提供任何东西</b>，我已经落地并验证：</p>
+  <table>
+    <tr><th style="width:30%">事情</th><th>做完的结果</th><th style="width:14%">验证</th></tr>
+    <tr><td>语料收件箱</td><td>建好 <code>corpus_inbox/</code>，按「全公司 / 财务 / 销售 / 人事」分好文件夹。你只要拖文件，不用写说明</td><td>已建</td></tr>
+    <tr><td>Word / Excel / PDF 自动转文字</td><td>平台原本只吃纯文本，客户制度多是 Word/PDF，直接放会失败。现在加了转换工具，<b>你照原样拖进去就行</b></td><td>9 项测试通过</td></tr>
+    <tr><td>机密文件保护</td><td>把语料目录加进忽略规则，拖进去的制度文件<b>绝不会被传到 GitHub 或打包进备份</b>。已用假文件实测</td><td>已验证</td></tr>
+    <tr><td>AI 使用守则模板</td><td>法务文本不用你从零写，已给一份只填 8 个空的可填空模板 + 一页员工告知书</td><td>已交付</td></tr>
+    <tr><td>模型问题诊断</td><td>查清 402 是账户余额问题、收录 16 项免费限速表、配置备好</td><td>已推送</td></tr>
+    <tr><td>M27 蓝图缺口收口</td><td>护栏、反馈、运维、评测、自助建部门等工程缺口已补齐</td><td>369 项测试通过</td></tr>
+  </table>
+  <div class="box teal">所以你不用准备：技术方案、字段说明、格式规范、命令行操作、权限设计。这些都在我这边。</div>
+</div>
+
+<h2><span class="n">2</span>要你提供的三样（按重要程度排）</h2>
+
+<!-- A 语料 -->
+<div class="card" id="a">
+  <h3>A. 真实制度文件 <span class="tag p0">P0 必须</span> <span class="tag done">只需拖文件</span></h3>
+  <dl class="kv">
+    <dt>为什么需要</dt><dd>现在检索、跨部门隔离、召回率这些结论，全是拿<b>模拟语料</b>跑出来的。没有真文件，就没法给客户演示「查我们公司自己的制度」。</dd>
+    <dt>不给我会怎样</dt><dd>系统照常能跑，但演示时只能用示例文档；上线前这一关迟早要补。</dd>
+    <dt>花不花钱</dt><dd><b>不花钱</b>，用你手上现成的文件。</dd>
+    <dt>大概多久</dt><dd>拖文件 5 分钟；我这边转换、干跑、给你确认清单约 10 分钟。</dd>
+  </dl>
+  <div class="box blue"><b>你要做的全部动作：</b>打开这个文件夹，把文件拖进对应部门的子文件夹。</div>
+  <div class="mono">D:\enterprise-ai-platform\corpus_inbox\raw\
+   ├─ global\          全公司通用（员工手册、报销总则、考勤制度）
+   ├─ dept_finance\    财务部（预算口径、科目说明）
+   ├─ dept_sales\      销售部（销售政策、报价规则）
+   └─ dept_hr\         人事部（招聘流程、绩效办法）</div>
+  <ol class="steps">
+    <li>打开上面的 <code>raw</code> 文件夹，选对应的部门子文件夹。</li>
+    <li>把 <b>Word / Excel / PDF / txt / md</b> 直接拖进去（中文文件名没问题，整个文件夹也能拖）。</li>
+    <li>在对话里跟我说一句 <b>「语料放好了」</b>（想先试一部分就说「先只导财务部」）。</li>
+    <li>剩下的我来做：转换 → 先干跑列清单给你确认 → 你点头 → 正式导入 → 跑隔离与召回验收。</li>
+  </ol>
+  <table>
+    <tr><th style="width:26%">能直接放</th><td><code>.docx</code> <code>.xlsx</code> <code>.pdf</code> <code>.txt</code> <code>.md</code> <code>.csv</code> <code>.html</code></td></tr>
+    <tr><th>先别放</th><td>老格式 <code>.doc</code> / <code>.xls</code>（请另存为新格式）、扫描件/图片 PDF（抽不出字，需要 OCR，跟我说我单独处理）、加密文件、压缩包</td></tr>
+    <tr><th>不要放</th><td>身份证号/手机号清单/薪资明细、客户合同原件、报价底价、标「绝密」的材料。拿不准就先单独问我一句</td></tr>
+  </table>
+  <div class="box amber"><b>安全</b>：这个文件夹已被排除在版本库之外，你拖进去的东西不会上 GitHub。导入前我会把清单给你过目，说「撤销这批」可以整批删。详细规则见 <code>corpus_inbox/README.md</code>。</div>
+</div>
+
+<!-- B 搜索 -->
+<div class="card" id="b">
+  <h3>B. 联网搜索密钥 <span class="tag p1">P1 建议</span> <span class="tag done">不给也能跑</span></h3>
+  <dl class="kv">
+    <dt>为什么需要</dt><dd>现在联网查资料走的是<b>免费网页抓取</b>（搜狗/Bing 页面），能通但不够稳：竞品调研常召到聚合页，页面结构一变就可能失效。配了官方密钥后结果更准、更稳定。</dd>
+    <dt>不给我会怎样</dt><dd><b>不影响现在演示</b>，联网查资料、竞品调研功能照常可用；只是「生产就绪度」这一项不会被判定为通过。</dd>
+    <dt>花不花钱</dt><dd>各家都有免费额度或低价档，<b>具体以官网当期价格为准，我不替平台承诺免费</b>。可以先只注册不充值，够跑验收就行。</dd>
+    <dt>大概多久</dt><dd>注册 + 复制密钥约 5–10 分钟。</dd>
+  </dl>
+  <div class="box blue"><b>不知道选哪家？就选「博查」</b>：中文检索效果最好，和平台里 <code>BOCHA_API_KEY</code> 对应。备选是 Serper（Google 结果，英文/海外资料好）。也可以两家都配，平台会自动挑。</div>
+  <ol class="steps">
+    <li>浏览器搜「<b>博查 AI 搜索 API 官网</b>」进官网（或搜 Serper / Tavily，别进到第三方代理站）。</li>
+    <li>用手机号注册、登录，进入<b>控制台 / 开发者中心</b>。</li>
+    <li>找 <b>API Key 管理 / 密钥管理</b> → 点「<b>创建新密钥</b>」。</li>
+    <li>复制那串以 <code>sk-</code> 开头的字符（只显示一次，先粘到记事本存着）。</li>
+    <li>在对话里发我一行：<code>BOCHA_API_KEY=你复制的那串</code>。我来写进本地配置，<b>你不用碰任何配置文件</b>。</li>
+  </ol>
+  <div class="box amber"><b>密钥安全</b>：私聊发我即可，别发群里、别贴公开文档。这串等于账号权限，用完建议在控制台轮换一次。平台配置写在被忽略的本地 <code>.env</code>，不会进代码仓库。</div>
+  <p class="small">对应字段（给我看一眼即可，不用记）：<code>BOCHA_API_KEY</code> / <code>SERPER_API_KEY</code> / <code>TAVILY_API_KEY</code> / <code>BING_SEARCH_KEY</code>；自建搜索填 <code>SEARXNG_BASE_URL</code>。</p>
+</div>
+
+<!-- C 登录 -->
+<div class="card" id="c">
+  <h3>C. 企业登录参数 <span class="tag p1">P1 上线前必须</span> <span class="tag done">有现成页面帮你</span></h3>
+  <dl class="kv">
+    <dt>为什么需要</dt><dd>现在用的是开发用临时口令，<b>生产环境不允许</b>。正式上线要接企业微信 / 钉钉登录，账号权限才跟真实组织对得上。</dd>
+    <dt>不给我会怎样</dt><dd>内测、演示完全不受影响；只是不能对外正式开账号。</dd>
+    <dt>花不花钱</dt><dd>Casdoor 是开源自建，<b>软件本身免费</b>；需要一台服务器（也可以先跑在你电脑上试用）。企业微信/钉钉自建应用免费。</dd>
+    <dt>大概多久</dt><dd>先试用：我起服务约 2 分钟，你在页面上点几下；接企业微信/钉钉约 30 分钟（要去管理后台抄几个值）。</dd>
+  </dl>
+  <div class="box blue"><b>最省事的路径（推荐）</b>：不用你自己装任何东西。跟我说一句「<b>帮我起 Casdoor</b>」，我起好后你打开 <code>http://127.0.0.1:5173/setup</code>，这个页面上有「<b>复制 Casdoor 填写清单</b>」按钮，点一下就能得到一份照抄即用的后台填写文本。</div>
+  <ol class="steps">
+    <li>跟我说「帮我起 Casdoor」，我把本地服务起好并给你网址。</li>
+    <li>打开 <code>/setup</code> 页 → 点「复制 Casdoor 填写清单」→ 在 Casdoor 后台照着填。</li>
+    <li>在 Casdoor 的 <b>Applications / 应用</b> 里找到 <b>Client ID</b>（一长串字符），复制发我。</li>
+    <li>再告诉我 Casdoor 的访问地址（试用一般是 <code>http://127.0.0.1:8000</code>）。就这两样，够了。</li>
+  </ol>
+  <p><b>如果还要接企业微信 / 钉钉登录</b>，另外去对应管理后台抄这几个值（页面上有位置提示）：</p>
+  <table>
+    <tr><th style="width:22%">登录方式</th><th>去哪拿</th><th>要抄什么</th></tr>
+    <tr><td>企业微信</td><td>企业微信管理后台 →「我的企业 → 企业信息」；「应用管理 → 自建应用」</td><td><b>CorpID</b>（企业ID）、自建应用的 <b>AgentId</b> 和 <b>Secret</b></td></tr>
+    <tr><td>钉钉</td><td>钉钉开发者后台 →「应用开发 → 应用详情 → 应用信息」</td><td><b>Client ID（AppKey）</b>、<b>Client Secret（AppSecret）</b></td></tr>
+    <tr><td>暂时不接</td><td>不用做任何事</td><td>先用 Casdoor 自带账号密码，够内测；上线前再补</td></tr>
+  </table>
+  <div class="box amber"><b>不会操作？</b>把管理后台那个页面截图发我（记得遮住 Secret），我按截图一步一步告诉你点哪。更细的文字版在 <code>docs/M12_Casdoor接入指南.md</code>，那是给我看的，你不用读。</div>
+  <p class="small">对应字段（不用记）：<code>OIDC_ENABLED=1</code>、<code>OIDC_ISSUER</code>=Casdoor 地址、<code>OIDC_AUDIENCE</code>=Client ID、<code>OIDC_CLIENT_ID</code>、<code>OIDC_REDIRECT_URI</code>。采用授权码 + PKCE，<b>不需要 Client Secret</b>，少一个要保管的东西。</p>
+</div>
+
+<h2><span class="n">3</span>只需你勾一下的决定（不用写文档）</h2>
+<div class="card">
+  <p>下面几项不是「要你提供材料」，只是<b>方向由你定</b>。每个都有推荐项，<b>不选就按推荐走</b>，不会卡住进度。</p>
+  <div class="grid2">
+    <div class="decision">
+      <h3>① 手机上怎么用</h3><span class="small">影响移动端 MVP 排期</span>
+      <label><input type="radio" name="d1" value="A 响应式网页（推荐，零额外成本）" checked>A 响应式网页 <b>（推荐）</b></label>
+      <label><input type="radio" name="d1" value="B PWA（可加到桌面、离线缓存）">B PWA（可加到手机桌面）</label>
+      <label><input type="radio" name="d1" value="C 原生 App（需开发周期与上架）">C 原生 App（要上架，成本高）</label>
+    </div>
+    <div class="decision">
+      <h3>② 集团/多公司隔离</h3><span class="small">影响服务器与部署预算</span>
+      <label><input type="radio" name="d2" value="A 逻辑隔离（现状，已验证零泄露）" checked>A 逻辑隔离 <b>（推荐，现状）</b></label>
+      <label><input type="radio" name="d2" value="B 物理隔离（独立库/独立部署，需预算）">B 物理隔离（要另配服务器）</label>
+      <label><input type="radio" name="d2" value="C 暂不决定">C 以后再说</label>
+    </div>
+    <div class="decision">
+      <h3>③ 桌面本地文件网关</h3><span class="small">是否要直接读员工电脑上的文件</span>
+      <label><input type="radio" name="d3" value="A 暂不需要（浏览器上传够用）" checked>A 暂不需要 <b>（推荐）</b></label>
+      <label><input type="radio" name="d3" value="B 需要（需说明电脑系统与目录规范）">B 需要（我会再问你几个问题）</label>
+    </div>
+    <div class="decision">
+      <h3>④ AI 使用守则怎么定稿</h3><span class="small">模板已给，法务需真人审</span>
+      <label><input type="radio" name="d4" value="B 先按模板内部试行（推荐）" checked>B 先按模板内部试行 <b>（推荐）</b></label>
+      <label><input type="radio" name="d4" value="A 我找律师审后定稿">A 我找律师审后定稿</label>
+      <label><input type="radio" name="d4" value="C 暂缓">C 暂缓</label>
+    </div>
+    <div class="decision">
+      <h3>⑤ PS / CAD 等专业工具</h3><span class="small">是否要接外部专业软件</span>
+      <label><input type="radio" name="d5" value="A 暂不接" checked>A 暂不接 <b>（推荐）</b></label>
+      <label><input type="radio" name="d5" value="B 需要（请说明具体软件与场景）">B 需要（再告诉我软件名和场景）</label>
+    </div>
+    <div class="decision">
+      <h3>⑥ 正式服务器</h3><span class="small">现在都跑在你本机</span>
+      <label><input type="radio" name="d6" value="A 先在本机演示" checked>A 先在本机演示 <b>（推荐）</b></label>
+      <label><input type="radio" name="d6" value="B 已有服务器（我会再要地址与系统版本）">B 我有服务器</label>
+      <label><input type="radio" name="d6" value="C 需要你给选购建议">C 帮我选配/选购建议</label>
+    </div>
+  </div>
+  <div class="box teal">这些都不用现在回答，<b>填到下面的采集表里一起发我就行</b>。选了推荐项我就不打扰你，直接按它做。</div>
+</div>
+
+<h2><span class="n">4</span>采集表：填完点一下，复制发我</h2>
+<div class="card">
+  <p class="small">只填你有的，<b>没有的留空</b>。密钥类只填到采集表、复制后单独私聊发我，别贴群。</p>
+  <div class="row">
+    <div class="field"><label>A. 真实语料是否已放好 <span class="hint">P0</span></label>
+      <select id="f_corpus"><option value="">还没放</option><option>已放好，全部可导</option><option>已放好，先只导财务部</option><option>需要你帮我建部门文件夹</option></select></div>
+    <div class="field"><label>放了哪些部门 <span class="hint">选填</span></label>
+      <input type="text" id="f_depts" placeholder="例：全公司公共、财务部、销售部"></div>
+  </div>
+  <div class="field"><label>是否含敏感/涉密文件 <span class="hint">有的话请先单独问我</span></label>
+    <select id="f_sensitive"><option value="否">否</option><option>有，需要先确认可见范围</option><option>不确定，想先问</option></select></div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+  <div class="row">
+    <div class="field"><label>B. 搜索服务商 <span class="hint">P1，可留空</span></label>
+      <select id="f_vendor"><option value="">暂时不配</option><option>博查</option><option>Serper</option><option>Tavily</option><option>Bing</option><option>自建 SearXNG</option></select></div>
+    <div class="field"><label>搜索 API Key <span class="hint">私聊发我，别贴群</span></label>
+      <input type="password" id="f_searchkey" placeholder="sk-..."></div>
+  </div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+  <div class="row">
+    <div class="field"><label>C. Casdoor 地址 <span class="hint">P1，可留空</span></label>
+      <input type="text" id="f_issuer" placeholder="http://127.0.0.1:8000"></div>
+    <div class="field"><label>Client ID <span class="hint">Casdoor 应用里抄</span></label>
+      <input type="text" id="f_clientid" placeholder="一长串字符"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>登录方式</label>
+      <select id="f_login"><option>暂时不接，先用账号密码</option><option>企业微信</option><option>钉钉</option><option>还没定，想听建议</option></select></div>
+    <div class="field"><label>CorpID / AppKey <span class="hint">选了企微或钉钉再填</span></label>
+      <input type="text" id="f_corpid" placeholder="选填"></div>
+  </div>
+  <div class="field"><label>备注 / 想先问的问题 <span class="hint">随便写</span></label>
+    <textarea id="f_note" placeholder="例：语料里有扫描件，能不能帮我处理？／上次那个第 4 点是……"></textarea></div>
+  <div>
+    <button class="btn primary" onclick="makeText()">生成并发我的一段话</button>
+    <button class="btn ghost" onclick="copyText()">复制到剪贴板</button>
+    <button class="btn plain" onclick="window.print()">打印成纸</button>
+    <button class="btn plain" onclick="clearAll()">清空重填</button>
+  </div>
+  <textarea id="out" style="margin-top:14px;min-height:190px" placeholder="点上面第一个按钮，这里会出现一段整理好的文字；全选复制，粘到对话里发我就行。"></textarea>
+  <div class="box red" id="copyTip" style="display:none"></div>
+</div>
+
+<h2><span class="n">5</span>常见问题</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:30%">问题</th><th>回答</th></tr>
+    <tr><td>我完全不懂技术，会不会搞坏？</td><td>不会。你要做的只有「拖文件」「复制一串字符」「发我一句话」。所有命令、配置、代码都在我这边，改之前都会先跟你说。</td></tr>
+    <tr><td>密钥发给你安全吗？</td><td>比贴在群里安全，但它等于账号权限：建议<b>私聊发、用完在控制台轮换一次</b>。我只会写进你本机的 <code>.env</code>（已被排除在仓库外），不会写进任何会被提交的文件或文档。</td></tr>
+    <tr><td>是不是要花很多钱？</td><td>语料、Casdoor、法务模板都不花钱。搜索密钥和模型额度按各家当期价格，先注册不充值也够跑验收。<b>凡是要花钱的动作，我都会先问你，不会替你点支付。</b></td></tr>
+    <tr><td>现在什么都不给，能继续做吗？</td><td>能。我会继续做不需要外部输入的工程与文档（移动端适配、监控栈、模板排版等）。但「真实语料」和「真模型」不到位，就不能对外说效果验收通过，这点我会一直如实标注。</td></tr>
+    <tr><td>「第 4 点」是什么？</td><td>你之前列过一串事项，第 4 点是空的。想起来就写在采集表的备注里，我一起排期。</td></tr>
+    <tr><td>模型那件事还要我做什么？</td><td>你说稍后自己处理。到控制台<b>实名认证 → 领赠金 → 充一笔最小可用金额解锁账户</b>，回来跟我说一声「解锁了」，我直接跑三项语义验收，配置一行都不用你改。</td></tr>
+  </table>
+</div>
+
+<h2><span class="n">6</span>排期（你不用记，我按这个推）</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:12%">优先级</th><th style="width:44%">事项</th><th>谁做</th></tr>
+    <tr><td><span class="tag p0">P0</span></td><td>真实制度文件进场 → 转换 → 干跑确认 → 导入 → 隔离与召回验收</td><td><b>你拖文件（5 分钟）</b> + 我跑完</td></tr>
+    <tr><td><span class="tag p0">P0</span></td><td>模型账户解锁 → 三项语义验收出真实 PASS/FAIL</td><td><b>你操作控制台</b> + 我复跑</td></tr>
+    <tr><td><span class="tag p1">P1</span></td><td>官方搜索密钥接入、竞品调研质量复测</td><td>你复制一串字符给我</td></tr>
+    <tr><td><span class="tag p1">P1</span></td><td>Casdoor + 企业微信/钉钉登录联调</td><td>我起服务，你在 <code>/setup</code> 点几下</td></tr>
+    <tr><td><span class="tag p1">P1</span></td><td>AI 使用守则填 8 个空 + 法务审阅 + 排版正式版</td><td>你填空、找律师；我排版</td></tr>
+    <tr><td><span class="tag p2">P2</span></td><td>移动端形态、集团隔离、桌面文件网关、专业工具对接</td><td>你勾选项，我出方案</td></tr>
+  </table>
+</div>
+
+<footer>
+  企业 AI 智能体中台 · 待提供材料清单 · 2026-11-06 ·
+  本页填写内容只保存在你本机浏览器，不会自动上传；密钥请勿贴到公开位置。
+</footer>
+
+</div>
+<script>
+(function(){
+  var KEY='m28_intake_v1';
+  var ids=['f_corpus','f_depts','f_sensitive','f_vendor','f_searchkey','f_issuer','f_clientid','f_login','f_corpid','f_note','out'];
+
+  function keyOf(e){
+    // 同一组 radio 不能共用一个 key，否则保存时互相覆盖、刷新后选项会串。
+    if(e.type==='radio')return 'radio_'+e.name+'_'+e.value;
+    if(e.type==='checkbox')return 'chk_'+(e.dataset.k||e.name||e.value);
+    return '';
+  }
+  function save(){
+    var d={};
+    ids.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
+    document.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(function(e){
+      d[keyOf(e)]=e.checked;
+    });
+    try{localStorage.setItem(KEY,JSON.stringify(d));}catch(err){}
+  }
+  function load(){
+    var d={};try{d=JSON.parse(localStorage.getItem(KEY)||'{}');}catch(err){}
+    ids.forEach(function(id){var e=document.getElementById(id);if(e&&d[id]!==undefined)e.value=d[id];});
+    document.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(function(e){
+      var k=keyOf(e),v=d[k];
+      if(v===undefined)return;
+      if(e.type==='radio'){if(v===true)e.checked=true;}
+      else e.checked=v;
+    });
+    progress();
+  }
+  function progress(){
+    var all=document.querySelectorAll('.milestone'),n=0;
+    all.forEach(function(e){if(e.checked)n++;});
+    document.getElementById('bar').style.width=(n/all.length*100)+'%';
+    document.getElementById('barText').textContent=n+' / '+all.length+' 项已备好'+
+      (n===all.length?'  全部齐了，可以发我了':'');
+  }
+  function val(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+  function radio(name){
+    var e=document.querySelector('input[name='+name+']:checked');return e?e.value:'未选';
+  }
+  window.makeText=function(){
+    var t=[];
+    t.push('【外部输入采集表】 ' + new Date().toLocaleString('zh-CN'));
+    t.push('');
+    t.push('一、真实制度文件（P0）');
+    t.push('  进度：'+(val('f_corpus')||'还没放'));
+    t.push('  部门：'+(val('f_depts')||'未填'));
+    t.push('  敏感/涉密：'+(val('f_sensitive')||'否'));
+    t.push('');
+    t.push('二、联网搜索（P1）');
+    t.push('  服务商：'+(val('f_vendor')||'暂时不配'));
+    t.push('  API Key：'+(val('f_searchkey')?'（已填，私聊单独发）':'（未填）'));
+    t.push('');
+    t.push('三、企业登录（P1）');
+    t.push('  Casdoor 地址：'+(val('f_issuer')||'未填'));
+    t.push('  Client ID：'+(val('f_clientid')||'未填'));
+    t.push('  登录方式：'+(val('f_login')||'未选'));
+    t.push('  CorpID / AppKey：'+(val('f_corpid')||'未填'));
+    t.push('');
+    t.push('四、需要拍板的决定');
+    ['d1','d2','d3','d4','d5','d6'].forEach(function(n,i){
+      t.push('  '+['① 手机形态','② 集团隔离','③ 桌面文件网关','④ 守则定稿','⑤ 专业工具','⑥ 正式服务器'][i]+'：'+radio(n));
+    });
+    t.push('');
+    t.push('五、备注');
+    t.push('  '+(val('f_note')||'（无）'));
+    t.push('');
+    t.push('六、模型账户：我自己稍后去解锁，解锁后告诉你。');
+    var o=document.getElementById('out');o.value=t.join('\n');save();
+    o.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return o.value;
+  };
+  window.copyText=function(){
+    var o=document.getElementById('out');
+    if(!o.value)o.value=window.makeText();
+    var tip=document.getElementById('copyTip');
+    function done(ok){
+      tip.style.display='block';
+      tip.innerHTML=ok?'<b>已复制。</b>直接粘到对话里发我即可。密钥建议私聊单独发，别贴群。'
+        :'<b>浏览器没允许自动复制。</b>请手动全选下面文本框里的内容（Ctrl+A → Ctrl+C），再粘到对话里发我。';
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(o.value).then(function(){done(true);},function(){fallback(o,done);});
+    }else{fallback(o,done);}
+  };
+  function fallback(o,done){
+    try{o.focus();o.select();done(document.execCommand('copy'));}
+    catch(err){done(false);}
+  }
+  window.clearAll=function(){
+    try{localStorage.removeItem(KEY);}catch(err){}
+    ids.forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+    document.querySelectorAll('.milestone').forEach(function(e){e.checked=false;});
+    document.querySelectorAll('select').forEach(function(e){e.selectedIndex=0;});
+    ['d1','d2','d3','d4','d5','d6'].forEach(function(n){
+      var list=document.querySelectorAll('input[name='+n+']');
+      list.forEach(function(e,i){e.checked=(i===0);});
+    });
+    progress();
+  };
+  document.addEventListener('change',function(e){
+    if(e.target.matches('input,select,textarea')){save();progress();}
+  });
+  document.addEventListener('input',function(e){
+    if(e.target.matches('input,textarea'))save();
+  });
+  load();
+})();
+</script>
+</body>
+</html>

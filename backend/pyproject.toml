@@ -32,6 +32,9 @@ dependencies = [
     "python-docx>=1.1",       # Word
     "python-pptx>=0.6.23",    # PPT
     "reportlab>=4.0",         # PDF（platypus 直绘，不依赖 Office/LibreOffice）
+    # M28 语料投递包：把客户原始 docx/xlsx/pdf 转成 ingest_corpus 能吃的纯文本。
+    # 只抽文字层；扫描件 PDF 会明确报「需要 OCR」，不静默当成功。
+    "pypdf>=6.0",
 ]
 
 [project.optional-dependencies]
