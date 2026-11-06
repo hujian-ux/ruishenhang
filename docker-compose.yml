@@ -68,6 +68,32 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
       LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY: ${LITELLM_DANGEROUSLY_PERMIT_WEAK_OR_UNSET_MASTER_KEY:-true}
 
+  # ── 应用本身（「后拆容器」阶段，默认不启用；用 --profile app 才起）──
+  # 设计：本地 dev 仍直接跑 backend（先单体）；上线时再 `docker compose --profile app up -d` 把应用也容器化。
+  # 默认内存模式启动（PG/Qdrant/MinIO/Redis 不可达自动兜底），与本地演示一致；
+  # 要持久化时，把下面注释的 QDRANT_HOST/MINIO_ENDPOINT/REDIS_URL/PG DSN 打开，并加 depends_on 即可。
+  backend:
+    build: ./backend
+    profiles: ["app"]
+    env_file: .env
+    # environment:
+    #   QDRANT_HOST: qdrant
+    #   MINIO_ENDPOINT: minio:9000
+    #   REDIS_URL: redis://redis:6379/0
+    #   POSTGRES_DSN: postgresql://app:${PG_PASSWORD:-dev}@postgres:5432/aiplat
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz').status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    # depends_on:
+    #   postgres: { condition: service_healthy }
+    #   qdrant:   { condition: service_healthy }
+
 volumes:
   pgdata:
   qdrant_storage:
