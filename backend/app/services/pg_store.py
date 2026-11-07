@@ -103,6 +103,15 @@ def _ensure_tables() -> None:
             CREATE UNIQUE INDEX IF NOT EXISTS uq_kb_doc_id ON kb_documents (doc_id);
             CREATE INDEX IF NOT EXISTS idx_kb_hash ON kb_documents (tenant_id, content_hash);
             CREATE INDEX IF NOT EXISTS idx_kb_dept_m8 ON kb_documents (tenant_id, dept_id, scope);
+            -- M43：多企业 SaaS 租户注册表（开通底座）。tenant_id 主键、config 存租户级覆盖。
+            CREATE TABLE IF NOT EXISTS tenants (
+                tenant_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                config JSONB,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
         """)
 
 
@@ -118,6 +127,7 @@ _KEY_COL = {
     "approval_tickets": "approval_id",
     "agents": "agent_id",
     "agent_files": "file_id",
+    "tenants": "tenant_id",
 }
 
 

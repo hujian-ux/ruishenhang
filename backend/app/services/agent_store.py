@@ -16,9 +16,12 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from app.services import pg_store, public_skills, role_map, hard_rules
+from app.services import pg_store, public_skills, role_map, hard_rules, tenant_store
 
 _TABLE = "agents"
+
+# 平台级共享资产（115 业务包 / 28 公共库 / 内置助手）使用的租户占位：空串 = 对所有租户可见。
+PLATFORM_TENANT = tenant_store.PLATFORM_TENANT
 
 # 兼容旧引用：routers/approval.py、routers/invoke.py 仍可直接读写该 dict。
 # 所有写入必须走 save()，以保证 PG 写穿；直接改 dict 只影响内存（测试可用）。
@@ -108,6 +111,9 @@ def save(agent: Dict[str, Any]) -> Dict[str, Any]:
     """
     agent.setdefault("created_at", time.time())
     agent["updated_at"] = time.time()
+    # M43：租户隔离底座。平台共享资产（115/公共库/内置助手）tenant_id 留空 → 全租户可见；
+    # 租户自建智能体由路由层写入真实 tenant_id → 仅本租户可见。
+    agent.setdefault("tenant_id", PLATFORM_TENANT)
     role_map.annotate(agent)
     _AGENTS[agent["agent_id"]] = agent
     pg_store.upsert(_TABLE, agent["agent_id"], agent)
@@ -132,6 +138,10 @@ def _visible(agent: Dict[str, Any], caller) -> bool:
     """第18章权限语义在「智能体目录」上的延伸。"""
     if caller.role == "platform_admin":
         return True
+    # M43：租户私有智能体，跨租户不可见（平台共享资产 tenant_id 留空，对所有租户可见）。
+    tid = agent.get("tenant_id")
+    if tid and tid != caller.tenantId:
+        return False
     if agent.get("registered_by") == caller.userId:
         return True
     # 历史写法并存：早期数据用 scope，现在统一 knowledge_scope。两者都认，

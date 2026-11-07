@@ -56,11 +56,17 @@ def create_session(agent_id: str, caller: CallerContext, session_id: Optional[st
 
 
 def get_session(session_id: str, caller: CallerContext) -> Dict[str, Any]:
-    """取会话；归属校验：仅会话创建者本人可访问（第18章权限语义延伸到会话）。"""
+    """取会话；归属校验：仅会话创建者本人可访问（第18章权限语义延伸到会话）。
+
+    M43：非平台管理员额外要求租户一致，防止同 userId 跨租户访问会话。
+    """
     sess = _SESSIONS.get(session_id)
     if not sess:
         raise KeyError(session_id)
     if sess["user_id"] != caller.userId:
+        raise SessionAccessError(session_id)
+    if (sess.get("tenant_id") and sess["tenant_id"] != caller.tenantId
+            and caller.role != "platform_admin"):
         raise SessionAccessError(session_id)
     return sess
 
@@ -153,7 +159,12 @@ def session_summary(sess: Dict[str, Any]) -> Dict[str, Any]:
 # ─────────────────────────────────────────────────────────────────────────────
 def list_sessions(caller: CallerContext, include_all: bool = False,
                   limit: int = 20) -> List[Dict[str, Any]]:
-    items = [s for s in _SESSIONS.values() if include_all or s["user_id"] == caller.userId]
+    # M43：非平台管理员额外要求租户一致，防止同 userId 跨租户看到他人会话。
+    if include_all or caller.role == "platform_admin":
+        items = list(_SESSIONS.values())
+    else:
+        items = [s for s in _SESSIONS.values()
+                 if s["user_id"] == caller.userId and s.get("tenant_id") == caller.tenantId]
     items.sort(key=lambda s: (s["turns"][-1]["ts"] if s["turns"] else s["created_at"]), reverse=True)
     out = []
     for s in items[:limit]:

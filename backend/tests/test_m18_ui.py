@@ -49,7 +49,7 @@ def test_session_detail_returns_turns_and_artifacts():
                               {"artifacts": [{"file_id": "file_1", "filename": "a.xlsx"}]})
 
     r = client.get(f"/api/v1/agent/sessions/{sess['session_id']}",
-                   headers={"Authorization": create_dev_token("u_detail", "d1", "employee")})
+                   headers={"Authorization": create_dev_token("u_detail", "d1", "employee", tenant_id="t1")})
     assert r.status_code == 200
     d = r.json()["data"]
     assert [t["role"] for t in d["turns"]] == ["user", "assistant"]
@@ -106,7 +106,7 @@ def test_session_detail_exposes_llm_real_flag():
     session_store.attach_meta(sess["session_id"], "assistant", {"llm_real": False})
 
     r = client.get(f"/api/v1/agent/sessions/{sess['session_id']}",
-                   headers={"Authorization": create_dev_token("u_real", "d1", "employee")})
+                   headers={"Authorization": create_dev_token("u_real", "d1", "employee", tenant_id="t1")})
     assert r.json()["data"]["turns"][0]["llm_real"] is False
 
 
@@ -115,7 +115,7 @@ def test_sessions_list_has_title_for_sidebar():
     sess = session_store.create_session("ag_x", caller)
     session_store.append_turn(sess["session_id"], "user", "把上周的报销单核一遍")
     r = client.get("/api/v1/agent/sessions?limit=5",
-                   headers={"Authorization": create_dev_token("u_list", "d1", "employee")})
+                   headers={"Authorization": create_dev_token("u_list", "d1", "employee", tenant_id="t1")})
     assert r.status_code == 200
     row = next(s for s in r.json()["data"]["sessions"] if s["session_id"] == sess["session_id"])
     assert row["title"] == "把上周的报销单核一遍"

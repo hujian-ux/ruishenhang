@@ -100,6 +100,7 @@ async def register_agent(req: AgentRegisterRequest, caller: CallerContext = Depe
         "model_id": req.model_id,
         "registered_by": caller.userId,
         "dept_id": caller.deptId,
+        "tenant_id": caller.tenantId,  # M43：租户自建 → 仅本租户可见
         "status": "pending_review",
         # M15：技能包字段（旧调用方不传则为 None，行为与旧版一致）
         "description": req.description,
@@ -113,7 +114,7 @@ async def register_agent(req: AgentRegisterRequest, caller: CallerContext = Depe
         "outputs_contract": req.outputs_contract,
     })
     # M5：注册即开审批单（第35章红线：评审通过才可发布/调用）
-    ticket = approval_store.create_ticket(agent_id, caller.userId, caller.deptId)
+    ticket = approval_store.create_ticket(agent_id, caller.userId, caller.deptId, caller.tenantId)
     return {
         "code": 0,
         "data": {

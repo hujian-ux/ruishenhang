@@ -192,6 +192,11 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     agent = _AGENTS.get(req.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"智能体不存在：{req.agent_id}")
+    # M43 多租户隔离：租户私有智能体，跨租户不可见、不可调用（与「无权=不存在」统一 404）。
+    # 平台共享资产（tenant_id 留空）对所有租户可见；platform_admin 作为运营方可跨租户支持。
+    _tid = agent.get("tenant_id")
+    if _tid and _tid != caller.tenantId and caller.role != "platform_admin":
+        raise HTTPException(status_code=404, detail=f"智能体不存在：{req.agent_id}")
     # M5 红线：评审通过（published）才可调用
     if agent.get("status") != "published":
         raise HTTPException(status_code=403,

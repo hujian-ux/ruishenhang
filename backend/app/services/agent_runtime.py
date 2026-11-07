@@ -45,17 +45,19 @@ WEB_EVIDENCE_PER_HIT_CHARS = 900
 
 
 def _call_llm(prompt: str, system_prompt: str | None = None,
-             user_input: str = "", agent: dict | None = None) -> Dict[str, Any]:
+             user_input: str = "", agent: dict | None = None,
+             tenant_id: str | None = None) -> Dict[str, Any]:
     """调模型网关并带回用量（M7：token/延迟原样上抛，由路由层落账）。
 
     M15：system_prompt 由调用方按 agent 传入（技能包提示词），缺省用平台默认助手。
     P2-40：user_input/agent 透给网关做模型路由（applied=true）；model_id 传 None
            即「自动选档」，显式模型名则跳过路由。
+    M43：tenant_id 透传网关，使租户级 LLM 模型覆盖生效。
     """
     out = model_gateway.chat_sync_ex(None, [
         {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
-    ], user_input=user_input, agent=agent)
+    ], user_input=user_input, agent=agent, tenant_id=tenant_id)
     return {
         "text": out["text"],
         "real": out["real"],
@@ -270,7 +272,9 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
         prompt = _compose_prompt(state["input"], ctx, mem, skill,
                                  state.get("file_ctx") or "", grounded=grounded,
                                  web_ctx=web_ctx, web_grounded=web_grounded)
-        llm = _call_llm(prompt, system_prompt, user_input=state["input"], agent=agent_meta)
+        _caller = state.get("caller")
+        llm = _call_llm(prompt, system_prompt, user_input=state["input"],
+                       agent=agent_meta, tenant_id=_caller.tenantId if _caller else None)
         answer = llm["text"]
         # 轮次标记只在平台助手的多轮对话上加（证明记忆生效）；
         # 技能包产出是直接交付物的正文，带调试前缀会污染 Word/PPT/PDF 首页。
@@ -380,7 +384,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
                                  grounded=grounded, web_ctx=web_ctx,
                                  web_grounded=web_grounded)
-        llm = _call_llm(prompt, system_prompt, user_input=user_input, agent=agent_meta)
+        llm = _call_llm(prompt, system_prompt, user_input=user_input,
+                       agent=agent_meta, tenant_id=caller.tenantId)
         answer = llm["text"]
         if not answer.startswith("[stub") and not skill:
             answer = f"[stub|第{turn_no}轮|LLM生成] {answer}"

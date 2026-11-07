@@ -17,7 +17,7 @@ import time
 import httpx
 
 from app.core.config import settings
-from app.services import model_router, observability
+from app.services import model_router, observability, tenant_store
 
 
 # ── 厂商错误的可执行结论 ──
@@ -97,15 +97,22 @@ _BUCKET.configure(settings.GATEWAY_THROTTLE_RPS, settings.GATEWAY_THROTTLE_BURST
 
 
 def resolve_model(user_input: str, agent: dict | None = None,
-                  requested: str | None = None) -> tuple[str, dict | None]:
+                  requested: str | None = None,
+                  tenant_id: str | None = None) -> tuple[str, dict | None]:
     """把路由建议真正落到模型选择（蓝图第 34 章，applied=true）。
 
+    - M43：租户级 LLM 覆盖优先（tenant config.llm.model_id），存在则直接用、不做路由。
     - ``requested`` 显式指定（非 "auto"）→ 直接用它，不做路由（业务包可硬指定模型）。
     - ``requested`` 为 None / "auto" 且 ``ROUTING_ENABLED`` → 调 ``model_router.route`` 选档。
     - 否则回落平台默认模型。
 
     返回 ``(model_id, route_decision)``；route_decision 为 None 表示未走路由（便于计量埋点标注）。
     """
+    # M43：租户级 LLM 模型覆盖（per-tenant 配置优先于全局路由）
+    if tenant_id:
+        override = tenant_store.get_config(tenant_id).get("llm", {}).get("model_id")
+        if override and override != "auto":
+            return override, {"tenant_override": True, "tenant_id": tenant_id}
     if requested and requested != "auto":
         return requested, None
     if settings.ROUTING_ENABLED:
@@ -349,7 +356,8 @@ def chat_sync(model_id: str, messages: list[dict], timeout: float = 0) -> str:
 
 def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
                  max_tokens: int | None = None, temperature: float | None = None,
-                 user_input: str = "", agent: dict | None = None) -> dict:
+                 user_input: str = "", agent: dict | None = None,
+                 tenant_id: str | None = None) -> dict:
     """同步调用并**回传真实 token 用量**（第25章计量数据源）。
 
     模型选择：``model_id`` 为 None / "auto" 时按路由策略选档（applied=true）；
@@ -368,7 +376,7 @@ def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
     to = timeout or settings.LLM_TIMEOUT_S
 
     # 路由：把建议真正落到模型选择（蓝图第 34 章 applied=true）
-    effective_model, route_decision = resolve_model(user_input, agent, model_id)
+    effective_model, route_decision = resolve_model(user_input, agent, model_id, tenant_id)
     routed_tier = (route_decision or {}).get("tier") if route_decision else None
     routed_model = effective_model if route_decision else None
 

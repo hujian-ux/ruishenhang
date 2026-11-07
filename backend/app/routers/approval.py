@@ -72,8 +72,10 @@ async def decide(
 
 @router.get("/pending")
 async def pending(caller: CallerContext = Depends(get_caller)):
-    """待审列表：platform_admin 全量，dept_admin 本部门。"""
+    """待审列表：platform_admin 全量，dept_admin 本部门 + 本租户。"""
     _require_admin(caller)
     dept = caller.deptId if caller.role == "dept_admin" else None
-    rows = approval_store.pending_list(dept)
+    # M43：dept_admin 仅看本租户；platform_admin 传 None 看全量租户。
+    tenant_id = None if caller.role == "platform_admin" else caller.tenantId
+    rows = approval_store.pending_list(dept, tenant_id)
     return {"code": 0, "data": {"count": len(rows), "tickets": rows}}
