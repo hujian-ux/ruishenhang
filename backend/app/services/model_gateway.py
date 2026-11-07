@@ -17,7 +17,7 @@ import time
 import httpx
 
 from app.core.config import settings
-from app.services import model_router
+from app.services import model_router, observability
 
 
 # ── 厂商错误的可执行结论 ──
@@ -386,6 +386,7 @@ def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
                else "LiteLLM 代理不可达")
         if settings.LLM_STRICT:
             raise LLMUnavailable(err)
+        observability.observe_llm_usage(0, 0, False)  # stub 回退：计一次调用，无 token 消耗
         return {"text": _stub_answer(effective_model, messages), "real": False,
                 "model_id": effective_model, "routed_tier": routed_tier,
                 "routed_model": routed_model, "usage": {}, "error": err,
@@ -402,6 +403,7 @@ def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
         text, usage = _extract(body)
         if not text.strip():
             raise RuntimeError("响应正文为空（可能被 max_tokens 截断或触发内容策略）")
+        observability.observe_llm_usage(usage["prompt_tokens"], usage["completion_tokens"], True)
         return {"text": text, "real": True,
                 "model_id": body.get("model") or effective_model,
                 "routed_tier": routed_tier, "routed_model": routed_model,
@@ -411,6 +413,7 @@ def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
         msg = f"{type(exc).__name__}: {exc}"
         if settings.LLM_STRICT:
             raise LLMUnavailable(msg) from exc
+        observability.observe_llm_usage(0, 0, False)  # 真模型失败回退 stub：计一次调用，无 token
         return {"text": _stub_answer(effective_model, messages), "real": False,
                 "model_id": effective_model, "routed_tier": routed_tier,
                 "routed_model": routed_model, "usage": {}, "error": msg,

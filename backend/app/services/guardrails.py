@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.core.filter import visible_fields
-from app.services import _m27_store
+from app.services import _m27_store, observability
 
 # ==================================================================== 配置读取
 def _enabled() -> bool:
@@ -297,6 +297,8 @@ def scan_input(text: str) -> dict:
     risk = round(min(1.0, len(hits) / max_hits), 3)
     if blocked and risk < 0.5:
         risk = 0.5
+    if blocked:
+        observability.observe_guardrail("input")  # 输入拦截计数
     _bump("scan_input")
     return {
         "blocked": bool(blocked),
@@ -437,7 +439,10 @@ def apply_output_guard(answer: str, caller=None, hits=None, evidence: str = "") 
     """
     g = scan_output(answer, caller=caller, hits=hits, evidence=evidence)
     enforce = bool(getattr(settings, "GUARDRAILS_OUTPUT_ENFORCE", False))
+    rewritten = bool(enforce and g.get("masked_answer")) and g.get("masked_answer") != answer
     out_answer = g["masked_answer"] if (enforce and g.get("masked_answer")) else answer
+    if rewritten:
+        observability.observe_guardrail("output")  # 输出泄密改写计数（仅真正改写时）
     return {"answer": out_answer, **g}
 
 
@@ -559,6 +564,8 @@ def guard_tool_call(tool: str, args: dict, caller) -> dict:
         )
     except Exception:
         pass
+    if not allowed:
+        observability.observe_guardrail("tool")  # 工具调用拦截计数
     _bump("tool_check")
     return {"allowed": bool(allowed), "reason": reason,
             "args": masked_args, "scopes": scopes}

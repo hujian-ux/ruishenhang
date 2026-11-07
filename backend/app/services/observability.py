@@ -27,7 +27,15 @@ MAX_SAMPLES = 2000
 # 告警最小样本：低于它不做阈值判断（1 次失败就报 100% 错误率是典型误报）
 MIN_SAMPLES = 20
 
-_COUNTERS: Dict[str, int] = {"requests_total": 0, "errors_total": 0, "model_429_total": 0}
+_COUNTERS: Dict[str, int] = {
+    "requests_total": 0, "errors_total": 0, "model_429_total": 0,
+    # 第25/30章计量联动：每次模型调用（真/假）都计数 + 累计 token
+    "llm_calls_total": 0, "llm_real_calls_total": 0,
+    "llm_prompt_tokens_total": 0, "llm_completion_tokens_total": 0,
+    # 第27章安全三层命中计数（输入拦截 / 工具拦截 / 输出改写）
+    "guardrail_input_blocked": 0, "guardrail_tool_blocked": 0,
+    "guardrail_output_rewritten": 0,
+}
 _SAMPLES: deque = deque(maxlen=MAX_SAMPLES)
 _BY_PATH: Dict[str, Dict[str, Any]] = {}
 _LAST_ALERT_NOTE: str = ""
@@ -83,6 +91,37 @@ def observe_request(method: str, path: str, status: int, elapsed_ms: float,
         })
 
 
+def observe_llm_usage(prompt_tokens: int = 0, completion_tokens: int = 0,
+                      real: bool = False) -> None:
+    """第25/30章联动：每次模型调用（无论真/假）累计调用数与 token 量。
+
+    由 model_gateway.chat_sync_ex 内部调用，统一入口，调用方零改动。
+    real=False（stub 回退）也计数一次调用，但 token 仍为 0（无真消耗）。
+    """
+    with _LOCK:
+        _COUNTERS["llm_calls_total"] += 1
+        if real:
+            _COUNTERS["llm_real_calls_total"] += 1
+        _COUNTERS["llm_prompt_tokens_total"] += int(prompt_tokens or 0)
+        _COUNTERS["llm_completion_tokens_total"] += int(completion_tokens or 0)
+
+
+def observe_guardrail(kind: str) -> None:
+    """第27章安全三层命中计数：kind ∈ {input, tool, output}。
+
+    - input：提示注入 / 越狱扫描命中并拦截
+    - tool：工具调用被白名单 / 私网 / 出网脱敏拦截
+    - output：输出泄密改写（GUARDRAILS_OUTPUT_ENFORCE=1 时）
+    由 guardrails.py 各拦截点调用，仅计数不改行为。
+    """
+    key = {"input": "guardrail_input_blocked",
+           "tool": "guardrail_tool_blocked",
+           "output": "guardrail_output_rewritten"}.get(str(kind))
+    if key:
+        with _LOCK:
+            _COUNTERS[key] += 1
+
+
 def _p95_locked() -> float:
     """nearest-rank p95，基于最近窗口样本。调用方须持有 _LOCK。"""
     xs = sorted(s["elapsed_ms"] for s in _SAMPLES)
@@ -99,6 +138,13 @@ def _snapshot_locked() -> Dict[str, Any]:
         "requests_total": req,
         "errors_total": _COUNTERS["errors_total"],
         "model_429_total": _COUNTERS["model_429_total"],
+        "llm_calls_total": _COUNTERS["llm_calls_total"],
+        "llm_real_calls_total": _COUNTERS["llm_real_calls_total"],
+        "llm_prompt_tokens_total": _COUNTERS["llm_prompt_tokens_total"],
+        "llm_completion_tokens_total": _COUNTERS["llm_completion_tokens_total"],
+        "guardrail_input_blocked": _COUNTERS["guardrail_input_blocked"],
+        "guardrail_tool_blocked": _COUNTERS["guardrail_tool_blocked"],
+        "guardrail_output_rewritten": _COUNTERS["guardrail_output_rewritten"],
         "error_rate": (_COUNTERS["errors_total"] / req) if req else 0.0,
         "latency_p95_ms": _p95_locked(),
         "sample_window": len(_SAMPLES),
@@ -135,6 +181,34 @@ def prometheus_text() -> str:
         "# TYPE model_429_total counter",
         f"model_429_total {c['model_429_total']}",
         "",
+        "# HELP llm_calls_total Total model-gateway invocations (real + stub fallback).",
+        "# TYPE llm_calls_total counter",
+        f"llm_calls_total {c['llm_calls_total']}",
+        "",
+        "# HELP llm_real_calls_total Model-gateway invocations that hit a real LLM.",
+        "# TYPE llm_real_calls_total counter",
+        f"llm_real_calls_total {c['llm_real_calls_total']}",
+        "",
+        "# HELP llm_prompt_tokens_total Cumulative prompt tokens across real LLM calls.",
+        "# TYPE llm_prompt_tokens_total counter",
+        f"llm_prompt_tokens_total {c['llm_prompt_tokens_total']}",
+        "",
+        "# HELP llm_completion_tokens_total Cumulative completion tokens across real LLM calls.",
+        "# TYPE llm_completion_tokens_total counter",
+        f"llm_completion_tokens_total {c['llm_completion_tokens_total']}",
+        "",
+        "# HELP guardrail_input_blocked Total input prompts blocked by injection scan.",
+        "# TYPE guardrail_input_blocked counter",
+        f"guardrail_input_blocked {c['guardrail_input_blocked']}",
+        "",
+        "# HELP guardrail_tool_blocked Total tool calls blocked by the unified filter.",
+        "# TYPE guardrail_tool_blocked counter",
+        f"guardrail_tool_blocked {c['guardrail_tool_blocked']}",
+        "",
+        "# HELP guardrail_output_rewritten Total answers rewritten by output guard.",
+        "# TYPE guardrail_output_rewritten counter",
+        f"guardrail_output_rewritten {c['guardrail_output_rewritten']}",
+        "",
         "# HELP requests_by_path_total Observed requests grouped by path.",
         "# TYPE requests_by_path_total counter",
     ]
@@ -163,6 +237,13 @@ def health(caller=None) -> dict:
                 "error_rate": round(snap["error_rate"], 4),
                 "latency_p95_ms": snap["latency_p95_ms"],
                 "model_429_total": snap["model_429_total"],
+                "llm_calls_total": snap["llm_calls_total"],
+                "llm_real_calls_total": snap["llm_real_calls_total"],
+                "llm_prompt_tokens_total": snap["llm_prompt_tokens_total"],
+                "llm_completion_tokens_total": snap["llm_completion_tokens_total"],
+                "guardrail_input_blocked": snap["guardrail_input_blocked"],
+                "guardrail_tool_blocked": snap["guardrail_tool_blocked"],
+                "guardrail_output_rewritten": snap["guardrail_output_rewritten"],
                 "sample_window": snap["sample_window"],
                 "sample_window_cap": MAX_SAMPLES,
                 "by_path": snap["by_path"],
@@ -385,7 +466,8 @@ def restore(data: dict) -> None:
 def reset_state() -> None:
     global _LAST_ALERT_NOTE
     with _LOCK:
-        _COUNTERS.update(requests_total=0, errors_total=0, model_429_total=0)
+        # 清零全部计数器（含新增 llm_* / guardrail_*），避免测试与演练间污染
+        _COUNTERS.update({k: 0 for k in _COUNTERS})
         _SAMPLES.clear()
         _BY_PATH.clear()
         FEEDBACK.clear()

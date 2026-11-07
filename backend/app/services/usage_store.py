@@ -93,6 +93,18 @@ def reset() -> None:
     _RECORDS.clear()
 
 
+def snapshot() -> dict:
+    """导出内存计量明细快照（供备份脚本）。返回 {"records": [...]}。"""
+    return {"records": [dict(r) for r in _RECORDS]}
+
+
+def restore(data: dict) -> None:
+    """恢复计量明细快照（供备份脚本恢复演练）。"""
+    _RECORDS.clear()
+    for r in (data or {}).get("records") or []:
+        _RECORDS.append(dict(r))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 权限收敛 + 聚合
 # ─────────────────────────────────────────────────────────────────────────────

@@ -44,19 +44,33 @@ _CONFIG_KEYS = [
 ]
 _SENSITIVE = ("_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
 
-_STORE_FIELDS = {
-    "observability": ("counters", "samples", "by_path", "feedback"),
-    "events": ("subscriptions", "events"),
-}
+# 备份覆盖的生产关键 store（第25/26/27/30章）：每个须提供 snapshot()/restore()。
+# 独立进程缺依赖时单个标 unavailable，不阻塞其它 store 的备份/校验。
+_STORE_SNAPSHOTTERS = ["observability", "events", "usage_store"]
 
 
 def _load_services():
-    """尽量拿到 M27 两个模块；独立 python 缺依赖时返回 (None, 原因)。"""
-    try:
-        from app.services import events, observability
-        return (observability, events), None
-    except Exception as exc:  # noqa: BLE001 - 降级即可，不必区分具体缺失
-        return None, f"{type(exc).__name__}: {exc}"
+    """逐个动态导入可备份的 store 模块；缺依赖/无接口的单独立项标不可用。"""
+    import importlib
+
+    mods: dict = {}
+    for name in _STORE_SNAPSHOTTERS:
+        try:
+            mod = importlib.import_module(f"app.services.{name}")
+            if hasattr(mod, "snapshot") and hasattr(mod, "restore"):
+                mods[name] = mod
+        except Exception:  # noqa: BLE001 - 降级即可，单个失败不影响全局
+            pass
+    return mods
+
+
+def _empty_stores(mods: dict) -> dict:
+    """对本次未能加载的 store 生成 unavailable 占位（保持 schema 完整）。"""
+    out = {}
+    for name in _STORE_SNAPSHOTTERS:
+        if name not in mods:
+            out[name] = {"unavailable": "模块未在当前进程加载", "schema_unknown": True}
+    return out
 
 
 def _config_summary() -> dict:
@@ -79,16 +93,23 @@ def _checksum(payload: dict) -> str:
 
 
 def _counts(stores: dict) -> dict:
-    obs = stores.get("observability") or {}
-    evs = stores.get("events") or {}
-    return {
-        "observability_counters": obs.get("counters", {}),
-        "observability_samples": len(obs.get("samples") or []),
-        "observability_by_path": len(obs.get("by_path") or {}),
-        "observability_feedback": len(obs.get("feedback") or []),
-        "subscriptions": len(evs.get("subscriptions") or []),
-        "events": len(evs.get("events") or []),
-    }
+    c = {}
+    for name, s in stores.items():
+        if not isinstance(s, dict) or s.get("unavailable"):
+            c[name] = {"available": False}
+            continue
+        if name == "usage_store":
+            c[name] = {"records": len(s.get("records") or [])}
+        elif name == "events":
+            c[name] = {"subscriptions": len(s.get("subscriptions") or []),
+                       "events": len(s.get("events") or [])}
+        elif name == "observability":
+            c[name] = {"samples": len(s.get("samples") or []),
+                       "feedback": len(s.get("feedback") or []),
+                       "by_path": len(s.get("by_path") or {})}
+        else:
+            c[name] = {"entries": len(s) if isinstance(s, (list, dict)) else 0}
+    return c
 
 
 def _empty_stores(reason: str) -> dict:
@@ -100,12 +121,13 @@ def _empty_stores(reason: str) -> dict:
 
 
 def do_backup(out_path: str) -> int:
-    services, reason = _load_services()
-    if services is not None:
-        observability, events = services
-        stores = {"observability": observability.snapshot(), "events": events.snapshot()}
-    else:
-        stores = _empty_stores(reason)
+    mods = _load_services()
+    stores = _empty_stores(mods)
+    for name, mod in mods.items():
+        try:
+            stores[name] = mod.snapshot()
+        except Exception as exc:  # noqa: BLE001
+            stores[name] = {"unavailable": f"snapshot 失败: {type(exc).__name__}: {exc}"}
 
     payload = {
         "schema": SCHEMA,
@@ -113,8 +135,9 @@ def do_backup(out_path: str) -> int:
         "config_summary": _config_summary(),
         "stores": stores,
         "counts": _counts(stores),
-        "note": ("各 M27 Store 为进程内内存态；本文件是当前进程可见快照。"
-                 "配置摘要取自 os.environ 且密钥已脱敏；生产需持久层做跨进程恢复。"),
+        "note": ("各 Store 为进程内内存态；本文件是当前进程可见快照。生产关键数据"
+                 "（指标 / 事件 / 用量账单）均已纳入。配置摘要取自 os.environ 且密钥"
+                 "已脱敏；跨进程热恢复需持久层（PG）——见脚本说明。"),
     }
     payload["checksum"] = _checksum(payload)
 
@@ -125,9 +148,8 @@ def do_backup(out_path: str) -> int:
     c = payload["counts"]
     print(f"[backup] 已写入 {path}")
     print(f"[backup] schema={SCHEMA} created_at={payload['created_at']}")
-    print(f"[backup] services={'ok' if services else 'unavailable(' + str(reason) + ')'}")
-    print(f"[backup] samples={c['observability_samples']} feedback={c['observability_feedback']} "
-          f"subscriptions={c['subscriptions']} events={c['events']}")
+    print(f"[backup] stores={list(payload['stores'].keys())}")
+    print(f"[backup] counts={json.dumps(c, ensure_ascii=False)}")
     print(f"[backup] sha256={payload['checksum']}")
     return 0
 
@@ -155,14 +177,13 @@ def _validate(data: dict) -> list:
         if expect != data["checksum"]:
             errors.append("sha256 校验不匹配（文件可能被篡改或损坏）")
     stores = data.get("stores") or {}
-    for name, fields in _STORE_FIELDS.items():
+    for name in _STORE_SNAPSHOTTERS:
         s = stores.get(name)
-        if not isinstance(s, dict):
-            errors.append(f"stores.{name} 缺失或类型错误")
-            continue
-        for f in fields:
-            if f not in s:
-                errors.append(f"stores.{name}.{f} 缺失")
+        if s is None:
+            errors.append(f"stores.{name} 缺失")
+        elif not isinstance(s, dict):
+            errors.append(f"stores.{name} 类型错误（期望 dict）")
+        # unavailable 占位（独立进程未加载）允许通过校验，不阻断恢复演练
     if not isinstance(data.get("counts"), dict):
         errors.append("counts 类型错误")
     return errors
@@ -184,11 +205,7 @@ def do_verify(path: str) -> int:
     print(f"[verify] schema={data['schema']} created_at={data['created_at']}")
     print(f"[verify] sha256={data['checksum']}（重算一致）")
     print(f"[verify] config_summary keys={len(data['config_summary'])}")
-    print(f"[verify] counters={c.get('observability_counters')}")
-    print(f"[verify] samples={c.get('observability_samples')} "
-          f"by_path={c.get('observability_by_path')} "
-          f"feedback={c.get('observability_feedback')} "
-          f"subscriptions={c.get('subscriptions')} events={c.get('events')}")
+    print(f"[verify] 各 store 计数: {json.dumps(c, ensure_ascii=False)}")
     print("[verify] 字段完整、计数已打印；未调用任何 restore，生产未改动")
     return 0
 
@@ -204,23 +221,29 @@ def do_restore(path: str, confirm: bool) -> int:
         return 1
     errors = _validate(data)
     if errors:
-        print("[restore] 失败（备份未通过校验，拒绝写回）:")
+        print("[restore] 失败（备份未通过校验，拒绝写回):")
         for e in errors:
             print("  - " + e)
         return 1
 
-    services, reason = _load_services()
-    if services is None:
-        print(f"[restore] 拒绝：当前进程无法访问 M27 Store（{reason}），无法写回。")
+    mods = _load_services()
+    if not mods:
+        print("[restore] 拒绝：当前进程无法访问任何可恢复 Store，无法写回。")
         return 2
-    observability, events = services
-    observability.restore(data["stores"]["observability"])
-    events.restore(data["stores"]["events"])
+    restored = []
+    for name, mod in mods.items():
+        snap = data["stores"].get(name)
+        if not isinstance(snap, dict) or snap.get("unavailable"):
+            continue
+        try:
+            mod.restore(snap)
+            restored.append(name)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[restore] 警告：{name} 写回失败: {type(exc).__name__}: {exc}")
     c = data["counts"]
     print(f"[restore] 完成：已写回当前进程 Store（--confirm 已确认）: {path}")
-    print(f"[restore] samples={c.get('observability_samples')} "
-          f"feedback={c.get('observability_feedback')} "
-          f"subscriptions={c.get('subscriptions')} events={c.get('events')}")
+    print(f"[restore] restored_stores={restored}")
+    print(f"[restore] counts={json.dumps(c, ensure_ascii=False)}")
     print("[restore] 注意：内存态 Store 仅在本进程生效，跨进程恢复需持久层（见脚本说明）")
     return 0
 
