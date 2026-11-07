@@ -1,0 +1,16 @@
+# QA 评测 golden 起始集（第28章 LLM-as-Judge）
+# 格式：每行一条 JSON。字段：
+#   query      用户问题
+#   reference  标准答案/依据（判官据此打分）
+#   dept       业务归属部门（覆盖度按部门统计，达标线 ≥50 条/部门）
+#   scope      知识范围（global/department/personal，仅供归档）
+#   accept     也可接受的等价表述（可选）
+#
+# ⚠️ 本文件仅为「机制可用」的占位样本（覆盖不足会如实标 coverage_ok=false）。
+#    生产需在 corpus_inbox 真实语料上线后，由业务侧按「每部门 ≥50 条」补齐真实 golden。
+{"query": "员工报销差旅费需要哪些审批节点？", "reference": "员工差旅费报销须依次经过直属主管审批、部门负责人复核、财务部门审核入账；单笔超过规定额度还需分管副总批准。", "dept": "finance", "scope": "global"}
+{"query": "渠道返利政策按什么周期结算？", "reference": "渠道返利按自然季度结算，季度结束后 15 个工作日内完成对账并由财务复核后发放。", "dept": "sales", "scope": "department"}
+{"query": "试用期员工享有哪些法定福利？", "reference": "试用期员工依法享有社会保险、住房公积金及带薪年休假等法定福利，与正式员工标准一致。", "dept": "hr", "scope": "global"}
+{"query": "数据导出申请需要经过谁的审批？", "reference": "数据导出申请须经数据 owner 所在部门负责人审批，并登记到审计日志，涉及个人数据还需合规岗复核。", "dept": "it", "scope": "global"}
+{"query": "客户投诉应在多长时间内首次响应？", "reference": "客户投诉须在 1 个工作日内完成首次响应，并在 3 个工作日内给出处理方案。", "dept": "sales", "scope": "department"}
+{"query": "年度绩效考核结果何时向员工反馈？", "reference": "年度绩效考核结果应在考核周期结束后的一个月内，由直属主管一对一向员工反馈。", "dept": "hr", "scope": "global"}

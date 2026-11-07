@@ -177,6 +177,10 @@ class Settings:
     EVOLUTION_REQUIRE_APPROVAL = _env("EVOLUTION_REQUIRE_APPROVAL", "1") == "1"
     AUDIT_RETENTION_DAYS = int(_env("AUDIT_RETENTION_DAYS", "180"))
     SECURITY_EVENT_RETENTION_DAYS = int(_env("SECURITY_EVENT_RETENTION_DAYS", "365"))
+    # 法定保留动作：这些动作产生的审计记录永不过期（合规追溯，不参与自动清理）。
+    AUDIT_LEGAL_HOLD_ACTIONS = _env("AUDIT_LEGAL_HOLD_ACTIONS", "approval,download,handoff")
+    # 审计只读加密导出的 Fernet 密钥（base64 urlsafe 32 字节）。留空则导出为明文 CSV（并告警）。
+    AUDIT_EXPORT_KEY = _env("AUDIT_EXPORT_KEY", "")
 
     OBSERVABILITY_ENABLED = _env("OBSERVABILITY_ENABLED", "1") == "1"
     OPS_ALERT_ERROR_RATE = float(_env("OPS_ALERT_ERROR_RATE", "0.01"))

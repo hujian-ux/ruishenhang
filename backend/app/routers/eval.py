@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.services import eval as eval_svc
+from app.services import judge as judge_svc
+from app.services import model_gateway
 
 router = APIRouter(prefix="/eval", tags=["eval"])
 
@@ -53,3 +55,25 @@ async def run(limit: int = Query(0, ge=0, le=2000,
     report["dropped"] = dropped
     paths = eval_svc.write_report(report)
     return {"code": 0, "data": report, "paths": paths}
+
+
+@router.post("/judge")
+async def judge(caller: CallerContext = Depends(get_caller)):
+    """现场跑一次 LLM-as-Judge（第28章）。
+
+    仅平台管理员可触发（判官要调真模型，逐条消耗 token）。无真模型时如实返回
+    ``llm_real=false`` 与 gate 不通过，**绝不拿 stub 当真判分**。
+    """
+    if caller.role != "platform_admin":
+        raise HTTPException(status_code=403, detail="forbidden: 仅平台管理员可触发 LLM-as-Judge")
+    if not model_gateway.llm_available():
+        return {"code": 0, "data": {"llm_real": False,
+                                    "hint": "未配置真模型密钥，判官无法运行（LLM_API_KEY / 厂商环境变量）",
+                                    "gate": {"passed": False, "reason": "判官未接真模型"}}}
+    try:
+        report = judge_svc.run_judge()
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    baseline = judge_svc.load_baseline()
+    reg = judge_svc.regression_gate(report, baseline)
+    return {"code": 0, "data": {**report, "regression": reg}}

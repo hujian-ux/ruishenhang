@@ -261,6 +261,23 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     # M27：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信 / 质量埋点（旁路，不改答案）
     m27 = _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard)
 
+    # P2-42 置信降级转人工（蓝图第 42 章）：默认关闭（HANDOFF_AUTO=0），仅观测。
+    # 开启后，低置信结果自动建人工工单，但不改答案（人接着看），避免静默把低质答案当结论。
+    if getattr(settings, "HANDOFF_AUTO", False):
+        try:
+            from app.services import degrade as degrade_svc
+            ho = degrade_svc.maybe_handoff(
+                run_id, req.agent_id,
+                {"answer": result["answer"],
+                 "evidence": _evidence_text(result),
+                 "llm_real": bool(result.get("usage", {}).get("real")),
+                 "guard": (result.get("guard_hits") or input_guard)},
+                caller)
+            if ho:
+                result["handoff_id"] = ho.get("id")
+        except Exception:
+            pass
+
     # 记忆落账：用户轮 + 助手轮
     session_store.append_turn(sess["session_id"], "user", req.input)
     session_store.append_turn(sess["session_id"], "assistant", result["answer"])

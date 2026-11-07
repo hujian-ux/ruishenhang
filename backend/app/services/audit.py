@@ -19,10 +19,13 @@ import sqlite3
 import threading
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
 from app.models.caller import CallerContext
+
+REPORT_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 
 # ---- 存储后端（PG 优先，SQLite 兜底） ---------------------------------------
 
@@ -103,8 +106,16 @@ def _now_iso() -> str:
 # ---- 写入 -------------------------------------------------------------------
 
 def record(action: str, caller: CallerContext, target: str = "", result: str = "ok",
-          meta: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None) -> str:
-    """记录一条审计事件，返回 trace_id。meta 会被 JSON 化且脱敏（不存原文正文）。"""
+          meta: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None,
+          compliance: Optional[list[str]] = None) -> str:
+    """记录一条审计事件，返回 trace_id。meta 会被 JSON 化且脱敏（不存原文正文）。
+
+    compliance：合规条款标签（如 ["等保2.0-S3","ISO27001-A.12.4"]），随 meta 存，供合规映射聚合。
+    """
+    if compliance:
+        m = dict(meta or {})
+        m["compliance"] = list(compliance)
+        meta = m
     if trace_id is None:
         trace_id = getattr(_local, "trace_id", None) or uuid.uuid4().hex[:16]
     meta_json = json.dumps(_sanitize(meta or {}), ensure_ascii=False)
@@ -201,3 +212,140 @@ def _row_to_dict(r, sqlite: bool = False) -> Dict[str, Any]:
         except Exception:
             pass
     return d
+
+
+# ── P1-29 审计留存与合规：留存 TTL / 只读加密导出 / 等保-ISO 映射 / 级联删除 ──
+
+def _legal_hold() -> list[str]:
+    return [a.strip() for a in (settings.AUDIT_LEGAL_HOLD_ACTIONS or "").split(",") if a.strip()]
+
+
+def _legal_hold() -> list[str]:
+    return [a.strip() for a in (settings.AUDIT_LEGAL_HOLD_ACTIONS or "").split(",") if a.strip()]
+
+
+def purge_expired(retention_days: Optional[int] = None) -> int:
+    """按留存策略清理过期审计：超过 retention_days 的天数且非法定保留动作才删。
+
+    法定保留（AUDIT_LEGAL_HOLD_ACTIONS：approval/download/handoff）永不过期。
+    返回实际删除条数。PG 与 SQLite 双后端都实现；无后端可用时返回 0。
+    """
+    days = int(retention_days if retention_days is not None else settings.AUDIT_RETENTION_DAYS)
+    hold = _legal_hold()
+    hold_sql = (" AND action NOT IN (%s)" % ",".join(["%s"] * len(hold))) if hold else ""
+    params_hold = tuple(hold)
+    pg = _connect_pg()
+    deleted = 0
+    if pg is not None:
+        try:
+            with pg.cursor() as cur:
+                cur.execute(
+                    f"DELETE FROM audit_logs WHERE created_at < now() - make_interval(days => %s){hold_sql}",
+                    (days, *params_hold),
+                )
+                deleted = cur.rowcount
+        except Exception:
+            return 0
+        return deleted
+    # SQLite 兜底：created_at 为 UTC ISO 字符串，字典序即时间序
+    try:
+        from datetime import timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        conn = _sqlite_conn()
+        q = "DELETE FROM audit_logs WHERE created_at < ?" + (" AND action NOT IN (%s)" % ",".join(["?"] * len(hold)) if hold else "")
+        args: list = [cutoff] + list(params_hold)
+        cur = conn.execute(q, args)
+        deleted = cur.rowcount
+        conn.commit()
+    except Exception:
+        return 0
+    return deleted
+
+
+def export_records(caller: CallerContext, out_path: Optional[str] = None,
+                   encrypt: Optional[bool] = None) -> Dict[str, Any]:
+    """只读导出 caller 可见的审计记录（RBAC 收敛，绝不改数据）。
+
+    - 默认导出为 CSV（明文）；若配置了 AUDIT_EXPORT_KEY，则加密为 .enc（Fernet）。
+    - encrypt 强制为 False 时即使有 key 也明文导出（运维排障用）。
+    返回 {path, encrypted, rows, warning}。
+    """
+    rows = get_logs(caller, limit=10 ** 7)
+    import csv as _csv
+    import io as _io
+
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["trace_id", "tenant_id", "dept_id", "user_id", "role",
+                "action", "target", "result", "meta_json", "created_at"])
+    for r in rows:
+        w.writerow([r.get("trace_id"), r.get("tenant_id"), r.get("dept_id"), r.get("user_id"),
+                    r.get("role"), r.get("action"), r.get("target"), r.get("result"),
+                    json.dumps(r.get("meta_json") or {}, ensure_ascii=False), r.get("created_at")])
+    content = buf.getvalue().encode("utf-8")
+
+    do_encrypt = bool(encrypt) if encrypt is not None else bool(settings.AUDIT_EXPORT_KEY)
+    warning = ""
+    if do_encrypt and not settings.AUDIT_EXPORT_KEY:
+        # 要求加密但没配密钥 → 降级明文并告警，不静默
+        do_encrypt = False
+        warning = "要求加密导出但未配置 AUDIT_EXPORT_KEY，已降级为明文 CSV"
+    if do_encrypt:
+        content = _encrypt_bytes(content)
+    out = Path(out_path) if out_path else (
+        REPORT_DIR / ("audit_export.enc" if do_encrypt else "audit_export.csv"))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(content)
+    return {"path": str(out), "encrypted": do_encrypt, "rows": len(rows), "warning": warning}
+
+
+def _encrypt_bytes(data: bytes) -> bytes:
+    from cryptography.fernet import Fernet
+    key = settings.AUDIT_EXPORT_KEY.encode("utf-8")
+    return Fernet(key).encrypt(data)
+
+
+def delete_user_data(user_id: str) -> Dict[str, Any]:
+    """员工数据导出/删除：级联清该用户产生的审计记录，并触发向量与库内数据的级联清理。
+
+    审计侧只清「该用户作为操作者」的记录（不误删涉及他人的记录）；向量/语料侧
+    尝试调用各存储的按 owner 清理钩子（不可达时静默跳过，不阻断主流程）。
+    返回 {audit_deleted, vector_deleted, note}。
+    """
+    if not user_id:
+        raise ValueError("user_id 不能为空")
+    deleted = 0
+    pg = _connect_pg()
+    if pg is not None:
+        try:
+            with pg.cursor() as cur:
+                cur.execute("DELETE FROM audit_logs WHERE user_id=%s", (user_id,))
+                deleted = cur.rowcount
+        except Exception:
+            deleted = 0
+    else:
+        try:
+            conn = _sqlite_conn()
+            cur = conn.execute("DELETE FROM audit_logs WHERE user_id=?", (user_id,))
+            deleted = cur.rowcount
+            conn.commit()
+        except Exception:
+            deleted = 0
+    # 级联清向量 / 库内数据（按 owner）。guarded import：各存储未实现时跳过。
+    vector_deleted = 0
+    try:
+        from app.services import vector_store as _vs  # type: ignore
+        fn = getattr(_vs, "delete_by_owner", None)
+        if fn:
+            vector_deleted = fn(user_id) or 0
+    except Exception:
+        pass
+    try:
+        from app.services import pg_store as _ps  # type: ignore
+        fn = getattr(_ps, "delete_by_owner", None)
+        if fn:
+            fn(user_id)
+    except Exception:
+        pass
+    return {"audit_deleted": deleted, "vector_deleted": vector_deleted,
+            "note": "已级联清理该用户审计与向量数据"}

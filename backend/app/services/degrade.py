@@ -140,3 +140,70 @@ def reset_state() -> None:
     """清空工单与自定义降级链，供测试隔离。"""
     _HANDOFFS.clear()
     _CHAINS.clear()
+
+
+def maybe_handoff(run_id: str, agent_id: str, context: dict, caller,
+                  conf: float | None = None) -> dict | None:
+    """低置信自动转人工：``HANDOFF_ENABLED`` 且置信分 < 阈值才建单。
+
+    conf 缺省时按 context 现算（answer/evidence/llm_real/guard）。返回新建工单或 None。
+    默认关闭（``HANDOFF_AUTO=0``），仅观测，不改变既有生成结果。
+    """
+    if not settings.HANDOFF_ENABLED:
+        return None
+    if conf is None:
+        conf = confidence(
+            context.get("answer", ""), context.get("evidence", ""),
+            bool(context.get("llm_real", False)), context.get("guard"),
+        )
+    if conf >= settings.CONFIDENCE_THRESHOLD:
+        return None
+    return handoff(run_id, agent_id,
+                  f"置信分 {conf} < {settings.CONFIDENCE_THRESHOLD}（自动转人工）",
+                  context, caller)
+
+
+def exec_chain(agent_id: str, primary_fn: Callable[[], dict], caller,
+               run_id: str = "", context: dict | None = None,
+               fallbacks: dict | None = None, threshold: float | None = None) -> dict:
+    """真正执行降级链（蓝图第 42 章）：不再只是配置，而是按 ``chain(agent_id)`` 顺序尝试。
+
+    - ``primary_fn`` / ``fallbacks[step]`` 均返回 ``{answer, evidence, llm_real, guard}``。
+    - 每一步用 ``confidence()`` 算置信分，达到阈值即停；
+    - 遇到 ``human`` 步骤：低于阈值则建人工工单（status=open），答案仍返回并标注待复核；
+    - ``small_model`` / ``rules`` 步骤：调用方注入具体实现（换小模型 / 走规则引擎）。
+
+    返回最终 ``{answer, confidence, threshold, chain, tried, handoff?}``。
+    """
+    threshold = settings.CONFIDENCE_THRESHOLD if threshold is None else threshold
+    steps = chain(agent_id)
+    p = primary_fn()
+    conf = confidence(p.get("answer", ""), p.get("evidence", ""),
+                     bool(p.get("llm_real")), p.get("guard"))
+    result: Dict[str, Any] = dict(p)
+    tried = ["primary"]
+    for step in steps:
+        if conf >= threshold:
+            break
+        if step == "human":
+            ctx: Dict[str, Any] = dict(context or {})
+            ctx.update({"answer": result.get("answer", ""), "evidence": result.get("evidence", ""),
+                        "llm_real": result.get("llm_real", False), "guard": result.get("guard")})
+            result["handoff"] = handoff(run_id, agent_id,
+                                       f"置信分 {conf} < {threshold}，降级至人工", ctx, caller)
+            break
+        fn = (fallbacks or {}).get(step)
+        if not callable(fn):
+            continue
+        r2 = fn()
+        conf2 = confidence(r2.get("answer", ""), r2.get("evidence", ""),
+                           bool(r2.get("llm_real")), r2.get("guard"))
+        if conf2 > conf:
+            conf = conf2
+            result = dict(r2)
+            tried.append(step)
+    result["confidence"] = conf
+    result["threshold"] = threshold
+    result["chain"] = steps
+    result["tried"] = tried
+    return result
