@@ -207,3 +207,26 @@ def oidc_discovery_health() -> dict:
         return {"enabled": True, "ok": True, "issuer": settings.OIDC_ISSUER}
     except Exception as e:  # noqa: BLE001
         return {"enabled": True, "ok": False, "reason": str(e)[:200]}
+
+
+def _oidc_claims(token: str) -> dict:
+    """未验签解码 id_token 取 claims（仅在已验签之后调用，仅用于读 organization 等公开字段）。"""
+    try:
+        return jwt.decode(token, options={"verify_signature": False})
+    except Exception:
+        return {}
+
+
+def resolve_tenant_from_oidc_claims(claims: dict) -> Optional[str]:
+    """Casdoor 多组织：从 OIDC claims 解析出本平台 tenant_id。
+
+    Casdoor 把企业映射到 organization claim（数组或字符串），命中租户注册表的
+    `config.sso.casdoor_org` 则返回其 tenant_id；否则 None（回落网关注入或默认租户）。
+    纯映射函数，不修改任何 token 流程（零行为变更），供网关或后端自签 token 复用。
+    """
+    from app.services import tenant_store
+    org_raw = claims.get("organization") or claims.get("org") or claims.get("tenant")
+    if not org_raw:
+        return None
+    org = org_raw[0] if isinstance(org_raw, list) and org_raw else str(org_raw)
+    return tenant_store.resolve_tenant_by_org(org)

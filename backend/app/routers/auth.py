@@ -1,16 +1,21 @@
 """auth 路由：SSO 登录回调（第18章身份入口，对接企业 IM）+ OIDC 健康自检 +
 后端代换码（避开浏览器 CORS）+ 可选一键写入 Casdoor（自助接入企业微信/钉钉）。"""
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.security import (
+    _oidc_claims,
     _verify_oidc_token,
     create_dev_token,
     oidc_discovery_health,
+    resolve_tenant_from_oidc_claims,
 )
+from app.deps import get_caller
+from app.models.caller import CallerContext
 from app.models.schemas import SsoCallbackRequest, SsoCallbackResponse
+from app.services import tenant_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,11 +28,14 @@ async def sso_callback(req: SsoCallbackRequest):
         caller = _verify_oidc_token(req.id_token)
         if caller is None:
             raise HTTPException(401, "id_token 验签失败（issuer / 签名 / 过期 / audience 不匹配）")
+        # 多组织：尽力从 organization claim 解析租户（命中租户表才返回，否则 None 不误导）
+        tid = resolve_tenant_from_oidc_claims(_oidc_claims(req.id_token))
         return {
             "code": 0,
             "data": {
                 "token": req.id_token,
                 "expires_in": settings.DEV_TOKEN_TTL_S,
+                "tenant_id": tid,
                 "user": {"userId": caller.userId, "name": caller.userId,
                          "deptId": caller.deptId, "role": caller.role},
                 "device_bound": False,
@@ -79,7 +87,8 @@ def _mask(v: str) -> str:
 @router.get("/settings")
 async def auth_settings():
     """公开（无需登录）：暴露 OIDC 收口状态与脱敏 issuer/client_id，
-    供登录页决定是否隐藏演示入口、以及「身份与集成」页展示状态。不含任何密钥。"""
+    供登录页决定是否隐藏演示入口、以及「身份与集成」页展示状态。不含任何密钥。
+    附带 platform_branding 供登录页渲染平台默认品牌（租户级品牌需登录后取 /auth/branding）。"""
     issuer = settings.OIDC_ISSUER
     client_id = settings.OIDC_CLIENT_ID or settings.OIDC_AUDIENCE
     return {
@@ -89,7 +98,20 @@ async def auth_settings():
             "enforce_oidc": settings.AUTH_ENFORCE_OIDC,
             "issuer_masked": _mask(issuer) if issuer else "",
             "client_id_masked": _mask(client_id) if client_id else "",
+            "platform_branding": tenant_store.get_branding(None),
             "note": "AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，必须走真实企业 SSO。",
+        },
+    }
+
+
+@router.get("/branding")
+async def current_branding(caller: CallerContext = Depends(get_caller)):
+    """登录后取当前租户品牌（含平台默认回落）。供前端按租户渲染登录后界面。"""
+    return {
+        "code": 0,
+        "data": {
+            "tenant_id": caller.tenantId,
+            "branding": tenant_store.get_branding(caller.tenantId),
         },
     }
 
@@ -141,11 +163,14 @@ async def oidc_exchange(req: OidcExchangeRequest):
     caller = _verify_oidc_token(id_token, issuer=issuer, audience=client_id)
     if caller is None:
         raise HTTPException(401, "id_token 验签失败（issuer / 签名 / 过期 / audience 不匹配）")
+    # 多组织：尽力从 organization claim 解析租户（命中租户表才返回，否则 None 不误导）
+    tid = resolve_tenant_from_oidc_claims(_oidc_claims(id_token))
     return {
         "code": 0,
         "data": {
             "id_token": id_token,
             "expires_in": data.get("expires_in", 3600),
+            "tenant_id": tid,
             "user": {
                 "userId": caller.userId,
                 "name": caller.userId,

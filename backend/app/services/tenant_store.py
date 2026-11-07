@@ -73,8 +73,50 @@ def get_config(tid: str) -> Dict[str, Any]:
     return (t or {}).get("config") or {}
 
 
-# 租户级覆盖的合法顶层键；auth/im/brand 边界在取配置时按这些键回落。
+def update_config(tid: str, config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """更新租户级配置（brand/llm/sso/im 覆盖）；返回更新后的租户，不存在返回 None。"""
+    t = _TENANTS.get(tid)
+    if not t:
+        return None
+    t["config"] = config or {}
+    t["updated_at"] = time.time()
+    pg_store.upsert(_TABLE, tid, t)
+    return t
+
+
+# 平台级覆盖的合法顶层键；auth/im/brand 边界在取配置时按这些键回落。
 CONFIG_KEYS = ("llm", "brand", "sso", "im")
+
+# 平台默认品牌（登录页/未配置租户的回落）：与前端 theme.ts 主色保持一致。
+DEFAULT_BRAND: Dict[str, str] = {
+    "name": "企业 AI 智能体中台",
+    "logo_url": "",
+    "primary_color": "#1677ff",
+}
+
+
+def resolve_tenant_by_org(org_id: str) -> Optional[str]:
+    """Casdoor 多组织：企业组织名 → 本平台 tenant_id。
+
+    每家企业在 Casdoor 建一个 organization，登录后 id_token 带 organization claim，
+    网关（或后端自签 token）据此落 tenant。本函数供映射使用，扫描各租户的
+    `config.sso.casdoor_org`。找不到返回 None（回落默认租户）。
+    """
+    if not org_id:
+        return None
+    for t in _TENANTS.values():
+        sso = (t.get("config") or {}).get("sso") or {}
+        if sso.get("casdoor_org") == org_id:
+            return t["tenant_id"]
+    return None
+
+
+def get_branding(tid: Optional[str] = None) -> Dict[str, str]:
+    """返回某租户品牌；tid 为空/平台占位/未知租户时回落平台默认。"""
+    brand: Dict[str, str] = {}
+    if tid and tid != PLATFORM_TENANT:
+        brand = (get_config(tid) or {}).get("brand") or {}
+    return {**DEFAULT_BRAND, **brand}
 
 
 def merged_overrides(tid: str, global_defaults: Dict[str, Any] | None = None) -> Dict[str, Any]:
