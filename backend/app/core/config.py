@@ -208,6 +208,12 @@ class Settings:
     GATEWAY_THROTTLE_RPS = float(_env("GATEWAY_THROTTLE_RPS", "0"))
     GATEWAY_THROTTLE_BURST = float(_env("GATEWAY_THROTTLE_BURST", "20"))
 
+    # 中文特化：长度感知切分（蓝图第 43 章）。默认关，沿用原「一句话一块」；
+    # 开启后改用 zh_chunk 合并碎句/劈开超长句，改善检索块粒度。
+    ZH_CHUNK_ENABLED = _env("ZH_CHUNK_ENABLED", "0") == "1"
+    ZH_CHUNK_MAX_LEN = int(_env("ZH_CHUNK_MAX_LEN", "120"))
+    ZH_CHUNK_MIN_LEN = int(_env("ZH_CHUNK_MIN_LEN", "12"))
+
     CONFIDENCE_THRESHOLD = float(_env("CONFIDENCE_THRESHOLD", "0.45"))
     HANDOFF_ENABLED = _env("HANDOFF_ENABLED", "1") == "1"
     DEPT_SELF_SERVICE = _env("DEPT_SELF_SERVICE", "1") == "1"

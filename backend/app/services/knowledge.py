@@ -20,6 +20,7 @@ from collections import defaultdict
 from app.core.config import settings
 from app.core.filter import single_filter, visible_fields
 from app.models.caller import CallerContext
+from app.services import zh_chunk
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 并发保护（M10）：后台导入任务（/kb/ingest）与同步上传/检索会同时打进来。
@@ -332,10 +333,15 @@ def _append_parents(parents: list) -> list:
     """把一批 parent 切块、向量化、追加进索引（**增量**：旧块不重算）。"""
     global _ROWS, _N, _DEAD, _TOTAL_LEN, _INDEX_BUILT
 
-    # 1) 切块
+    # 1) 切块（P2 中文特化：ZH_CHUNK_ENABLED 时走长度感知切分，否则沿用句界断句）
     pending: list = []          # [(parent, child_dict_without_vec)]
     for p in parents:
-        for i, sent in enumerate(_split_sentences(p["content"])):
+        if settings.ZH_CHUNK_ENABLED:
+            chunks = zh_chunk.chunk_parent_content(
+                p["content"], max_len=settings.ZH_CHUNK_MAX_LEN, min_len=settings.ZH_CHUNK_MIN_LEN)
+        else:
+            chunks = _split_sentences(p["content"])
+        for i, sent in enumerate(chunks):
             pending.append((p, {
                 "child_id": f"{p['doc_id']}_c{i}",
                 "parent_id": p["doc_id"],
