@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import ApprovalDecisionRequest, ApprovalDecisionResponse
-from app.services import agent_store, approval_store, audit, approval_assistant
+from app.services import agent_store, approval_store, audit, approval_assistant, im_gateway
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -56,6 +56,9 @@ async def decide(
     total = len(stages)
     cur = ticket.get("current_stage", 0)
     finished = ticket["status"] != "pending"
+    # M49：流转到下级（仍 pending）→ 自动回推 OA 卡片给下一级审批人；终态（通过/驳回）不推。
+    if ticket["status"] == "pending":
+        im_gateway.auto_notify_pending_async(ticket.get("tenant_id") or "", approval_id)
     stage_name = stages[cur]["name"] if not finished else None
     next_stage_name = stages[cur + 1]["name"] if (not finished and cur + 1 < total) else None
     audit.record("approval", caller, target=approval_id, result=ticket["status"],

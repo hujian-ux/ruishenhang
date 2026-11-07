@@ -24,11 +24,16 @@ export function TenantConfigPage() {
   const [selId, setSelId] = useState("");
   const [stages, setStages] = useState<Stage[]>([]);
   const [allowGlobal, setAllowGlobal] = useState(false);
+  // M49：审批通知人（IM 自动推送目标），role -> 逗号分隔的 IM user_id
+  const [notifiers, setNotifiers] = useState<Record<string, string>>({ dept_admin: "", platform_admin: "" });
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  // M49：复制模板到新租户
+  const [copyTarget, setCopyTarget] = useState("");
+  const [copying, setCopying] = useState(false);
 
   const loadTenants = useCallback(async () => {
     try {
@@ -51,6 +56,11 @@ export function TenantConfigPage() {
         name: s.name || "", approver_role: s.approver_role || "dept_admin",
       })));
       setAllowGlobal(!!ap.allow_global_scope);
+      const nf = ap.notifiers || {};
+      setNotifiers({
+        dept_admin: (nf.dept_admin || []).join(","),
+        platform_admin: (nf.platform_admin || []).join(","),
+      });
       setMsg("");
     } catch (e: any) { setErr(e.message); }
     finally { setLoading(false); }
@@ -64,11 +74,18 @@ export function TenantConfigPage() {
     if (stages.some((s) => !s.name.trim())) { setErr("存在未命名的审批节点"); return; }
     setSaving(true); setErr(""); setMsg("");
     try {
+      const cleanNotifiers: Record<string, string[]> = {};
+      (Object.keys(notifiers) as string[]).forEach((k) => {
+        const ids = (notifiers[k] || "")
+          .split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean);
+        if (ids.length) cleanNotifiers[k] = ids;
+      });
       await api.putTenantApprovalConfig(selId, {
         stages: stages.map((s) => ({ name: s.name.trim(), approver_role: s.approver_role })),
         allow_global_scope: allowGlobal,
+        notifiers: cleanNotifiers,
       });
-      setMsg("已保存：审批多级模板已更新（空模板将退化为单级默认）");
+      setMsg("已保存：审批多级模板 + 通知人已更新（空模板将退化为单级默认）");
     } catch (e: any) { setErr(e.message); }
     finally { setSaving(false); }
   };
@@ -176,8 +193,63 @@ export function TenantConfigPage() {
         </div>
       </div>
 
+      {/* ③ 审批通知人（IM 自动推送目标） */}
       <div className="card" style={{ marginTop: 14 }}>
-        <h3>③ 当前链路预览</h3>
+        <h3>③ 审批通知人（IM 自动推送目标）</h3>
+        <div className="hint" style={{ marginBottom: 10 }}>
+          新单落入 / 多级流转时，系统自动把 OA 卡片回推给当前级对应审批人（免手动点）。
+          填写各角色的 IM 账号（企微/钉钉 user_id，多个用逗号分隔）。留空则该级不自动推送。
+        </div>
+        {(Object.keys(ROLE_LABEL) as string[]).map((role) => (
+          <div key={role} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <span style={{ width: 96, fontSize: 13 }}>{ROLE_LABEL[role]}</span>
+            <input className="field" style={{ flex: 1 }}
+                   placeholder="如 alice,bob（逗号分隔；留空=不自动推送）"
+                   value={notifiers[role] || ""}
+                   onChange={(e) => setNotifiers((n) => ({ ...n, [role]: e.target.value }))} />
+          </div>
+        ))}
+        <div className="hint">
+          高级：还支持 <code>dept:&lt;部门ID&gt;</code> 与通配 <code>*</code> 键（经 API 设置），实现部门级精准推送。
+        </div>
+      </div>
+
+      {/* ④ 复制模板到新租户 */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <h3>④ 复制模板到新租户</h3>
+        <div className="hint" style={{ marginBottom: 10 }}>
+          把当前租户（{tenants.find((t: Any) => t.tenant_id === selId)?.name || selId}）的审批多级模板与通知人，
+          整体复制到另一家租户（目标租户原审批配置被覆盖，其余配置不动）。
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="hint">目标租户：</span>
+          <select className="field" style={{ minWidth: 220, margin: 0 }}
+                  value={copyTarget}
+                  onChange={(e) => setCopyTarget(e.target.value)}>
+            <option value="">请选择目标租户…</option>
+            {tenants.filter((t: Any) => t.tenant_id !== selId).map((t: Any) => (
+              <option key={t.tenant_id} value={t.tenant_id}>{t.name}（{t.tenant_id}）</option>
+            ))}
+          </select>
+          <button className="btn blue" disabled={copying || !copyTarget}
+                  onClick={async () => {
+                    if (!copyTarget) return;
+                    setCopying(true); setErr(""); setMsg("");
+                    try {
+                      const r = await api.copyTenantApprovalConfig(selId, copyTarget);
+                      const d = r.data || {};
+                      setMsg(`已复制：${d.source_tenant_name} → ${d.target_tenant_name}（${d.stages_copied} 级、${d.notifiers_copied} 组通知人）`);
+                      setCopyTarget("");
+                    } catch (e: any) { setErr(e.message); }
+                    finally { setCopying(false); }
+                  }}>
+            {copying ? "复制中…" : "复制到该租户"}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 14 }}>
+        <h3>⑤ 当前链路预览</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {stages.length === 0 && <span className="tag">单级默认：部门管理员</span>}
           {stages.map((s, i) => (
@@ -187,9 +259,12 @@ export function TenantConfigPage() {
             </span>
           ))}
           {allowGlobal && <span className="tag" style={{ marginLeft: 8, borderColor: "#b06a1b", color: "#b06a1b" }}>允许全局知识域</span>}
+          {(Object.keys(notifiers) as string[]).filter((k) => (notifiers[k] || "").trim()).length > 0 && (
+            <span className="tag" style={{ marginLeft: 8, borderColor: "#1677ff", color: "#1677ff" }}>已配通知人</span>
+          )}
         </div>
         <div className="hint" style={{ marginTop: 8 }}>
-          预览仅展示，未保存的改动不会生效；点「保存模板」后新提交的审批单按此链路逐级流转。
+          预览仅展示，未保存的改动不会生效；点「保存模板」后新提交的审批单按此链路逐级流转并自动回推审批人。
         </div>
       </div>
     </div>

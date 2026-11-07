@@ -230,8 +230,13 @@ export const api = {
   listTenants: () => req<any>("GET", "/tenants"),
   getTenant: (id: string) => req<any>("GET", `/tenants/${id}`),
   putTenantApprovalConfig: (id: string, body: {
-    stages: { name: string; approver_role: string }[]; allow_global_scope: boolean;
+    stages: { name: string; approver_role: string }[];
+    allow_global_scope: boolean;
+    notifiers?: Record<string, string[]>;
   }) => req<any>("PUT", `/tenants/${id}/approval-config`, body),
+  // M49：把某租户审批模板（stages + notifiers）整体复制到目标租户
+  copyTenantApprovalConfig: (sourceId: string, targetId: string) =>
+    req<any>("POST", `/tenants/${sourceId}/copy-approval-config`, { target_tenant_id: targetId }),
 
   // ── M27：蓝图缺口收口 ──
   getReadiness: () => req<any>("GET", "/ops/readiness"),

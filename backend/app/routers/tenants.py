@@ -120,6 +120,10 @@ class ApprovalConfigRequest(BaseModel):
         description="审批链路；空数组=退化为单级默认（兼容现有行为）")
     allow_global_scope: bool = Field(default=False,
         description="是否允许该租户提交「全局知识域」智能体（需平台管理员特别批准）")
+    notifiers: dict[str, list[str]] = Field(default_factory=dict,
+        description=("审批待办自动推的接收人（IM user_id 列表）。键支持："
+                     "角色 `dept_admin`/`platform_admin`、部门 `dept:<dept_id>`、通配 `*`。"
+                     "未配置 → 新单/流转不自动回推。"))
 
 
 @router.put("/{tenant_id}/approval-config")
@@ -128,6 +132,7 @@ async def set_tenant_approval_config(req: ApprovalConfigRequest, tenant_id: str,
     """配置租户审批多级模板（platform_admin）。空 stages 退化为单级默认。
 
     校验：每个 stage 的 approver_role 必须是 dept_admin / platform_admin。
+    notifiers 写入后，开新单/多级流转会自动回推 OA 卡片给对应审批人（M49）。
     """
     _require_platform_admin(caller)
     t = tenant_store.get_tenant(tenant_id)
@@ -142,6 +147,51 @@ async def set_tenant_approval_config(req: ApprovalConfigRequest, tenant_id: str,
     cfg["approval"] = {
         "stages": [{"name": s.name, "approver_role": s.approver_role} for s in req.stages],
         "allow_global_scope": req.allow_global_scope,
+        "notifiers": {k: list(v) for k, v in (req.notifiers or {}).items()},
     }
     tenant_store.update_config(tenant_id, cfg)
     return {"code": 0, "data": tenant_store.get_tenant(tenant_id)}
+
+
+class CopyApprovalConfigRequest(BaseModel):
+    """复制某租户审批模板到目标租户（快捷动作）。"""
+    target_tenant_id: str = Field(..., description="接收模板的目标租户 tenant_id")
+
+
+@router.post("/{tenant_id}/copy-approval-config")
+async def copy_tenant_approval_config(req: CopyApprovalConfigRequest, tenant_id: str,
+                                     caller: CallerContext = Depends(get_caller)):
+    """把源租户的审批多级模板（stages + allow_global_scope + notifiers）整体复制到目标租户。
+
+    platform_admin 专属。目标租户原审批配置被整体覆盖；其余 config（brand/llm/sso/im）不动。
+    """
+    _require_platform_admin(caller)
+    src = tenant_store.get_tenant(tenant_id)
+    tgt = tenant_store.get_tenant(req.target_tenant_id)
+    if not src:
+        raise HTTPException(status_code=404, detail=f"源租户不存在：{tenant_id}")
+    if not tgt:
+        raise HTTPException(status_code=404, detail=f"目标租户不存在：{req.target_tenant_id}")
+    if src["tenant_id"] == tgt["tenant_id"]:
+        raise HTTPException(status_code=400, detail="源租户与目标租户不能相同")
+    src_ap = (src.get("config") or {}).get("approval") or {}
+    for st in (src_ap.get("stages") or []):
+        if st.get("approver_role") not in _APPROVER_ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"源模板审批人角色非法：{st.get('approver_role')}（仅支持 {_APPROVER_ROLES}）")
+    tgt_cfg = dict(tgt.get("config") or {})
+    tgt_cfg["approval"] = {
+        "stages": [dict(s) for s in (src_ap.get("stages") or [])],
+        "allow_global_scope": bool(src_ap.get("allow_global_scope")),
+        "notifiers": {k: list(v) for k, v in (src_ap.get("notifiers") or {}).items()},
+    }
+    tenant_store.update_config(tgt["tenant_id"], tgt_cfg)
+    return {"code": 0, "data": {
+        "source_tenant_id": src["tenant_id"],
+        "source_tenant_name": src.get("name"),
+        "target_tenant_id": tgt["tenant_id"],
+        "target_tenant_name": tgt.get("name"),
+        "stages_copied": len(src_ap.get("stages") or []),
+        "notifiers_copied": len(src_ap.get("notifiers") or {}),
+    }}

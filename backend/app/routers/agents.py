@@ -20,7 +20,7 @@ from app.models.schemas import (
     AgentRegisterResponse,
 )
 from app.selection import framework
-from app.services import agent_store, approval_store, role_map
+from app.services import agent_store, approval_store, im_gateway, role_map
 
 router = APIRouter(prefix="/agents", tags=["agent"])
 
@@ -115,6 +115,8 @@ async def register_agent(req: AgentRegisterRequest, caller: CallerContext = Depe
     })
     # M5：注册即开审批单（第35章红线：评审通过才可发布/调用）
     ticket = approval_store.create_ticket(agent_id, caller.userId, caller.deptId, caller.tenantId)
+    # M49：新单落入即自动回推 OA 卡片给当前级审批人（best-effort，非阻塞）
+    im_gateway.auto_notify_pending_async(caller.tenantId, ticket["approval_id"])
     return {
         "code": 0,
         "data": {
@@ -180,6 +182,10 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
     else:
         approvals = [{"approval_id": approval_store.create_ticket(i, caller.userId, caller.deptId)["approval_id"],
                       "agent_ids": [i], "batch": False} for i in ids]
+
+    # M49：批量导入同样自动回推当前级审批人（best-effort，非阻塞）
+    for a in approvals:
+        im_gateway.auto_notify_pending_async(caller.tenantId, a["approval_id"])
 
     return {
         "code": 0,

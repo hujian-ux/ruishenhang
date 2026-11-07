@@ -13,13 +13,15 @@ import hashlib
 import hmac
 import json
 import struct
+import threading
 import xml.etree.ElementTree as ET
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from Crypto.Cipher import AES
 
 import httpx
 
+from app.core.config import settings
 from app.services import im_store
 
 # 可注入的 HTTP POST（测试替换为假实现）。签名校验不依赖它。
@@ -308,6 +310,87 @@ class IMGateway:
             return ad.verify_callback(params["timestamp"], params["nonce"],
                                       params["signature"])
         raise ValueError(f"不支持的 provider：{provider}")
+
+
+# ── 审批待办自动推（M49） ──────────────────────────────────────────────────────
+def resolve_approver_recipients(tenant_id: str, ticket: Dict[str, Any]) -> List[str]:
+    """按当前级 approver_role + 部门解析应被通知的 IM 用户（去重、保序）。
+
+    读取 ``tenant.config.approval.notifiers``（role/dept → [user_id, ...]）。
+    解析优先级：``dept:<dept_id>`` → ``<approver_role>`` → ``"*"``。
+    单级默认模板（approver_role=None）按 ``dept_admin`` 处理。
+    未配置任何通知人 → 返回空列表（auto-push 自动跳过，不报错）。
+    """
+    from app.services import tenant_store
+
+    cfg = tenant_store.get_config(tenant_id) or {}
+    notifiers = (cfg.get("approval") or {}).get("notifiers") or {}
+    if not notifiers:
+        return []
+    stages = ticket.get("stages") or [{"name": "默认审批", "approver_role": None}]
+    idx = ticket.get("current_stage", 0)
+    stage = stages[idx] if idx < len(stages) else stages[-1]
+    role = stage.get("approver_role") or "dept_admin"
+    out: List[str] = []
+    dept = ticket.get("dept_id")
+    if dept:
+        out += list(notifiers.get(f"dept:{dept}", []))
+    out += list(notifiers.get(role, []))
+    out += list(notifiers.get("*", []))
+    seen: set = set()
+    res: List[str] = []
+    for u in out:
+        if u and u not in seen:
+            seen.add(u)
+            res.append(u)
+    return res
+
+
+def auto_notify_pending(tenant: str, approval_id: str, base_url: str = "") -> Dict[str, Any]:
+    """审批待办自动推（核心）：解析当前级应通知的 IM 用户，逐一回推 OA 卡片。
+
+    - best-effort：**绝不抛错**，推送失败/未配置只计入 errors/skipped，不影响开单或审批落账。
+    - 推送目标由 ``resolve_approver_recipients`` 按租户 notifiers 解析（对应审批人）。
+    - 向该租户**所有已配置**的 IM provider（企微/钉钉）各推一次。
+    - 返回 ``{pushed, errors, skipped, reason}``，供调用方审计/日志。
+    """
+    from app.services import approval_store
+
+    try:
+        ticket = approval_store.get_ticket(approval_id)
+    except approval_store.TicketNotFound:
+        return {"pushed": [], "errors": [], "skipped": 1, "reason": "ticket_not_found"}
+    users = resolve_approver_recipients(tenant, ticket)
+    if not users:
+        return {"pushed": [], "errors": [], "skipped": 1, "reason": "no_notifiers"}
+    base = base_url or settings.APPROVAL_UI_BASE_URL
+    try:
+        providers = [c.get("provider") for c in im_store.list_configs(tenant)]
+    except Exception:
+        providers = []
+    if not providers:
+        return {"pushed": [], "errors": [], "skipped": 1, "reason": "no_im_config"}
+    pushed: List[Dict[str, str]] = []
+    errors: List[Dict[str, str]] = []
+    for user in users:
+        for provider in providers:
+            try:
+                gateway.push_approval_with_assistant(tenant, provider, user, approval_id, base)
+                pushed.append({"provider": provider, "to_user": user})
+            except Exception as e:  # noqa: BLE001 — 单条失败不影响其余
+                errors.append({"provider": provider, "to_user": user,
+                               "error": str(e)[:200]})
+    return {"pushed": pushed, "errors": errors, "skipped": 0}
+
+
+def auto_notify_pending_async(tenant: str, approval_id: str, base_url: str = "") -> threading.Thread:
+    """非阻塞版：起 daemon 线程执行自动推送，立即返回，绝不拖慢开单/审批接口。"""
+    t = threading.Thread(
+        target=lambda: auto_notify_pending(tenant, approval_id, base_url),
+        daemon=True, name=f"im-auto-{approval_id}",
+    )
+    t.start()
+    return t
 
 
 # 单例（路由层共用）

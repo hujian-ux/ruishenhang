@@ -152,14 +152,14 @@ export function ApprovalPage() {
         <button className="btn" onClick={load}>刷新待审列表</button>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-        <span className="hint">回推 IM 卡片：</span>
+        <span className="hint">手动重推 IM 卡片：</span>
         <select className="field" style={{ width: 110, margin: 0 }} value={imProvider} onChange={(e) => setImProvider(e.target.value as any)}>
           <option value="wecom">企业微信</option>
           <option value="dingtalk">钉钉</option>
         </select>
         <input className="field" style={{ width: 180, margin: 0 }} placeholder="to_user（审批人 IM 账号）"
                value={imToUser} onChange={(e) => setImToUser(e.target.value)} />
-        <span className="hint">每张单点「回推」即带审批助手摘要</span>
+        <span className="hint">新单/流转已自动回推；此按钮用于手动补推</span>
       </div>
       {err && <div className="hint" style={{ color: "#c62828", marginBottom: 8 }}>{err}</div>}
       {msg && <div className="ok" style={{ marginBottom: 8 }}>{msg}</div>}
@@ -177,7 +177,7 @@ export function ApprovalPage() {
             <button className="btn" onClick={() => decide(t.approval_id, "approve")}>✓ 通过</button>
             <button className="btn" style={{ background: "#c62828" }} onClick={() => decide(t.approval_id, "reject")}>✗ 驳回</button>
             <button className="btn blue" disabled={imBusyId === t.approval_id} onClick={() => pushIm(t.approval_id)}>
-              {imBusyId === t.approval_id ? "回推中…" : "↩ 回推 IM 卡片"}
+              {imBusyId === t.approval_id ? "重推中…" : "↩ 手动重推 IM"}
             </button>
           </div>
         </div>
