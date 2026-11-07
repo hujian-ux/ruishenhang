@@ -292,6 +292,9 @@ button{font-family:inherit}
   .admin-tabs .tool{flex:none;white-space:nowrap}
   /* 多列网格退化单列 */
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  /* 搭建台：画布与配置面板在窄屏纵向堆叠 */
+  .wf-wrap{flex-direction:column}
+  .wf-cfg{width:100%}
   /* 移动端侧栏抽屉遮罩（点它关抽屉） */
   .rail-backdrop{display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.28)}
 }
@@ -304,7 +307,43 @@ button{font-family:inherit}
   .kpi{flex:1 1 100%}
   .composer textarea{font-size:16px} /* iOS 聚焦不缩放页面 */
 }
+/* ── P1-171 搭建台：模板中心 / L2 智能体 / L3 工作流画布 ── */
+.builder-tabs{display:flex;gap:2px;margin-bottom:14px;border-bottom:1px solid var(--line-2)}
+.builder-tabs .tool{border-radius:0;padding:10px 14px;border-bottom:2px solid transparent}
+.builder-tabs .tool.on{border-bottom:2px solid var(--blue)}
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px;margin-bottom:16px}
+.tpl-card{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.tpl-card h4{margin:0;font-size:13.5px;font-weight:600;color:var(--ink)}
+.tpl-card .note{font-size:12px;color:var(--muted);line-height:1.6}
+.tpl-card ol{margin:4px 0 0;padding-left:18px;font-size:12px;color:var(--ink-2);line-height:1.7}
+.steps-edit{display:flex;flex-direction:column;gap:6px}
+.step-row{display:flex;gap:6px;align-items:center}
+.step-row input{flex:1}
+.wf-wrap{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+.wf-canvas{position:relative;flex:1;min-width:0;height:560px;border:1px solid var(--line);border-radius:14px;
+  background-color:#fbfbf9;background-image:radial-gradient(#e6e6e0 1px,transparent 1px);background-size:18px 18px;
+  overflow:auto;touch-action:none}
+.wf-palette{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.wf-node{position:absolute;width:210px;min-height:94px;background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:10px 12px;cursor:grab;user-select:none}
+.wf-node:active{cursor:grabbing}
+.wf-node.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,208,.12)}
+.wf-node .nh{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.wf-node .nt{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:6px;white-space:nowrap}
+.wf-node .nm{font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-node .nc{font-size:11.5px;color:var(--muted);line-height:1.5;white-space:pre-wrap;max-height:32px;overflow:hidden}
+.nt-llm{background:#eef4ff;color:var(--blue)}
+.nt-rag{background:#eafaf0;color:var(--ok)}
+.nt-tool{background:#fff4e8;color:var(--warn)}
+.nt-approval{background:#fdeef0;color:var(--err)}
+.wf-cfg{width:300px;flex:none;border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff}
+.wf-cfg h4{margin:0 0 10px;font-size:13px;font-weight:600}
+.wf-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none}
+.run-steps{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.run-step{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;background:#fff}
+.run-step .rs-h{display:flex;gap:8px;align-items:center;margin-bottom:5px;font-weight:500}
 `;
+
 
 // 登录页：左右分栏——左侧品牌主张、右侧登录动作。对外产品第一屏不该是配置面板。
 export const AUTH_STYLE = `

@@ -230,6 +230,7 @@ export const api = {
   approveDepartment: (did: string) => req<any>("POST", `/builder/departments/${did}/approve`),
   createAgentDraft: (body: any) => req<any>("POST", "/builder/agents", body),
   listAgentDrafts: () => req<any>("GET", "/builder/agents"),
+  publishAgentDraft: (agentId: string) => req<any>("POST", `/builder/agents/${agentId}/publish`),
   createWorkflow: (body: any) => req<any>("POST", "/builder/workflows", body),
   listWorkflows: () => req<any>("GET", "/builder/workflows"),
   runWorkflow: (wid: string, input: string) => req<any>("POST", `/builder/workflows/${wid}/run`, { input }),

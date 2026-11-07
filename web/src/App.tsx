@@ -12,9 +12,10 @@ import { ModelsPage } from "./pages/Models";
 import { PilotPage } from "./pages/Pilot";
 import { SkillsPage } from "./pages/Skills";
 import { PlatformOpsPage } from "./pages/PlatformOps";
+import { BuilderPage } from "./pages/Builder";
 import { useRole } from "./role";
 
-type View = "chat" | "skills" | "admin";
+type View = "chat" | "skills" | "admin" | "builder";
 
 const ADMIN_TABS: { k: string; label: string }[] = [
   { k: "approval", label: "审批台" },
@@ -182,6 +183,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
 
   const title = view === "chat" ? (agentName || "AI 对话")
     : view === "skills" ? "技能库"
+    : view === "builder" ? "智能体搭建"
     : ADMIN_TABS.find((t) => t.k === adminTab)?.label || "管理后台";
 
   return (
@@ -246,6 +248,9 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
             <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>
               {myRole ? myRole.count + pubCount : "—"}
             </span>
+          </div>
+          <div className="rail-link" onClick={() => { setView("builder"); setRailOpen(false); }}>
+            <span style={{ fontSize: 13 }}>⬡</span> 智能体搭建
           </div>
           {isAdmin && (
             <div className="rail-link" onClick={() => { setView("admin"); setRailOpen(false); }}>
@@ -314,6 +319,14 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
           <div className="content">
             <div className="page">
               <SkillsPage onUse={(a) => newChat(a.agent_id, a.name)} />
+            </div>
+          </div>
+        )}
+
+        {view === "builder" && (
+          <div className="content">
+            <div className="page">
+              <BuilderPage session={session} />
             </div>
           </div>
         )}
