@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient  # type: ignore
 from app.core.config import settings
 from app.core.security import create_dev_token
 from app.main import app
-from app.services import usage_store
+from app.services import model_router, usage_store
 
 client = TestClient(app)
 
@@ -49,6 +49,13 @@ def _invoke(agent_id: str, text: str = "知识库混合检索的原理是什么"
     return r.json()["data"]
 
 
+# P2-40：路由已 applied，计量按实际（路由后）模型落账，而非固定默认模型。
+def _routed_model_for(text: str) -> str:
+    if not settings.ROUTING_ENABLED:
+        return settings.LLM_DEFAULT_MODEL
+    return model_router.route(text, {})["model"]
+
+
 # ─────────────────────────────────────────── ① 落账 + ② 聚合 + ③ RBAC
 def test_invoke_records_usage():
     agent_id = _published_agent("落账验证助手")
@@ -56,7 +63,7 @@ def test_invoke_records_usage():
     u = data["usage"]
     assert u["total_tokens"] > 0, u
     assert u["total_tokens"] == u["prompt_tokens"] + u["completion_tokens"]
-    assert u["model_id"] == settings.LLM_DEFAULT_MODEL
+    assert u["model_id"] == _routed_model_for("知识库混合检索的原理是什么")
     assert u["currency"] == "CNY"
     assert isinstance(u["real"], bool)
     # 配额状态同响应回显（页面顶部水位条用）

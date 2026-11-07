@@ -11,11 +11,13 @@ M17：真模型失败时**不再静默吞掉**——结果里带 `error`，响�
      并把 `LLM_STRICT=1` 作为验收/生产的开关：宁可直接报错，也不要拿 stub 冒充模型。
 """
 import json
+import threading
 import time
 
 import httpx
 
 from app.core.config import settings
+from app.services import model_router
 
 
 # ── 厂商错误的可执行结论 ──
@@ -49,6 +51,73 @@ class LLMUnavailable(Exception):
     「LangGraph 没装」的降级路径，若本异常也是 RuntimeError，会被误捕并重跑一遍，
     真模型故障就被伪装成骨架降级了。
     """
+
+
+class RateLimited(Exception):
+    """网关节流触发：令牌桶耗尽，由调用方转成 429（削峰，保护下游模型服务）。"""
+
+
+# ── 网关令牌桶（削峰） ────────────────────────────────────────────────────────
+# 默认 GATEWAY_THROTTLE_RPS=0 关闭，零行为变更；>0 时按 令牌/秒 平滑放行，
+# 突发余量 = GATEWAY_THROTTLE_BURST；超限抛 RateLimited，调用方转 429。
+class _TokenBucket:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._rps = 0.0
+        self._burst = 0.0
+        self._tokens = 0.0
+        self._last = time.time()
+
+    def configure(self, rps: float, burst: float) -> None:
+        with self._lock:
+            self._rps = float(rps)
+            self._burst = float(burst)
+            self._tokens = self._burst  # 启动即给满突发余量
+
+    def _refill(self) -> None:
+        now = time.time()
+        if self._rps > 0:
+            self._tokens = min(self._burst, self._tokens + (now - self._last) * self._rps)
+        self._last = now
+
+    def try_acquire(self) -> bool:
+        """获取一个令牌；关闭（rps<=0）或仍有余量返回 True，否则 False。"""
+        if self._rps <= 0:
+            return True
+        with self._lock:
+            self._refill()
+            if self._tokens >= 1.0:
+                self._tokens -= 1.0
+                return True
+            return False
+
+
+_BUCKET = _TokenBucket()
+_BUCKET.configure(settings.GATEWAY_THROTTLE_RPS, settings.GATEWAY_THROTTLE_BURST)
+
+
+def resolve_model(user_input: str, agent: dict | None = None,
+                  requested: str | None = None) -> tuple[str, dict | None]:
+    """把路由建议真正落到模型选择（蓝图第 34 章，applied=true）。
+
+    - ``requested`` 显式指定（非 "auto"）→ 直接用它，不做路由（业务包可硬指定模型）。
+    - ``requested`` 为 None / "auto" 且 ``ROUTING_ENABLED`` → 调 ``model_router.route`` 选档。
+    - 否则回落平台默认模型。
+
+    返回 ``(model_id, route_decision)``；route_decision 为 None 表示未走路由（便于计量埋点标注）。
+    """
+    if requested and requested != "auto":
+        return requested, None
+    if settings.ROUTING_ENABLED:
+        r = model_router.route(user_input or "", agent or {})
+        return r["model"], r
+    return settings.LLM_DEFAULT_MODEL, None
+
+
+def apply_throttle() -> None:
+    """网关注册：超出令牌桶抛 RateLimited。默认关闭时直接放行。"""
+    if not _BUCKET.try_acquire():
+        raise RateLimited("网关请求速率超过 GATEWAY_THROTTLE_RPS 上限，已限流（削峰保护）")
 
 
 # ── 厂商预设：直连通道只需要 base_url + key ──
@@ -278,11 +347,15 @@ def chat_sync(model_id: str, messages: list[dict], timeout: float = 0) -> str:
     return chat_sync_ex(model_id, messages, timeout)["text"]
 
 
-def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 0,
-                 max_tokens: int | None = None, temperature: float | None = None) -> dict:
+def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
+                 max_tokens: int | None = None, temperature: float | None = None,
+                 user_input: str = "", agent: dict | None = None) -> dict:
     """同步调用并**回传真实 token 用量**（第25章计量数据源）。
 
-    返回 {text, real, model_id, usage{prompt_tokens,completion_tokens}, latency_ms, error}；
+    模型选择：``model_id`` 为 None / "auto" 时按路由策略选档（applied=true）；
+    显式传模型名则跳过路由（业务包可硬指定）。调用前过网关节流（令牌桶）。
+
+    返回 {text, real, model_id, routed_tier, routed_model, usage, latency_ms, error}；
     real=False 表示走了 stub 回退（或真模型失败），此时 error 写明原因，
     调用方要把 error 透到响应里 —— 「看起来跑了」比「跑失败」更危险。
     """
@@ -294,16 +367,31 @@ def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 0,
         kw["temperature"] = temperature
     to = timeout or settings.LLM_TIMEOUT_S
 
+    # 路由：把建议真正落到模型选择（蓝图第 34 章 applied=true）
+    effective_model, route_decision = resolve_model(user_input, agent, model_id)
+    routed_tier = (route_decision or {}).get("tier") if route_decision else None
+    routed_model = effective_model if route_decision else None
+
+    # 网关节流（削峰）：超限抛 RateLimited，由调用方转 429
+    try:
+        apply_throttle()
+    except RateLimited as exc:
+        return {"text": "", "real": False, "model_id": effective_model,
+                "routed_tier": routed_tier, "routed_model": routed_model,
+                "usage": {}, "error": f"rate_limited: {exc}", "throttled": True,
+                "latency_ms": int((time.time() - t0) * 1000)}
+
     if not llm_available():
         err = ("未配置模型密钥（LLM_API_KEY / 厂商环境变量）" if settings.LLM_PROVIDER == "direct"
                else "LiteLLM 代理不可达")
         if settings.LLM_STRICT:
             raise LLMUnavailable(err)
-        return {"text": _stub_answer(model_id, messages), "real": False,
-                "model_id": model_id, "usage": {}, "error": err,
+        return {"text": _stub_answer(effective_model, messages), "real": False,
+                "model_id": effective_model, "routed_tier": routed_tier,
+                "routed_model": routed_model, "usage": {}, "error": err,
                 "latency_ms": int((time.time() - t0) * 1000)}
     try:
-        r = httpx.post(_endpoint(), json=_payload(model_id, messages, **kw),
+        r = httpx.post(_endpoint(), json=_payload(effective_model, messages, **kw),
                        headers=_headers(), timeout=to)
         if r.status_code >= 400:
             # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同；
@@ -315,15 +403,26 @@ def chat_sync_ex(model_id: str, messages: list[dict], timeout: float = 0,
         if not text.strip():
             raise RuntimeError("响应正文为空（可能被 max_tokens 截断或触发内容策略）")
         return {"text": text, "real": True,
-                "model_id": body.get("model") or model_id, "usage": usage, "error": "",
+                "model_id": body.get("model") or effective_model,
+                "routed_tier": routed_tier, "routed_model": routed_model,
+                "usage": usage, "error": "",
                 "latency_ms": int((time.time() - t0) * 1000)}
     except Exception as exc:
         msg = f"{type(exc).__name__}: {exc}"
         if settings.LLM_STRICT:
             raise LLMUnavailable(msg) from exc
-        return {"text": _stub_answer(model_id, messages), "real": False,
-                "model_id": model_id, "usage": {}, "error": msg,
+        return {"text": _stub_answer(effective_model, messages), "real": False,
+                "model_id": effective_model, "routed_tier": routed_tier,
+                "routed_model": routed_model, "usage": {}, "error": msg,
                 "latency_ms": int((time.time() - t0) * 1000)}
+
+
+def routed_chat_sync_ex(messages: list[dict], user_input: str = "", agent: dict | None = None,
+                        timeout: float = 0, max_tokens: int | None = None,
+                        temperature: float | None = None) -> dict:
+    """路由感知的便捷封装：自动按 user_input/agent 选档并调用。等价 chat_sync_ex(None, ...)。"""
+    return chat_sync_ex(None, messages, timeout, max_tokens=max_tokens,
+                        temperature=temperature, user_input=user_input, agent=agent)
 
 
 def probe(model_id: str = "", timeout: float = 30.0) -> dict:

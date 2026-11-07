@@ -35,7 +35,8 @@ def _evidence_text(result: dict) -> str:
     return "\n".join(p for p in parts if p)
 
 
-def _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard):
+def _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard,
+                      served_from_cache=False, cached_entry=None):
     """M27 旁路：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信与质量埋点。
 
     关键取舍：**不改写 result["answer"]**。脱敏后的文本只作为建议放在响应里，
@@ -60,17 +61,29 @@ def _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard
         out["errors"].append(f"guardrails: {type(exc).__name__}: {exc}")
 
     try:
-        cached = semantic_cache.get(req.input, req.agent_id)
-        if not cached:
+        if cached_entry is None:
+            cached_entry = semantic_cache.get(req.input, req.agent_id)
+        if not cached_entry:
             semantic_cache.put(req.input, result["answer"], req.agent_id,
                                {"run_id": run_id, "real": bool((result.get("usage") or {}).get("real"))})
-        out["cache"] = {"hit": bool(cached), "applied": False,
-                        "note": "只做命中率观测，stub 结果不复用", **semantic_cache.stats()}
+        out["cache"] = {"hit": bool(cached_entry), "served": bool(served_from_cache),
+                        "sim_mode": (cached_entry or {}).get("sim_mode"),
+                        "applied": bool(served_from_cache),
+                        "note": ("命中且为真实产出时复用答案（SEMANTIC_CACHE_SERVE=1）"
+                                 if settings.SEMANTIC_CACHE_SERVE
+                                 else "观测命中率中；复用答案需开 SEMANTIC_CACHE_SERVE"),
+                        **semantic_cache.stats()}
     except Exception as exc:
         out["errors"].append(f"semantic_cache: {type(exc).__name__}: {exc}")
 
     try:
-        out["routing"] = {**model_router.route(req.input, agent), "applied": False}
+        dec = model_router.route(req.input, agent)
+        # P2-40：路由已通过运行时 applied=true；优先用本次实际路由结果标注。
+        if result.get("routed_tier"):
+            dec["tier"] = result["routed_tier"]
+            dec["model"] = result.get("routed_model") or dec["model"]
+        dec["applied"] = bool(result.get("routed_tier"))
+        out["routing"] = dec
     except Exception as exc:
         out["errors"].append(f"model_router: {type(exc).__name__}: {exc}")
 
@@ -228,23 +241,52 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     # M27/DNS：归一化后的文本喂给运行时（清零宽/同形/控制字符），防不可见字符注入绕过字面检测；
     # clean_text 缺失时回落原输入。必须放在 run_agent 之前，否则 safe_input 未绑定。
     safe_input = input_guard.get("clean_text") or req.input
+
+    # P2-40 语义缓存：命中且为「真模型产出」时，按 SEMANTIC_CACHE_SERVE 开关复用答案，
+    # 跳过 run_agent（省一次模型调用 + 检索）。默认关，先只观测命中率（零行为变更）。
+    served_from_cache = False
+    cached = None
+    if settings.SEMANTIC_CACHE_SERVE and settings.SEMANTIC_CACHE_ENABLED:
+        try:
+            cached = semantic_cache.get(safe_input, req.agent_id)
+            if cached and bool((cached.get("meta") or {}).get("real")):
+                served_from_cache = True
+                t0 = time.time()
+                result = {
+                    "answer": cached["answer"], "citations": [],
+                    "web_sources": [], "web_search": None,
+                    "query_rewritten": False, "turn_no": 0,
+                    "usage": {"model_id": settings.LLM_DEFAULT_MODEL, "real": True,
+                              "usage": {}, "latency_ms": 0,
+                              "routed_tier": cached.get("tier"),
+                              "routed_model": None},
+                    "routed_tier": cached.get("tier"), "routed_model": None,
+                    "tool_calls": [], "skill_applied": False,
+                    "cached": True, "cache_sim_mode": cached.get("sim_mode"),
+                }
+                elapsed_ms = int((time.time() - t0) * 1000)
+        except Exception:
+            cached = None
+            served_from_cache = False
+
     t0 = time.time()
     # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
-    try:
-        result = agent_runtime.run_agent(
-            req.agent_id, safe_input, caller, history=history,
-            system_prompt=agent.get("system_prompt"),
-            adapter_type=agent.get("adapter_type", ""),
-            file_context=file_context,
-            # M26：技能定义可要求抓取前 N 篇网页正文（竞品调研），其余只要摘要
-            web_fetch_top=int(agent.get("web_fetch_top") or 0),
-        )
-    except model_gateway.LLMUnavailable as exc:
-        # M17：LLM_STRICT=1 时真模型失败直接 502，绝不拿 stub 冒充结果 ——
-        # 「链路通了」和「效果达标」是两件事，静默回退会让人把前者当后者。
-        audit.record("generate", caller, target=req.agent_id, result="llm_error",
-                     meta={"run_id": run_id, "error": str(exc)[:300]}, trace_id=trace_id)
-        raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
+    if not served_from_cache:
+        try:
+            result = agent_runtime.run_agent(
+                req.agent_id, safe_input, caller, history=history,
+                system_prompt=agent.get("system_prompt"),
+                adapter_type=agent.get("adapter_type", ""),
+                file_context=file_context,
+                # M26：技能定义可要求抓取前 N 篇网页正文（竞品调研），其余只要摘要
+                web_fetch_top=int(agent.get("web_fetch_top") or 0),
+            )
+        except model_gateway.LLMUnavailable as exc:
+            # M17：LLM_STRICT=1 时真模型失败直接 502，绝不拿 stub 冒充结果 ——
+            # 「链路通了」和「效果达标」是两件事，静默回退会让人把前者当后者。
+            audit.record("generate", caller, target=req.agent_id, result="llm_error",
+                         meta={"run_id": run_id, "error": str(exc)[:300]}, trace_id=trace_id)
+            raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
     elapsed_ms = int((time.time() - t0) * 1000)
     result["answer"] = result.get("answer", "")
     # M27 输出严格改写（opt-in）：GUARDRAILS_OUTPUT_ENFORCE=1 时把脱敏答案落回，
@@ -259,7 +301,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         except Exception:
             pass
     # M27：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信 / 质量埋点（旁路，不改答案）
-    m27 = _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard)
+    m27 = _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard,
+                           served_from_cache=served_from_cache, cached_entry=cached)
 
     # P2-42 置信降级转人工（蓝图第 42 章）：默认关闭（HANDOFF_AUTO=0），仅观测。
     # 开启后，低置信结果自动建人工工单，但不改答案（人接着看），避免静默把低质答案当结论。

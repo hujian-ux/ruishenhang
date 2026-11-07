@@ -159,8 +159,10 @@ def test_cache_hit_and_miss():
     assert semantic_cache.get("完全不相关的报销流程与差旅标准") is None
     s = semantic_cache.stats()
     assert s["entries"] == 1 and s["hits"] == 1 and s["misses"] == 1
-    assert s["similarity"] == "char_3gram_jaccard"   # 不冒充语义向量
-    assert "未接 embedding" in s["note"]
+    # 未加载 bge-m3 时不冒充语义向量：similarity 仍是字面层，semantic_layer 标注 disabled
+    assert s["similarity"] == "char_3gram_jaccard"
+    assert s["semantic_layer"] == "disabled"
+    assert "字面" in s["note"]
     assert s["enabled"] is True
 
 

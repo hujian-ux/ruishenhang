@@ -43,23 +43,29 @@ EVIDENCE_PER_DOC_CHARS = 600
 WEB_EVIDENCE_PER_HIT_CHARS = 900
 
 
-def _call_llm(prompt: str, system_prompt: str | None = None) -> Dict[str, Any]:
+def _call_llm(prompt: str, system_prompt: str | None = None,
+             user_input: str = "", agent: dict | None = None) -> Dict[str, Any]:
     """调模型网关并带回用量（M7：token/延迟原样上抛，由路由层落账）。
 
     M15：system_prompt 由调用方按 agent 传入（技能包提示词），缺省用平台默认助手。
+    P2-40：user_input/agent 透给网关做模型路由（applied=true）；model_id 传 None
+           即「自动选档」，显式模型名则跳过路由。
     """
-    out = model_gateway.chat_sync_ex(settings.LLM_DEFAULT_MODEL, [
+    out = model_gateway.chat_sync_ex(None, [
         {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
-    ])
+    ], user_input=user_input, agent=agent)
     return {
         "text": out["text"],
         "real": out["real"],
         "model_id": out["model_id"],
+        "routed_tier": out.get("routed_tier"),
+        "routed_model": out.get("routed_model"),
         "usage": out["usage"],
         "latency_ms": out["latency_ms"],
         # M17：真模型失败的原因要一路透到响应，不能被 stub 文本掩盖
         "error": out.get("error") or "",
+        "throttled": out.get("throttled", False),
         "prompt_text": prompt,          # 无 usage 时供估算兜底
         "completion_text": out["text"],
     }
@@ -214,7 +220,8 @@ def run_web_search(query: str, fetch_top: int = 0):
 
 def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
                 grounded: bool = False, use_web: bool = False,
-                web_grounded: bool = False, web_fetch_top: int = 0):
+                web_grounded: bool = False, web_fetch_top: int = 0,
+                agent_meta: dict | None = None):
     """构造 LangGraph 状态图（retrieve -> generate，含会话记忆状态）。
 
     M15：system_prompt / use_retrieval 由图构造参数注入，不再全局写死；
@@ -262,7 +269,7 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
         prompt = _compose_prompt(state["input"], ctx, mem, skill,
                                  state.get("file_ctx") or "", grounded=grounded,
                                  web_ctx=web_ctx, web_grounded=web_grounded)
-        llm = _call_llm(prompt, system_prompt)
+        llm = _call_llm(prompt, system_prompt, user_input=state["input"], agent=agent_meta)
         answer = llm["text"]
         # 轮次标记只在平台助手的多轮对话上加（证明记忆生效）；
         # 技能包产出是直接交付物的正文，带调试前缀会污染 Word/PPT/PDF 首页。
@@ -316,6 +323,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     # 避免为了查证类技能改提示词，把 115 个业务包的产出格式一起带歪。
     grounded = skill and adapter_type in RETRIEVAL_ADAPTERS
     web_grounded = skill and use_web
+    # P2-40：把适配器类型 + 是否需引用透给模型网关做路由（检索/引用类倾向大模型保质量）
+    agent_meta = {"adapter_type": adapter_type, "require_citation": grounded or use_web}
 
     def tools(web_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
         out = ([{"tool": "rag_retrieve", "authorized": True}] if use_retrieval else [])
@@ -330,7 +339,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     try:
         app = build_graph(system_prompt, use_retrieval, grounded=grounded,
                           use_web=use_web, web_grounded=web_grounded,
-                          web_fetch_top=web_fetch_top)
+                          web_fetch_top=web_fetch_top, agent_meta=agent_meta)
         result = app.invoke({"input": user_input, "caller": caller, "history": history,
                              "file_ctx": file_context})
         citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]}
@@ -343,6 +352,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                 "query_rewritten": result.get("query_rewritten", False),
                 "turn_no": 1 + sum(1 for t in history if t["role"] == "user"),
                 "usage": result.get("usage") or {},
+                "routed_tier": (result.get("usage") or {}).get("routed_tier"),
+                "routed_model": (result.get("usage") or {}).get("routed_model"),
                 "tool_calls": tools(web_meta),
                 "skill_applied": skill}
     except RuntimeError:
@@ -361,7 +372,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
                                  grounded=grounded, web_ctx=web_ctx,
                                  web_grounded=web_grounded)
-        llm = _call_llm(prompt, system_prompt)
+        llm = _call_llm(prompt, system_prompt, user_input=user_input, agent=agent_meta)
         answer = llm["text"]
         if not answer.startswith("[stub") and not skill:
             answer = f"[stub|第{turn_no}轮|LLM生成] {answer}"
@@ -375,5 +386,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                 "query_rewritten": query != user_input,
                 "turn_no": turn_no,
                 "usage": llm,
+                "routed_tier": llm.get("routed_tier"),
+                "routed_model": llm.get("routed_model"),
                 "tool_calls": tools(meta),
                 "skill_applied": skill}

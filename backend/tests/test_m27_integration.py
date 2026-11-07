@@ -76,8 +76,8 @@ def test_invoke_carries_m27_observability_without_changing_answer():
     assert "guardrails" in d and "input" in d["guardrails"]
     assert "grounding" in d["guardrails"]
     assert isinstance(d["confidence"], (int, float))
-    assert d["cache"]["applied"] is False
-    assert d["routing"]["applied"] is False
+    assert d["cache"]["applied"] is False   # 缓存复用默认关，仅观测
+    assert d["routing"]["applied"] is True   # P2-40：路由现已通过运行时真正 applied
     assert d["m27_errors"] == [], d["m27_errors"]
     # 质量埋点真的进去了
     q = feedback.quality_metrics()

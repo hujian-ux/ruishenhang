@@ -189,6 +189,11 @@ class Settings:
 
     SEMANTIC_CACHE_ENABLED = _env("SEMANTIC_CACHE_ENABLED", "1") == "1"
     SEMANTIC_CACHE_THRESHOLD = float(_env("SEMANTIC_CACHE_THRESHOLD", "0.92"))
+    SEMANTIC_CACHE_EMBED_THRESHOLD = float(_env("SEMANTIC_CACHE_EMBED_THRESHOLD", "0.86"))
+    SEMANTIC_CACHE_HOT_HITS = int(_env("SEMANTIC_CACHE_HOT_HITS", "3"))
+    # 缓存命中是否真复用答案（跳过模型调用，省成本）。默认关：先只观测命中率，
+    # 待 golden 回归确认命中质量后再开；与 GUARDRAILS_OUTPUT_ENFORCE / HANDOFF_AUTO 同策略。
+    SEMANTIC_CACHE_SERVE = _env("SEMANTIC_CACHE_SERVE", "0") == "1"
     SEMANTIC_CACHE_TTL_S = int(_env("SEMANTIC_CACHE_TTL_S", "3600"))
     SEMANTIC_CACHE_MAX_ENTRIES = int(_env("SEMANTIC_CACHE_MAX_ENTRIES", "500"))
 
@@ -197,6 +202,11 @@ class Settings:
     ROUTING_LARGE_MODEL = _env("ROUTING_LARGE_MODEL", "glm-4.6")
     ROUTING_SMALL_TIER_PRICE = float(_env("ROUTING_SMALL_TIER_PRICE", "0.0005"))
     ROUTING_LARGE_TIER_PRICE = float(_env("ROUTING_LARGE_TIER_PRICE", "0.005"))
+
+    # 网关节流（令牌桶削峰）：默认关闭，零行为变更；开启后对 chat 调用限速。
+    # >0 时按 令牌/秒 平滑放行，突发余量 = ROUTING_THROTTLE_BURST；超限抛 RateLimited(429)。
+    GATEWAY_THROTTLE_RPS = float(_env("GATEWAY_THROTTLE_RPS", "0"))
+    GATEWAY_THROTTLE_BURST = float(_env("GATEWAY_THROTTLE_BURST", "20"))
 
     CONFIDENCE_THRESHOLD = float(_env("CONFIDENCE_THRESHOLD", "0.45"))
     HANDOFF_ENABLED = _env("HANDOFF_ENABLED", "1") == "1"

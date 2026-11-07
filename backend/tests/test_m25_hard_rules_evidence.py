@@ -165,7 +165,7 @@ def test_rag_skill_prompt_really_contains_both_conflicting_versions(monkeypatch)
     monkeypatch.setattr(knowledge, "retrieve", lambda *a, **kw: (hits, 0))
     captured = {}
 
-    def fake_llm(prompt, system_prompt=None):
+    def fake_llm(prompt, system_prompt=None, user_input="", agent=None):
         captured["prompt"] = prompt
         captured["system"] = system_prompt or ""
         return {"text": "（测试占位）", "real": False}
@@ -190,7 +190,7 @@ def test_plain_skill_is_not_forced_into_grounded_mode(monkeypatch):
     monkeypatch.setattr(knowledge, "retrieve", lambda *a, **kw: ([], 0))
     captured = {}
 
-    def fake_llm(prompt, system_prompt=None):
+    def fake_llm(prompt, system_prompt=None, user_input="", agent=None):
         captured["prompt"] = prompt
         return {"text": "ok", "real": False}
 
