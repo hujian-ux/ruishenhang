@@ -47,6 +47,12 @@ class Settings:
     SERPER_API_KEY = _env("SERPER_API_KEY", "")            # Serper / Google
     TAVILY_API_KEY = _env("TAVILY_API_KEY", "")            # Tavily
     SEARXNG_BASE_URL = _env("SEARXNG_BASE_URL", "")        # 自建 SearXNG，如 http://host:8080
+    # M26 P1：检索词三轮拆解（品类+价格+渠道）默认关；开启后竞品/政策类查询
+    # 拆成多轮再合并、按来源可信度排序。置 1 才生效，对原 search() 零行为变更。
+    WEB_SEARCH_DECOMPOSE = _env("WEB_SEARCH_DECOMPOSE", "0") == "1"
+    # M15/M17 P1：166 个 xlsx 交付物转 few-shot，默认关；开启后运行时把样例拼进
+    # 命中技能的 system_prompt，提升产出物格式一致性。置 1 才生效。
+    FEWSHOT_ENABLED = _env("FEWSHOT_ENABLED", "0") == "1"
 
     # ── M17 真模型接入：两种通道，业务代码不感知 ──
     # litellm —— 经 LiteLLM 代理（多厂商统一账单，生产推荐）

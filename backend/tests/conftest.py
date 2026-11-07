@@ -19,6 +19,10 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+# 允许测试直接 import scripts/ 下的导入器（import_solutions 等）
+_SCRIPTS = str(_ROOT / "scripts")
+if _SCRIPTS not in sys.path:
+    sys.path.insert(0, _SCRIPTS)
 
 if os.environ.get("TEST_WITH_PG") != "1":
     # 必须是 import app.core.config 之前：Settings 是类属性，导入即固化

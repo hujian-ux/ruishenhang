@@ -10,10 +10,12 @@
 """
 from fastapi import APIRouter, Depends
 
+from app.core.config import settings
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import WebSearchRequest
 from app.services import audit, web_search
+from app.services import search_intel
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -21,7 +23,11 @@ router = APIRouter(prefix="/search", tags=["search"])
 @router.post("/web")
 async def search_web(req: WebSearchRequest, caller: CallerContext = Depends(get_caller),
                      trace_id: str = Depends(get_trace_id)):
-    out = web_search.search(req.query, req.top_k, fetch_top=req.fetch_top)
+    # M26 P1：opt-in 检索词拆解。默认关，走原 web_search.search（零行为变更）。
+    if settings.WEB_SEARCH_DECOMPOSE:
+        out = search_intel.search_decomposed(req.query, req.top_k, fetch_top=req.fetch_top)
+    else:
+        out = web_search.search(req.query, req.top_k, fetch_top=req.fetch_top)
     audit.record("web_search", caller, target=out["query"][:80],
                  result="ok" if out["ok"] and not out["degraded"] else "degraded",
                  meta={"provider": out["provider"], "mode": out["mode"],

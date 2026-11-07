@@ -30,6 +30,14 @@ import sys
 SOLUTIONS_ROOT = os.environ.get("SOLUTIONS_ROOT", r"D:/workbuddy_解决方案")
 SHRINK_THRESHOLD = 600  # 去空白字数低于此值视为模板壳
 
+# M15/M25 P1：业务包全局补平台硬规则。优先用平台单一来源；若脚本独立运行且
+# 后端不可导入，则降级为 no-op（不影响导入本身），由 backfill 脚本事后补齐。
+try:
+    from app.services.hard_rules import ensure_hard_rules as _ensure_hard_rules
+except Exception:  # pragma: no cover - 独立运行兜底
+    def _ensure_hard_rules(body: str) -> str:
+        return body
+
 # 章节别名 → 归一化键（匹配前会先剥掉「一、」「1.」「（一）」这类序号前缀）
 SECTION_ALIAS = {
     "适用场景": "scene", "适用时机": "scene", "适用岗位": "scene", "启用时机": "scene",
@@ -140,7 +148,8 @@ def build_system_prompt(name: str, desc: str, sec: dict) -> str:
                  "1. 每个结论必须能追溯到输入中的具体行/字段，无法追溯的写「无依据」。\n"
                  "2. 算不出来的指标明确写「本月无记录」，不得估算填充。\n"
                  "3. 问题必须落到唯一责任人 + 可验收动作 + 时限，禁止「加强沟通」式空话。")
-    return "\n\n".join(parts)
+    # M15/M25 P1：平台硬规则（8 条跨平台红线）接在最前，与公共库同源、幂等。
+    return _ensure_hard_rules("\n\n".join(parts))
 
 
 def parse_skill(path: str) -> dict:

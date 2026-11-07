@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from app.services import pg_store, public_skills, role_map
+from app.services import pg_store, public_skills, role_map, hard_rules
 
 _TABLE = "agents"
 
@@ -97,7 +97,7 @@ PACK_FIELDS = (
     "description", "system_prompt", "category", "category_cn",
     "sub_function", "tags", "source_path", "inputs_contract", "outputs_contract",
     "when_to_use", "role_tags", "role_primary", "role_core",
-    "hard_rules_version", "web_fetch_top",
+    "hard_rules_version", "web_fetch_top", "fewshot", "fewshot_version",
 )
 
 
@@ -152,6 +152,38 @@ def list_all(caller, include_all: bool = False) -> List[Dict[str, Any]]:
     if not (include_all and caller.role == "platform_admin"):
         rows = [a for a in rows if _visible(a, caller)]
     return sorted(rows, key=lambda a: (a.get("category") or "", a.get("name") or ""))
+
+
+def backfill_hard_rules() -> Dict[str, Any]:
+    """M15/M25 P1 · 对存量业务包补齐平台硬规则（幂等、可重跑）。
+
+    仅处理业务技能包（非内置助手、非公共库）；已含平台硬规则头的不动，
+    避免重复叠加。返回 {total, already, patched, by_category}。
+    """
+    total = already = patched = 0
+    by_category: Dict[str, Dict[str, int]] = {}
+    for a in list(_AGENTS.values()):
+        if a.get("builtin") or a.get("category") == "public":
+            continue
+        total += 1
+        sp = a.get("system_prompt") or ""
+        cat = a.get("category_cn") or a.get("category") or "unknown"
+        slot = by_category.setdefault(cat, {"total": 0, "already": 0, "patched": 0})
+        slot["total"] += 1
+        if hard_rules.has_hard_rules(sp):
+            already += 1
+            slot["already"] += 1
+            continue
+        a["system_prompt"] = hard_rules.ensure_hard_rules(sp)
+        a["hard_rules_version"] = hard_rules.HARD_RULES_VERSION
+        save(a)
+        patched += 1
+        slot["patched"] += 1
+    return {
+        "total": total, "already": already, "patched": patched,
+        "by_category": by_category,
+        "hard_rules_version": hard_rules.HARD_RULES_VERSION,
+    }
 
 
 def brief(a: Dict[str, Any]) -> Dict[str, Any]:
