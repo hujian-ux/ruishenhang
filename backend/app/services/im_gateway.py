@@ -5,14 +5,18 @@
 - 签名校验用官方公式，确定性、可单测（不触网）。
 - 网络调用（get_access_token / send）通过模块级 ``_http_post`` 注入，测试可替换为假实现。
 - 凭据来自 im_store（租户级），opt-in：未配置则返回明确的「未配置」而非报错崩链。
-- 消息体 AES 解密（企微回调）需 EncodingAESKey，本模块提供签名校验真逻辑；
-  AES 解密给出清晰占位与指引，不谎称已实现。
+- 消息体 AES 解密（企微回调）用 EncodingAESKey 派生 32B key + AES-256-CBC（IV=key[:16]），
+  依赖 ``pycryptodome``（已进 pyproject 主依赖）；未配 EncodingAESKey 时返回占位、不谎称已解密。
 """
 import base64
 import hashlib
 import hmac
 import json
+import struct
+import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, Optional
+
+from Crypto.Cipher import AES
 
 import httpx
 
@@ -102,15 +106,54 @@ class WeComAdapter:
     def parse_inbound(self, encrypt: str) -> Dict[str, Any]:
         """解析入站消息。签名已校验后调用。
 
-        完整实现需 AES-256-CBC 解密（EncodingAESKey 派生 43 位 → 补 '=' 成 44 位 base64）。
-        未配置 EncodingAESKey 时返回占位结构，不谎称已解密。
+        企微消息体加密格式（官方）：
+        - ``AESKey = base64decode(EncodingAESKey + "=")``（43 位 → 补 "=" 成 44 位 → 32B）。
+        - AES-256-CBC，``IV = AESKey[:16]``；明文 = 随机(16B) + 消息长度(4B 大端) + 消息 + receiveid。
+        - 消息为 XML（文本/事件），本方法解密后解析出常用字段。
         """
         if not self.encoding_aes_key:
             return {"provider": "wecom", "raw": encrypt,
                     "note": "需要 EncodingAESKey 才能 AES 解密消息体"}
-        # TODO(M27-OA)：用 EncodingAESKey 派生 key/iv，AES 解密后去 16B 随机前缀 +
-        # msg_len(4B) + msg + receiveid，再 XML 解析。需 pycryptodome。
-        raise NotImplementedError("企微消息 AES 解密待接入（需 EncodingAESKey + pycryptodome）")
+        try:
+            aes_key = base64.b64decode(self.encoding_aes_key + "=")
+            if len(aes_key) != 32:
+                raise ValueError(f"EncodingAESKey 派生 key 长度异常：{len(aes_key)}B")
+            cipher = AES.new(aes_key, AES.MODE_CBC, aes_key[:16])
+            raw = cipher.decrypt(base64.b64decode(encrypt))
+            # 去 PKCS7 填充（块大小 32）
+            pad = raw[-1]
+            if 1 <= pad <= 32:
+                raw = raw[:-pad]
+            if len(raw) < 20:
+                raise ValueError("解密后长度不足（缺随机前缀+长度头）")
+            msg_len = struct.unpack(">I", raw[16:20])[0]
+            msg = raw[20:20 + msg_len]
+            receive_id = raw[20 + msg_len:].decode("utf-8", "ignore")
+            xml_text = msg.decode("utf-8", "ignore")
+        except Exception as e:  # noqa: BLE001 — 解密/解析失败统一报，供调用方 400
+            raise ValueError(f"企微消息 AES 解密失败：{e}")
+        # receive_id 应为 corp_id（企微回填），不一致视为被篡改
+        if receive_id and self.corp_id and receive_id != self.corp_id:
+            raise ValueError(f"企微消息 receive_id({receive_id}) 与 corp_id({self.corp_id}) 不符")
+        return {
+            "provider": "wecom",
+            "msg_type": _wecom_xml(xml_text, "MsgType"),
+            "from_user": _wecom_xml(xml_text, "FromUserName"),
+            "to_user": _wecom_xml(xml_text, "ToUserName"),
+            "content": _wecom_xml(xml_text, "Content"),
+            "event": _wecom_xml(xml_text, "Event"),
+            "raw": xml_text,
+        }
+
+
+def _wecom_xml(xml_text: str, tag: str) -> Optional[str]:
+    """从企微 XML 消息里取文本字段（CDATA 由 ElementTree 自动处理）。"""
+    try:
+        root = ET.fromstring(xml_text)
+        el = root.find(tag)
+        return el.text if el is not None else None
+    except ET.ParseError:
+        return None
 
 
 # ── 钉钉 ────────────────────────────────────────────────────────────────────

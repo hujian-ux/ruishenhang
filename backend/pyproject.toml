@@ -21,6 +21,9 @@ dependencies = [
     "redis>=5.0",             # 语义缓存（第40章）
     # M12 真实身份：OIDC/JWT 校验（RS256，JWKS 自动拉取）。不配 issuer 时只走 dev 分支，CI 不受影响。
     "pyjwt[crypto]>=2.8",
+    # P1-173 IM/OA：企业微信回调消息体 AES-256-CBC 解密（EncodingAESKey 派生 32B key）。
+    # 用 pycryptodome（PyCryptodome 的 AES 实现稳定且不依赖系统 openssl 版本）。
+    "pycryptodome>=3.20",
     # M16 文件进出：xlsx 读写（技能包本质是 xlsx 进 xlsx 出）。
     # tabular.parse 在缺包时会降级成 ok=False 而不是崩，但「表格真的能解析」是要断言的，
     # 所以必须进主依赖，否则 CI 干净环境里 M16 用例会挂。

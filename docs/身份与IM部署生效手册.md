@@ -145,10 +145,11 @@ IM（企微/钉钉）的 CorpID/Secret/AgentId/Token 等**不在环境变量里*
 
 ## 7. 诚实标注（当前未实测 / 待补）
 
-- **企微消息体 AES 解密**：需要 `EncodingAESKey` + `pycryptodome`。当前代码已留清晰占位，未配则不解密、不谎称已收。装上依赖、填好 EncodingAESKey 即生效。
-- **IM 真收发**需要后端服务器能访问企微/钉钉网关（公网或白名单）。
+- **企微消息体 AES 解密**：✅ 已落地（2026-11-07）。`pycryptodome` 已进 `backend/pyproject.toml` 主依赖；`im_gateway.WeComAdapter.parse_inbound` 用 `EncodingAESKey` 派生 32B key + AES-256-CBC（IV=key[:16]）解密，去 16B 随机前缀 + 4B 长度 + 消息 + receiveid（校验 corp_id），再 XML 解析。单测 `test_m13c_wecom_aes.py`（4 例）确定性通过。填了 `encoding_aes_key` 即自动解密入站 XML；未填则占位不谎称已收。
+- **IM 真收发**需要后端服务器能访问企微/钉钉网关（公网或白名单）。管理端点鉴权已修（曾误把 `CallerContext` 当 query 参数，已被 `test_m13d_integrations_auth.py` 卡住并改为 `Depends(get_caller)` 走网关签名）。
 - **Casdoor 一键写入**是实验性功能，失败请用手册 1.5 的清单手动填（保证可用）。
 - **前端登录页自动跳 SSO**仅在"已配身份源 + 收口开启"时触发；首次配置请先手动点「使用企业身份登录」确认链路通。
+- **完整真环境部署**（起 PG/Qdrant/MinIO/Redis/Casdoor、构建前端、启动后端、灌 115 包、验证）见 `docs/真环境部署执行手册.md`。
 
 ---
 

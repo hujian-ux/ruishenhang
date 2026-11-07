@@ -9,7 +9,7 @@ opt-in：未配置则该租户 IM 不可用，不影响其它功能。全部需�
 import re
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ class ImConfigRequest(BaseModel):
 
 
 @router.post("/im/config")
-def set_im_config(req: ImConfigRequest, caller: CallerContext = Query(default=None)):
+def set_im_config(req: ImConfigRequest, caller: CallerContext = Depends(get_caller)):
     """保存某租户的 IM 配置（仅平台管理员）。密钥仅存内存、list 时脱敏。"""
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
@@ -44,14 +44,14 @@ def set_im_config(req: ImConfigRequest, caller: CallerContext = Query(default=No
 
 
 @router.get("/im/config")
-def list_im_config(caller: CallerContext = Query(default=None)):
+def list_im_config(caller: CallerContext = Depends(get_caller)):
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
     return {"code": 0, "data": im_store.list_configs(caller.tenantId)}
 
 
 @router.delete("/im/config/{provider}")
-def delete_im_config(provider: str, caller: CallerContext = Query(default=None)):
+def delete_im_config(provider: str, caller: CallerContext = Depends(get_caller)):
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
     ok = im_store.delete_config(caller.tenantId, provider)
@@ -121,7 +121,7 @@ class ImSendRequest(BaseModel):
 
 
 @router.post("/im/send")
-def im_send(req: ImSendRequest, caller: CallerContext = Query(default=None)):
+def im_send(req: ImSendRequest, caller: CallerContext = Depends(get_caller)):
     """向某租户的 IM 下发文本消息（需平台管理员）。"""
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
@@ -140,7 +140,7 @@ class ImApprovalRequest(BaseModel):
 
 
 @router.post("/im/notify-approval")
-def im_notify_approval(req: ImApprovalRequest, caller: CallerContext = Query(default=None)):
+def im_notify_approval(req: ImApprovalRequest, caller: CallerContext = Depends(get_caller)):
     """审批回推 OA：把待审批链接推到 IM（需平台管理员）。"""
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
