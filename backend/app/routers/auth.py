@@ -17,8 +17,32 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/sso/callback", response_model=SsoCallbackResponse)
 async def sso_callback(req: SsoCallbackRequest):
-    # 骨架：演示用——由 provider/code 换身份。生产对接企微/钉钉/飞书 OAuth。
-    # code=dev_admin 演示管理员（王总/平台管理员），其余为默认员工账号
+    # P1-173 身份收口路径：前端已拿到 IdP 下发的 id_token，后端只验签、不落 dev token。
+    # 验签通过即把 id_token 原样回传作 Bearer（网关层走 OIDC 验签），实现「统一身份收口」。
+    if req.id_token:
+        caller = _verify_oidc_token(req.id_token)
+        if caller is None:
+            raise HTTPException(401, "id_token 验签失败（issuer / 签名 / 过期 / audience 不匹配）")
+        return {
+            "code": 0,
+            "data": {
+                "token": req.id_token,
+                "expires_in": settings.DEV_TOKEN_TTL_S,
+                "user": {"userId": caller.userId, "name": caller.userId,
+                         "deptId": caller.deptId, "role": caller.role},
+                "device_bound": False,
+                "need_stepup": False,
+            },
+        }
+
+    # 收口态：禁止 dev_admin 捷径，必须走真实 SSO（携带 id_token）。
+    if settings.AUTH_ENFORCE_OIDC:
+        raise HTTPException(
+            403,
+            "身份收口已开启（AUTH_ENFORCE_OIDC=1）：禁止 dev 捷径，请走真实企业 SSO（携带 id_token）",
+        )
+
+    # 演示/开发路径（默认）：由 code 换演示身份。生产应关闭 OIDC 之外的此捷径。
     if req.code == "dev_admin":
         token = create_dev_token(user_id="u_9000", dept_id="d_it", role="platform_admin")
         user = {"userId": "u_9000", "name": "王总", "deptId": "d_it", "role": "platform_admin"}

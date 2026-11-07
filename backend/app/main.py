@@ -13,8 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
 from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
-                        events, feedback, files, guardrails, invoke, kb, models, ops,
-                        quality, rag, search, selection, usage)
+                        events, feedback, files, guardrails, integrations, invoke, kb,
+                        models, ops, quality, rag, search, selection, usage)
 from app.services import (agent_store, approval_store, file_store, kb_store,
                           observability, pg_store, session_store, usage_store)
 
@@ -94,6 +94,7 @@ app.include_router(ops.router, prefix=settings.API_PREFIX)          # 指标 / �
 app.include_router(events.router, prefix=settings.API_PREFIX)       # webhook 事件总线
 app.include_router(quality.router, prefix=settings.API_PREFIX)      # 评测 / 路由 / 缓存 / 降级 / MLOps
 app.include_router(builder.router, prefix=settings.API_PREFIX)      # 自助建部门 / L2 建包 / L3 编排
+app.include_router(integrations.router, prefix=settings.API_PREFIX)  # P1-173：企业微信/钉钉 集成与审批回推
 
 
 @app.get("/healthz")

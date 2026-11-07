@@ -11,6 +11,9 @@ class SsoCallbackRequest(BaseModel):
     code: str
     device_id: str
     state: Optional[str] = None
+    # P1-173 收口：前端拿到 IdP 的 id_token 后直接带上，由后端验签换身份（不落 dev token）。
+    # 收口开启时，dev_admin 捷径被拒，必须携带有效的 id_token。
+    id_token: Optional[str] = None
 
 class UserOut(BaseModel):
     userId: str

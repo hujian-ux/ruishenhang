@@ -163,6 +163,11 @@ class Settings:
     OIDC_TENANT_CLAIM = _env("OIDC_TENANT_CLAIM", "")
     OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
 
+    # P1-173 身份收口：当置 1 时，任何环境都拒绝 dev token（不止 prod），且
+    # /auth/sso/callback 不再接受 dev_admin 捷径，必须走真实 SSO（带 id_token 验签）。
+    # 默认 0：保持现有行为（仅 prod 拒 dev，演示可用 dev_admin）。开启后即为「收口态」。
+    AUTH_ENFORCE_OIDC = _env("AUTH_ENFORCE_OIDC", "0") == "1"
+
     # 演示/开发 token 有效期（秒）。默认 12 小时：默认 2 小时会让演示到一半
     # 突然全线 401「missing caller context」，看不出是过期。
     DEV_TOKEN_TTL_S = int(_env("DEV_TOKEN_TTL_S", "43200"))

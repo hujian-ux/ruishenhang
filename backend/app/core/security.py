@@ -156,6 +156,10 @@ def decode_token(authorization: str | None) -> CallerContext | None:
     if not authorization:
         return None
     token = authorization.strip()
+    # P1-173 身份收口：显式开关开启后，任何环境都拒绝 dev token（不止 prod）。
+    # 这是「统一身份收口」的硬边界——所有调用方必须走真实 OIDC 身份源。
+    if settings.AUTH_ENFORCE_OIDC and token.startswith("dev "):
+        return None
     # 生产环境强制真实身份：拒绝 dev token（避免伪造）
     if settings.APP_ENV == "prod" and token.startswith("dev "):
         return None
