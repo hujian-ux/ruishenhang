@@ -150,10 +150,15 @@ export const api = {
 
   getSession: (sessionId: string) =>
     req<any>("GET", `/agent/sessions/${sessionId}`),
-  // M5 审批流
-  pendingApprovals: () => req<{ code: number; data: { count: number; tickets: any[] } }>("GET", "/approval/pending"),
+  // M5/M46 审批流
+  pendingApprovals: (onlyMyStage = false) =>
+    req<{ code: number; data: { count: number; tickets: any[] } }>(
+      "GET", `/approval/pending${onlyMyStage ? "?only_my_stage=true" : ""}`),
   decideApproval: (approvalId: string, decision: "approve" | "reject", comment?: string) =>
     req<any>("POST", `/approval/${approvalId}/decide`, { decision, comment }),
+  // M46 审批助手（辅助层，只建议不落账）；enrich=true 走真模型通道增强一句话提示
+  assistApproval: (approvalId: string, enrich = false) =>
+    req<any>("POST", `/approval/${approvalId}/assist${enrich ? "?enrich=true" : ""}`),
 
   // ── M7 计量（第25章）：真实落账 + 多维聚合 + 配额 ──
   getUsage: (dimension: string, days = 30) =>

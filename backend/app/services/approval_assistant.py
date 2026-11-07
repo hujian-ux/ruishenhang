@@ -83,13 +83,20 @@ def compliance_flags(agent: Optional[Dict[str, Any]],
     return flags
 
 
-def _enrich_with_llm(prompt: str) -> Optional[str]:
-    """可选：用 LLM 生成自然语言建议；失败返回 None（不影响主结论）。"""
+def _enrich_with_llm(prompt: str, tenant_id: str = "") -> Optional[str]:
+    """可选：用 LLM 生成自然语言建议；失败返回 None（不影响主结论）。
+
+    接入真模型通道（model_gateway.chat_sync_ex）：模型按租户级覆盖路由；
+    仅在拿到真实回复（res.real=True）时才返回，否则优雅降级（不污染结构化结论）。
+    """
     try:
         from app.services import model_gateway
         res = model_gateway.chat_sync_ex(
-            None, [{"role": "user", "content": prompt}], llm_real=False)
-        return (res or {}).get("text")
+            None, [{"role": "user", "content": prompt}],
+            tenant_id=tenant_id or None)
+        if (res or {}).get("real"):
+            return res.get("text")
+        return None
     except Exception:  # noqa: BLE001
         return None
 
@@ -111,7 +118,8 @@ def assistant_advise(approval_id: str, enrich: bool = False) -> Dict[str, Any]:
     }
     if enrich:
         llm_text = _enrich_with_llm(
-            f"请用一句话提示审批人关注这张审批单的重点：{summary['summary']}")
+            f"请用一句话提示审批人关注这张审批单的重点：{summary['summary']}",
+            tenant_id=ticket.get("tenant_id") or "")
         if llm_text:
             advice["llm_hint"] = llm_text
     return advice

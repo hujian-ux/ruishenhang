@@ -45,6 +45,25 @@ def _persist(t: Dict[str, Any]) -> None:
     pg_store.upsert("approval_tickets", t["approval_id"], t)
 
 
+def _can_decide_at_stage(ticket: Dict[str, Any], role: str, dept: str) -> bool:
+    """当前级是否可由该角色/部门审批（用于待审列表裁剪，不含终态判断）。
+
+    与 decide() 的授权规则对称：platform_admin 可审任何级；否则须满足
+    当前级 approver_role 要求，且 dept_admin 不能跨部审。
+    """
+    if role == "platform_admin":
+        return True
+    stages = ticket.get("stages") or DEFAULT_STAGES
+    idx = ticket.get("current_stage", 0)
+    stage = stages[idx] if idx < len(stages) else stages[-1]
+    req = stage.get("approver_role")
+    if req and req != role:
+        return False
+    if role == "dept_admin" and ticket["dept_id"] != dept:
+        return False
+    return True
+
+
 def create_ticket(agent_id: str, requester_id: str, dept_id: str,
                   tenant_id: str = "", stages: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
     stages = stages or resolve_stages(tenant_id)
@@ -179,12 +198,20 @@ def load_from_pg() -> int:
     return n
 
 
-def pending_list(dept_id: str | None = None, tenant_id: str | None = None) -> List[Dict[str, Any]]:
-    """待审列表：platform_admin 看全部，dept_admin 只看本部门 + 本租户。"""
+def pending_list(dept_id: str | None = None, tenant_id: str | None = None,
+                 caller_role: str | None = None, caller_dept: str | None = None,
+                 only_my_stage: bool = False) -> List[Dict[str, Any]]:
+    """待审列表：platform_admin 看全部，dept_admin 只看本部门 + 本租户。
+
+    only_my_stage=True 时再按调用人角色/部门裁剪：只返回当前级可由其审批的单据
+    （含租户/部门/级别约束）。用于审批台「仅显示当前级我能审的单」。
+    """
     rows = [t for t in _TICKETS.values() if t["status"] == "pending"]
     if dept_id:
         rows = [t for t in rows if t["dept_id"] == dept_id]
     # M43：租户隔离（tenant_id 为 None 表示平台管理员看全量，不按租户裁剪）
     if tenant_id:
         rows = [t for t in rows if t.get("tenant_id") == tenant_id]
+    if only_my_stage and caller_role:
+        rows = [t for t in rows if _can_decide_at_stage(t, caller_role, caller_dept)]
     return sorted(rows, key=lambda t: t["created_at"])

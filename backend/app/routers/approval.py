@@ -85,13 +85,22 @@ async def decide(
 
 
 @router.get("/pending")
-async def pending(caller: CallerContext = Depends(get_caller)):
-    """待审列表：platform_admin 全量，dept_admin 本部门 + 本租户。"""
+async def pending(caller: CallerContext = Depends(get_caller),
+                 only_my_stage: bool = False):
+    """待审列表：platform_admin 全量，dept_admin 本部门 + 本租户。
+
+    only_my_stage=true 时仅返回当前级可由该调用人审批的单据（含租户/部门/级别约束）。
+    """
     _require_admin(caller)
     dept = caller.deptId if caller.role == "dept_admin" else None
     # M43：dept_admin 仅看本租户；platform_admin 传 None 看全量租户。
     tenant_id = None if caller.role == "platform_admin" else caller.tenantId
-    rows = approval_store.pending_list(dept, tenant_id)
+    rows = approval_store.pending_list(
+        dept, tenant_id,
+        caller_role=caller.role if only_my_stage else None,
+        caller_dept=caller.deptId if only_my_stage else None,
+        only_my_stage=only_my_stage,
+    )
     return {"code": 0, "data": {"count": len(rows), "tickets": rows}}
 
 
@@ -134,9 +143,12 @@ async def ticket_detail(approval_id: str = PathParam(...),
 
 @router.post("/{approval_id}/assist")
 async def assist(approval_id: str = PathParam(...),
+                 enrich: bool = False,
                  caller: CallerContext = Depends(get_caller)):
     """审批助手（辅助层）：返回申请草稿/摘要/合规风险建议，不落账。
 
+    enrich=true 时额外调用真模型通道生成一句话自然语言提示（llm_hint），
+    真模型不可用则优雅降级（不出 llm_hint，不影响结构化结论）。
     权限：申请人本人或管理员可读；最终 approve/reject 仍由审批台 decide() 落账。
     """
     try:
@@ -145,4 +157,4 @@ async def assist(approval_id: str = PathParam(...),
         raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
     if caller.role not in ("platform_admin", "dept_admin") and t["requester_id"] != caller.userId:
         raise HTTPException(status_code=403, detail="forbidden: 仅申请人或管理员可使用")
-    return {"code": 0, "data": approval_assistant.assistant_advise(approval_id)}
+    return {"code": 0, "data": approval_assistant.assistant_advise(approval_id, enrich=enrich)}
