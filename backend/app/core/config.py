@@ -247,5 +247,10 @@ class Settings:
     # M27 默认只「观测 + 建议」，不改变既有生成结果；低置信自动转人工需显式打开
     HANDOFF_AUTO = _env("HANDOFF_AUTO", "0") == "1"
 
+    # M48：审批助手回推 IM/OA 卡片时，审批详情页的绝对链接前缀。
+    # 企微/钉钉卡片里的「点击处理」必须是可被员工浏览器打开的公网/内网地址；
+    # 留空则卡片只带摘要、不带跳转链接（适合仅查看场景）。
+    APPROVAL_UI_BASE_URL = _env("APPROVAL_UI_BASE_URL", "")
+
 
 settings = Settings()

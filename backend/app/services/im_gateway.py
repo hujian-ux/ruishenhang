@@ -90,10 +90,14 @@ class WeComAdapter:
         )
 
     def send_approval_card(self, to_user: str, title: str, url: str,
-                           access_token: str = "") -> dict:
-        """审批回推 OA：用 markdown 卡片推送待审批链接（企微原生审批可后续接）。"""
+                           access_token: str = "", summary: str = "") -> dict:
+        """审批回推 OA：用 markdown 卡片推送待审批链接 + 审批助手摘要（企微原生审批可后续接）。"""
         tok = access_token or self.get_access_token()
-        md = f"# 待审批\n**{title}**\n\n[点击处理]({url})"
+        md = f"# 待审批\n**{title}**"
+        if summary:
+            md += f"\n\n> {summary}"
+        if url:
+            md += f"\n\n[点击处理]({url})"
         body = {
             "touser": to_user, "msgtype": "markdown", "agentid": int(self.agent_id or 0),
             "markdown": {"content": md},
@@ -201,9 +205,13 @@ class DingTalkAdapter:
         )
 
     def send_approval_card(self, to_user: str, title: str, url: str,
-                           access_token: str = "") -> dict:
+                           access_token: str = "", summary: str = "") -> dict:
         tok = access_token or self.get_access_token()
-        md = f"# 待审批\n**{title}**\n\n[点击处理]({url})"
+        md = f"# 待审批\n**{title}**"
+        if summary:
+            md += f"\n\n> {summary}"
+        if url:
+            md += f"\n\n[点击处理]({url})"
         body = {"msgtype": "markdown", "markdown": {"title": "待审批", "text": md},
                 "touser": to_user}
         return _http_post(
@@ -247,9 +255,45 @@ class IMGateway:
         return self._adapter(tenant, provider).send_text(to_user, text)
 
     def notify_approval(self, tenant: str, provider: str, to_user: str,
-                        title: str, url: str) -> dict:
-        """审批回推 OA：把待审批推到对应 IM。返回发送结果。"""
-        return self._adapter(tenant, provider).send_approval_card(to_user, title, url)
+                        title: str, url: str, summary: str = "") -> dict:
+        """审批回推 OA：把待审批推到对应 IM（可带审批助手摘要）。返回发送结果。"""
+        return self._adapter(tenant, provider).send_approval_card(
+            to_user, title, url, summary=summary)
+
+    def push_approval_with_assistant(self, tenant: str, provider: str, to_user: str,
+                                    approval_id: str, base_url: str = "") -> dict:
+        """审批回推 OA（带审批助手摘要）：按 approval_id 自动解析单据 → 调审批助手
+        汇总摘要 → 合成卡片。summary 文本由 approval_assistant 确定性生成（不依赖 LLM）。
+
+        设计边界：本方法只做「回推展示」，绝不落账；最终审批仍由管理员在审批台 commit。
+        """
+        from app.services import agent_store, approval_assistant, approval_store
+
+        ticket = approval_store.get_ticket(approval_id)
+        agent = agent_store.get(ticket.get("agent_id"))
+        advice = approval_assistant.assistant_advise(approval_id, enrich=False)
+        summary_block = self._compose_card_summary(advice)
+        title = (agent or {}).get("name") or ticket.get("agent_id") or approval_id
+        link = ""
+        if base_url:
+            link = f"{base_url.rstrip('/')}/approval?approval_id={approval_id}"
+        return self.notify_approval(tenant, provider, to_user, title, link, summary_block)
+
+    @staticmethod
+    def _compose_card_summary(advice: Dict[str, Any]) -> str:
+        """把审批助手建议压成卡片摘要（≤ 数行，避免 OA 卡片过长被截断）。"""
+        s = advice.get("summary") or {}
+        lines = []
+        prog = s.get("stage_progress") or s.get("status")
+        if prog:
+            lines.append(f"进度 {prog}（当前：{s.get('current_stage', '—')}）")
+        for rf in (s.get("risk_flags") or [])[:3]:
+            lines.append(f"⚠ {rf}")
+        for cf in (advice.get("compliance_flags") or [])[:2]:
+            lines.append(f"合规 {cf}")
+        if not lines:
+            lines.append(s.get("summary") or "待审批：详情见链接")
+        return "；".join(lines)
 
     def verify(self, tenant: str, provider: str, **params) -> Any:
         """回调验签：wecom 用 verify_url/verify_message，dingtalk 用 verify_callback。"""

@@ -4,11 +4,14 @@
 租户级 config 随租户一并写入，供 LLM/品牌/SSO 覆盖回落使用。
 """
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.services import tenant_store
+
+# 审批多级模板允许的审批人角色（employee 不能做审批节点，故不在此列）
+_APPROVER_ROLES = ("dept_admin", "platform_admin")
 
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
@@ -101,5 +104,44 @@ async def set_tenant_branding(req: TenantBrandingRequest, tenant_id: str,
     if req.casdoor_org:
         sso["casdoor_org"] = req.casdoor_org
     cfg["sso"] = sso
+    tenant_store.update_config(tenant_id, cfg)
+    return {"code": 0, "data": tenant_store.get_tenant(tenant_id)}
+
+
+class ApprovalStageModel(BaseModel):
+    """多级审批模板的一级节点。"""
+    name: str = Field(..., min_length=1, max_length=40, description="节点名称，如「部门经理」")
+    approver_role: str = Field(..., description="该级审批人角色：dept_admin | platform_admin")
+
+
+class ApprovalConfigRequest(BaseModel):
+    """租户级审批多级模板（管理员在租户配置页可视化编辑后提交）。"""
+    stages: list[ApprovalStageModel] = Field(default_factory=list,
+        description="审批链路；空数组=退化为单级默认（兼容现有行为）")
+    allow_global_scope: bool = Field(default=False,
+        description="是否允许该租户提交「全局知识域」智能体（需平台管理员特别批准）")
+
+
+@router.put("/{tenant_id}/approval-config")
+async def set_tenant_approval_config(req: ApprovalConfigRequest, tenant_id: str,
+                                    caller: CallerContext = Depends(get_caller)):
+    """配置租户审批多级模板（platform_admin）。空 stages 退化为单级默认。
+
+    校验：每个 stage 的 approver_role 必须是 dept_admin / platform_admin。
+    """
+    _require_platform_admin(caller)
+    t = tenant_store.get_tenant(tenant_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"租户不存在：{tenant_id}")
+    for st in req.stages:
+        if st.approver_role not in _APPROVER_ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"审批人角色非法：{st.approver_role}（仅支持 {_APPROVER_ROLES}）")
+    cfg = dict(t.get("config") or {})
+    cfg["approval"] = {
+        "stages": [{"name": s.name, "approver_role": s.approver_role} for s in req.stages],
+        "allow_global_scope": req.allow_global_scope,
+    }
     tenant_store.update_config(tenant_id, cfg)
     return {"code": 0, "data": tenant_store.get_tenant(tenant_id)}

@@ -221,8 +221,17 @@ export const api = {
   deleteImConfig: (provider: string) => req<any>("DELETE", `/integrations/im/config/${provider}`),
   sendImMessage: (body: { provider: string; to_user: string; text: string }) =>
     req<any>("POST", "/integrations/im/send", body),
-  imApprove: (body: { provider: string; to_user: string; title: string; url: string }) =>
-    req<any>("POST", "/integrations/im/notify-approval", body),
+  imApprove: (body: {
+    provider: string; to_user: string; title?: string; url?: string; summary?: string;
+    approval_id?: string; base_url?: string;
+  }) => req<any>("POST", "/integrations/im/notify-approval", body),
+
+  // ── M43/M48 租户配置（platform_admin）──
+  listTenants: () => req<any>("GET", "/tenants"),
+  getTenant: (id: string) => req<any>("GET", `/tenants/${id}`),
+  putTenantApprovalConfig: (id: string, body: {
+    stages: { name: string; approver_role: string }[]; allow_global_scope: boolean;
+  }) => req<any>("PUT", `/tenants/${id}/approval-config`, body),
 
   // ── M27：蓝图缺口收口 ──
   getReadiness: () => req<any>("GET", "/ops/readiness"),

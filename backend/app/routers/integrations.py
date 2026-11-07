@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.services import im_gateway, im_store
+from app.services import approval_store, im_gateway, im_store
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -135,17 +135,34 @@ def im_send(req: ImSendRequest, caller: CallerContext = Depends(get_caller)):
 class ImApprovalRequest(BaseModel):
     provider: str
     to_user: str
-    title: str
-    url: str
+    title: str = ""
+    url: str = ""
+    summary: str = ""            # 可选：自定义卡片摘要（覆盖自动摘要）
+    approval_id: str = ""        # 可选：传审批单号 → 后端自动解析标题/链接/助手摘要
+    base_url: str = ""           # 可选：审批详情页绝对前缀；缺省回退 APPROVAL_UI_BASE_URL
 
 
 @router.post("/im/notify-approval")
 def im_notify_approval(req: ImApprovalRequest, caller: CallerContext = Depends(get_caller)):
-    """审批回推 OA：把待审批链接推到 IM（需平台管理员）。"""
+    """审批回推 OA：把待审批推到 IM（需平台管理员）。
+
+    - 传 ``approval_id``：后端按单据号自动解析标题、详情链接与审批助手摘要（推荐）。
+    - 仅传 ``title/url/summary``：沿用旧的纯手动模式（向后兼容）。
+    最终审批始终由管理员在审批台 commit，本接口只做回推展示。
+    """
     if caller is None or caller.role != "platform_admin":
         raise HTTPException(403, "需要平台管理员权限")
     try:
+        if req.approval_id:
+            base = req.base_url or settings.APPROVAL_UI_BASE_URL
+            return {"code": 0, "data": im_gateway.gateway.push_approval_with_assistant(
+                caller.tenantId, req.provider, req.to_user, req.approval_id, base)}
+        if not req.title:
+            raise HTTPException(400, "未传 approval_id 时 title 必填")
         return {"code": 0, "data": im_gateway.gateway.notify_approval(
-            caller.tenantId, req.provider, req.to_user, req.title, req.url)}
+            caller.tenantId, req.provider, req.to_user, req.title, req.url,
+            summary=req.summary)}
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except approval_store.TicketNotFound:
+        raise HTTPException(404, f"审批单不存在：{req.approval_id}") from None

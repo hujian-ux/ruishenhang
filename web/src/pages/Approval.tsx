@@ -95,6 +95,9 @@ export function ApprovalPage() {
   const [err, setErr] = useState("");
   const [onlyMyStage, setOnlyMyStage] = useState(false);
   const [enrich, setEnrich] = useState(false);
+  const [imProvider, setImProvider] = useState<"wecom" | "dingtalk">("wecom");
+  const [imToUser, setImToUser] = useState("");
+  const [imBusyId, setImBusyId] = useState("");
 
   const load = useCallback(async () => {
     setErr(""); setMsg("");
@@ -124,9 +127,21 @@ export function ApprovalPage() {
     }
   };
 
+  // M48：把审批助手摘要通过企微/钉钉 OA 卡片回推给指定审批人（只展示，不落账）
+  const pushIm = async (id: string) => {
+    if (!imToUser.trim()) { setErr("请先填写回推对象的 IM 账号（to_user）"); return; }
+    setImBusyId(id); setErr(""); setMsg("");
+    try {
+      await api.imApprove({ provider: imProvider, to_user: imToUser.trim(), approval_id: id });
+      setMsg(`${id} 已回推 ${imProvider} OA 卡片（含审批助手摘要）给 ${imToUser.trim()}`);
+    } catch (e: any) {
+      setErr(e.message || "回推失败（请确认已配置该租户的 IM）");
+    } finally { setImBusyId(""); }
+  };
+
   return (
     <div className="card">
-      <h3>审批台（M5/M46 · 多级状态机 + 审批助手）</h3>
+      <h3>审批台（M5/M46/M48 · 多级状态机 + 审批助手 + IM 回推）</h3>
       <div className="hint" style={{ marginBottom: 8 }}>
         多级审批：当前级通过才流转下一级，末级通过才 <b>published</b>；驳回或任意级拒绝即终态。
         dept_admin 只能审本部门单据，platform_admin 全局可审。
@@ -135,6 +150,16 @@ export function ApprovalPage() {
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={onlyMyStage} onChange={(e) => setOnlyMyStage(e.target.checked)} /> 仅显示当前级我能审的单</label>
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={enrich} onChange={(e) => setEnrich(e.target.checked)} /> 用真模型增强助手提示</label>
         <button className="btn" onClick={load}>刷新待审列表</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+        <span className="hint">回推 IM 卡片：</span>
+        <select className="field" style={{ width: 110, margin: 0 }} value={imProvider} onChange={(e) => setImProvider(e.target.value as any)}>
+          <option value="wecom">企业微信</option>
+          <option value="dingtalk">钉钉</option>
+        </select>
+        <input className="field" style={{ width: 180, margin: 0 }} placeholder="to_user（审批人 IM 账号）"
+               value={imToUser} onChange={(e) => setImToUser(e.target.value)} />
+        <span className="hint">每张单点「回推」即带审批助手摘要</span>
       </div>
       {err && <div className="hint" style={{ color: "#c62828", marginBottom: 8 }}>{err}</div>}
       {msg && <div className="ok" style={{ marginBottom: 8 }}>{msg}</div>}
@@ -151,6 +176,9 @@ export function ApprovalPage() {
           <div className="row" style={{ marginTop: 8 }}>
             <button className="btn" onClick={() => decide(t.approval_id, "approve")}>✓ 通过</button>
             <button className="btn" style={{ background: "#c62828" }} onClick={() => decide(t.approval_id, "reject")}>✗ 驳回</button>
+            <button className="btn blue" disabled={imBusyId === t.approval_id} onClick={() => pushIm(t.approval_id)}>
+              {imBusyId === t.approval_id ? "回推中…" : "↩ 回推 IM 卡片"}
+            </button>
           </div>
         </div>
       ))}
