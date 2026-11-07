@@ -175,6 +175,9 @@ class Settings:
 
     FEEDBACK_ENABLED = _env("FEEDBACK_ENABLED", "1") == "1"
     EVOLUTION_REQUIRE_APPROVAL = _env("EVOLUTION_REQUIRE_APPROVAL", "1") == "1"
+    # A/B 实验与灰度发布（蓝图第 20/30/41 章）：默认关，零行为变更
+    AB_ENABLED = _env("AB_ENABLED", "0") == "1"
+    AB_MIN_SAMPLES = int(_env("AB_MIN_SAMPLES", "30"))  # 单变体达此样本量才给选优结论
     AUDIT_RETENTION_DAYS = int(_env("AUDIT_RETENTION_DAYS", "180"))
     SECURITY_EVENT_RETENTION_DAYS = int(_env("SECURITY_EVENT_RETENTION_DAYS", "365"))
     # 法定保留动作：这些动作产生的审计记录永不过期（合规追溯，不参与自动清理）。

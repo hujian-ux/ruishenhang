@@ -13,6 +13,7 @@ caller 在只读/聚合函数里保留用于将来按部门收口；当前返回
 from __future__ import annotations
 
 import copy
+import hashlib
 import math
 from typing import Any, Optional
 
@@ -432,8 +433,230 @@ def quality_metrics(caller=None) -> dict:
     }
 
 
+# ---- A/B 实验与灰度发布（蓝图第 20/30/41 章）---------------------------------
+_EXPERIMENTS = Store("ab_exp")      # 实验定义（含 variants 权重）
+_EXP_OUTCOMES = Store("ab_outcome")  # 实验产出（按 variant 归集）
+
+_EXP_MODES = ("ab", "gray")
+_AB_MIN_SAMPLES = int(getattr(settings, "AB_MIN_SAMPLES", "30"))
+
+
+def _bucket(user_key: str, total: int = 10000) -> int:
+    """确定性分桶：同一 user_key 永远落在同一区间（不依赖 PYTHONHASHSEED）。"""
+    h = hashlib.sha256(str(user_key).encode("utf-8")).hexdigest()
+    return int(h[:8], 16) % total
+
+
+def create_experiment(agent_id: str, title: str, variants: list, caller,
+                     mode: str = "ab") -> dict:
+    """新建 A/B 实验或灰度发布。
+
+    variants: [{"name":"A","prompt_override":"...","weight":0.5}, ...]
+      - prompt_override 可选（灰度基准可为空，沿用线上 prompt）。
+      - weight 可选，缺省均分；ab 模式要求权重和≈1，gray 允许不等（基准占大头）。
+    mode:
+      - "ab"  对照实验：对照组 vs 实验组，达标后选优 promote。
+      - "gray" 灰度发布：新变体按权重逐步放量（10%→50%→100%），异常可回退。
+    status 恒为 running；绝不自动改线上 prompt，promote 走演化建议台审批（人在环）。
+    """
+    if mode not in _EXP_MODES:
+        raise ValueError(f"mode 只接受 {'|'.join(_EXP_MODES)}，收到 {mode!r}")
+    if not isinstance(variants, list) or len(variants) < 2:
+        raise ValueError("variants 至少 2 项")
+    names = [str(v.get("name") or "") for v in variants]
+    if any(not n for n in names) or len(set(names)) != len(names):
+        raise ValueError("variants 每项须有唯一 name")
+    weights = [max(0.0, float(v.get("weight", 0))) for v in variants]
+    s = sum(weights)
+    if s <= 0:
+        weights = [1.0 / len(variants)] * len(variants)
+    elif mode == "ab" and abs(s - 1.0) > 0.01:
+        raise ValueError("ab 模式要求权重和≈1")
+    ts = now()
+    exp = _EXPERIMENTS.put(_row({
+        "id": new_id("ab"),
+        "agent_id": str(agent_id or ""),
+        "title": str(title or ""),
+        "mode": mode,
+        "variants": [{"name": names[i],
+                      "prompt_override": str(variants[i].get("prompt_override") or ""),
+                      "weight": round(weights[i], 4)} for i in range(len(variants))],
+        "status": "running",
+        "started_by": caller_id(caller),
+        "ended_at": None,
+        "created_at": ts,
+        "created_iso": iso(ts),
+    }))
+    audit_event("ab.create", caller, target=exp["id"],
+                meta={"agent_id": exp["agent_id"], "mode": mode, "variants": names})
+    return exp
+
+
+def list_experiments(status: str | None = None) -> list:
+    return _EXPERIMENTS.list(filters={"status": status} if status else None,
+                             limit=10 ** 6)
+
+
+def find_running_experiment(agent_id: str) -> dict | None:
+    """查某 agent 当前 running 实验（供 invoke opt-in 接入，默认不启用）。"""
+    for e in _EXPERIMENTS.list(limit=10 ** 6):
+        if e.get("agent_id") == str(agent_id) and e.get("status") == "running":
+            return e
+    return None
+
+
+def assign_variant(exp: dict, user_key: str) -> dict | None:
+    """对 running 实验做确定性变体分配；返回 {exp_id,variant,prompt_override,mode}。"""
+    if exp is None or exp.get("status") != "running":
+        return None
+    variants = exp.get("variants") or []
+    weights = [max(0.0, float(v.get("weight", 0))) for v in variants]
+    s = sum(weights) or 1.0
+    cum: list[float] = []
+    acc = 0.0
+    for w in weights:
+        acc += w / s
+        cum.append(acc)
+    pos = _bucket(user_key) / 10000.0
+    for i, c in enumerate(cum):
+        if pos <= c or i == len(cum) - 1:
+            return {"exp_id": exp["id"], "variant": variants[i]["name"],
+                    "prompt_override": variants[i].get("prompt_override", ""),
+                    "mode": exp.get("mode")}
+    return None
+
+
+def record_outcome(exp_id: str, variant: str, outcome: dict) -> dict:
+    """记录某变体的一次产出：adopted / satisfaction / success。"""
+    o = outcome or {}
+    ts = now()
+    return _EXP_OUTCOMES.put(_row({
+        "id": new_id("abo"),
+        "exp_id": str(exp_id or ""),
+        "variant": str(variant or ""),
+        "adopted": bool(o.get("adopted")),
+        "satisfaction": _opt_float(o.get("satisfaction")),
+        "success": bool(o.get("success", True)),
+        "userId": str(o.get("userId") or ""),
+        "created_at": ts,
+        "created_iso": iso(ts),
+    }))
+
+
+def experiment_report(exp_id: str) -> dict:
+    """按 variant 对比采纳率/满意度/成功率；样本不足标 insufficient；给出 winner。"""
+    exp = _EXPERIMENTS.get(str(exp_id or ""))
+    if exp is None:
+        raise KeyError(f"实验不存在：{exp_id}")
+    outcomes = [o for o in _EXP_OUTCOMES.list(limit=10 ** 6)
+                if o.get("exp_id") == exp_id]
+    by_var: dict[str, dict] = {}
+    for v in exp.get("variants") or []:
+        by_var[v["name"]] = {"variant": v["name"], "samples": 0, "adopted": 0,
+                             "success": 0, "sat_sum": 0.0, "sat_n": 0}
+    for o in outcomes:
+        slot = by_var.get(str(o.get("variant") or ""))
+        if not slot:
+            continue
+        slot["samples"] += 1
+        if bool(o.get("adopted")):
+            slot["adopted"] += 1
+        if bool(o.get("success")):
+            slot["success"] += 1
+        sat = o.get("satisfaction")
+        if sat is not None:
+            slot["sat_sum"] += float(sat)
+            slot["sat_n"] += 1
+    for slot in by_var.values():
+        n = slot["samples"]
+        slot["adoption_rate"] = round(slot["adopted"] / n, 4) if n else 0.0
+        slot["success_rate"] = round(slot["success"] / n, 4) if n else 0.0
+        slot["avg_satisfaction"] = round(slot["sat_sum"] / slot["sat_n"], 4) if slot["sat_n"] else None
+        slot["sufficient"] = n >= _AB_MIN_SAMPLES
+    rows = list(by_var.values())
+    winner = None
+    if exp.get("mode") == "ab":
+        cand = [r for r in rows if r["sufficient"]]
+        if cand:
+            winner = max(cand, key=lambda r: r["adoption_rate"])["variant"]
+    insufficient = all(not r["sufficient"] for r in rows)
+    return {
+        "exp_id": exp_id,
+        "mode": exp.get("mode"),
+        "status": exp.get("status"),
+        "variants": rows,
+        "winner": winner,
+        "insufficient_data": insufficient,
+        "min_samples_per_variant": _AB_MIN_SAMPLES,
+        "note": ("ab 模式达样本阈值后给 winner；gray 模式只放量对比不自动选优"
+                 if exp.get("mode") == "ab"
+                 else "gray 模式：按权重放量，建议用 set_rollout_weight 渐进，达标后 promote"),
+    }
+
+
+def set_rollout_weight(exp_id: str, variant: str, weight: float, caller) -> dict:
+    """灰度发布：调整某变体权重（其余按比例缩放使总和=1）。仅管理员，仅 running。"""
+    if not is_admin(caller):
+        raise PermissionError("forbidden: 仅平台/部门管理员可调整灰度权重")
+    exp = _EXPERIMENTS.get(str(exp_id or ""))
+    if exp is None:
+        raise KeyError(f"实验不存在：{exp_id}")
+    if exp.get("status") != "running":
+        raise ValueError(f"实验已 {exp.get('status')}，不可调整权重")
+    variants = exp.get("variants") or []
+    target = next((v for v in variants if v["name"] == str(variant)), None)
+    if target is None:
+        raise ValueError(f"变体不存在：{variant}")
+    w = max(0.0, float(weight))
+    others = [v for v in variants if v["name"] != str(variant)]
+    other_sum = sum(max(0.0, v["weight"]) for v in others)
+    if other_sum <= 0 and w < 1.0:
+        raise ValueError("其余变体权重和为 0，无法缩放；请同时调整其它变体")
+    remaining = 1.0 - w
+    new_variants = []
+    for v in variants:
+        if v["name"] == str(variant):
+            new_variants.append({**v, "weight": round(w, 4)})
+        else:
+            vw = max(0.0, v["weight"])
+            new_variants.append({**v, "weight": round(vw / other_sum * remaining, 4)
+                                 if other_sum else 0.0})
+    updated = _EXPERIMENTS.update(exp_id, {"variants": new_variants}) or exp
+    audit_event("ab.rollout", caller, target=exp_id, meta={"variant": variant, "weight": w})
+    return updated
+
+
+def promote_variant(exp_id: str, variant: str, caller) -> dict:
+    """结束实验并把 winner 落一条演化建议（pending，人在环审批，不直接改 prompt）。"""
+    if not is_admin(caller):
+        raise PermissionError("forbidden: 仅平台/部门管理员可结束实验")
+    exp = _EXPERIMENTS.get(str(exp_id or ""))
+    if exp is None:
+        raise KeyError(f"实验不存在：{exp_id}")
+    if exp.get("status") != "running":
+        raise ValueError(f"实验已 {exp.get('status')}，不可 promote")
+    target = next((v for v in exp.get("variants") or [] if v["name"] == str(variant)), None)
+    if target is None:
+        raise ValueError(f"变体不存在：{variant}")
+    ended = _EXPERIMENTS.update(exp_id, {"status": "ended", "ended_at": iso(now())}) or exp
+    # 落一条 pending 演化建议（prompt 类），审批后才生效——绝不静默改线上
+    prop = create_proposal(
+        kind="prompt",
+        title=f"[A/B winner] {exp.get('title')} → {variant}",
+        payload={"agent_id": exp.get("agent_id"),
+                 "prompt_override": target.get("prompt_override", ""),
+                 "source_exp": exp_id},
+        caller=caller,
+        source=f"ab_promote:{exp_id}",
+    )
+    return {"ended_experiment": ended, "proposal": prop, "requires_approval": True,
+            "silent_db_write": False,
+            "note": "promote 结束实验并生成一条 pending 演化建议；审批通过后才改线上 prompt（人在环）"}
+
+
 # ---- 测试隔离 --------------------------------------------------------------
 def reset_state() -> None:
     """清空全部内存状态（测试间隔离 / 运维手动重置）。"""
-    for store in (_FEEDBACK, _GAPS, _PROPOSALS, _VERSIONS, _QUALITY):
+    for store in (_FEEDBACK, _GAPS, _PROPOSALS, _VERSIONS, _QUALITY,
+                  _EXPERIMENTS, _EXP_OUTCOMES):
         store.clear()

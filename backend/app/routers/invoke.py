@@ -271,11 +271,25 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
 
     t0 = time.time()
     # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
+    # P1 反馈 A/B（opt-in，默认关）：开启 AB_ENABLED 时，若 agent 在某 running 实验，
+    # 按用户确定性分配变体 prompt 并拼接到 system_prompt；默认不启用，零行为变更。
+    system_prompt = agent.get("system_prompt")
+    ab_variant = None
+    if getattr(settings, "AB_ENABLED", False):
+        try:
+            _exp = feedback.find_running_experiment(req.agent_id)
+            if _exp is not None:
+                _av = feedback.assign_variant(_exp, getattr(caller, "userId", "") or run_id)
+                if _av and _av.get("prompt_override"):
+                    system_prompt = (system_prompt or "") + "\n\n" + _av["prompt_override"]
+                    ab_variant = _av["variant"]
+        except Exception:
+            ab_variant = None
     if not served_from_cache:
         try:
             result = agent_runtime.run_agent(
                 req.agent_id, safe_input, caller, history=history,
-                system_prompt=agent.get("system_prompt"),
+                system_prompt=system_prompt,
                 adapter_type=agent.get("adapter_type", ""),
                 file_context=file_context,
                 # M26：技能定义可要求抓取前 N 篇网页正文（竞品调研），其余只要摘要
@@ -289,6 +303,7 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
     elapsed_ms = int((time.time() - t0) * 1000)
     result["answer"] = result.get("answer", "")
+    result["ab_variant"] = ab_variant  # 命中的 A/B 变体（opt-in；默认 None）
     # M27 输出严格改写（opt-in）：GUARDRAILS_OUTPUT_ENFORCE=1 时把脱敏答案落回，
     # 真正拦截泄密。默认关，仅观测，不动答案原文（保护依赖答案的验收断言）。
     if getattr(settings, "GUARDRAILS_OUTPUT_ENFORCE", False):
