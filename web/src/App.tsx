@@ -12,6 +12,7 @@ import { ModelsPage } from "./pages/Models";
 import { PilotPage } from "./pages/Pilot";
 import { SkillsPage } from "./pages/Skills";
 import { PlatformOpsPage } from "./pages/PlatformOps";
+import { IdentityPage } from "./pages/Identity";
 import { BuilderPage } from "./pages/Builder";
 import { useRole } from "./role";
 
@@ -27,6 +28,7 @@ const ADMIN_TABS: { k: string; label: string }[] = [
   { k: "models", label: "模型管理" },
   { k: "retrieve", label: "召回演示" },
   { k: "platform", label: "平台运营台" },
+  { k: "identity", label: "身份与集成" },
 ];
 
 function RetrievePage() {
@@ -354,6 +356,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
                 {adminTab === "models" && <ModelsPage isAdmin={isAdmin} />}
                 {adminTab === "retrieve" && <RetrievePage />}
                 {adminTab === "platform" && <PlatformOpsPage isAdmin={isAdmin} />}
+                {adminTab === "identity" && <IdentityPage isAdmin={isAdmin} />}
               </div>
             </div>
           </>

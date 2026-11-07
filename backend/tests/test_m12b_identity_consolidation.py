@@ -77,3 +77,22 @@ def test_sso_callback_id_token_branch_verifies(monkeypatch):
     assert d["token"] == "fake.jwt.token"   # 原样回传作 Bearer，网关走 OIDC 验签
     assert d["user"]["userId"] == "u_real"
     assert d["user"]["role"] == "dept_admin"
+
+
+def test_auth_settings_public_and_masks():
+    # /auth/settings 公开、暴露收口态与脱敏 issuer/client_id，不含任何密钥
+    orig = settings.AUTH_ENFORCE_OIDC
+    settings.AUTH_ENFORCE_OIDC = True
+    settings.OIDC_ISSUER = "http://idp.example.com:8000"
+    settings.OIDC_CLIENT_ID = "supersecretclientid"
+    try:
+        r = _client().get("/api/v1/auth/settings")
+        assert r.status_code == 200
+        d = r.json()["data"]
+        assert d["enforce_oidc"] is True
+        assert "supersecretclientid" not in str(d)        # 明文 client_id 不得泄露
+        assert d["client_id_masked"].startswith("supe")    # 首尾保留、中间打码
+        assert d["client_id_masked"].endswith("ntid")
+        assert d["issuer_masked"]                           # 脱敏 issuer 非空
+    finally:
+        settings.AUTH_ENFORCE_OIDC = orig

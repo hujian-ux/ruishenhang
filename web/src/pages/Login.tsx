@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { AUTH_STYLE, STYLE } from "../theme";
 import { isConfigured, loadConfig, redirectUri } from "../auth/config";
@@ -13,6 +13,19 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(notice);
   const [devBusy, setDevBusy] = useState(false);
+  const [enforce, setEnforce] = useState(false);
+
+  // 收口开关：AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，且已配身份源则直接跳 SSO。
+  useEffect(() => {
+    let alive = true;
+    api.getAuthSettings().then((r: any) => {
+      if (!alive) return;
+      const on = !!r?.data?.enforce_oidc;
+      setEnforce(on);
+      if (on && configured) oidcLogin();
+    }).catch(() => { /* 拿不到就按非收口处理，演示入口可用 */ });
+    return () => { alive = false; };
+  }, [configured]);
 
   const oidcLogin = async () => {
     setErr("");
@@ -113,12 +126,21 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
 
             {err && <div className="err">{err}</div>}
 
-            <div className="auth-rule">演示</div>
-            <div className="auth-foot">
-              <span className="link" onClick={() => !devBusy && devLogin(false)}>员工视角</span>
-              <span style={{ color: "var(--line)" }}>|</span>
-              <span className="link" onClick={() => !devBusy && devLogin(true)}>管理员视角</span>
-            </div>
+            {enforce ? (
+              <div className="warn">
+                身份收口已开启：已禁用演示入口，请使用上方「企业身份登录」走真实 SSO。
+                {!configured && " 但前端尚未填写 Client ID，请先联系管理员在「配置身份源」完成接入。"}
+              </div>
+            ) : (
+              <>
+                <div className="auth-rule">演示</div>
+                <div className="auth-foot">
+                  <span className="link" onClick={() => !devBusy && devLogin(false)}>员工视角</span>
+                  <span style={{ color: "var(--line)" }}>|</span>
+                  <span className="link" onClick={() => !devBusy && devLogin(true)}>管理员视角</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

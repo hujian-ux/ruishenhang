@@ -206,6 +206,19 @@ export const api = {
   toggleModel: (modelId: string, status: "active" | "inactive") =>
     req<any>("PATCH", `/models/${modelId}`, { status }),
 
+  // ── P1-173 身份与集成：OIDC 状态 + IM 运行时接入 ──
+  getAuthSettings: () => req<any>("GET", "/auth/settings"),
+  saveImConfig: (body: {
+    provider: "wecom" | "dingtalk"; corp_id: string; secret: string;
+    agent_id: string; webhook_token: string; encoding_aes_key?: string;
+  }) => req<any>("POST", "/integrations/im/config", body),
+  listImConfigs: () => req<any>("GET", "/integrations/im/config"),
+  deleteImConfig: (provider: string) => req<any>("DELETE", `/integrations/im/config/${provider}`),
+  sendImMessage: (body: { provider: string; to_user: string; text: string }) =>
+    req<any>("POST", "/integrations/im/send", body),
+  imApprove: (body: { provider: string; to_user: string; title: string; url: string }) =>
+    req<any>("POST", "/integrations/im/notify-approval", body),
+
   // ── M27：蓝图缺口收口 ──
   getReadiness: () => req<any>("GET", "/ops/readiness"),
   getOpsHealth: () => req<any>("GET", "/ops/health"),

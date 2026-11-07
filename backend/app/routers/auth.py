@@ -68,6 +68,32 @@ async def oidc_health():
     return oidc_discovery_health()
 
 
+def _mask(v: str) -> str:
+    if not v:
+        return ""
+    if len(v) <= 8:
+        return "*" * len(v)
+    return v[:4] + "*" * max(4, len(v) - 8) + v[-4:]
+
+
+@router.get("/settings")
+async def auth_settings():
+    """公开（无需登录）：暴露 OIDC 收口状态与脱敏 issuer/client_id，
+    供登录页决定是否隐藏演示入口、以及「身份与集成」页展示状态。不含任何密钥。"""
+    issuer = settings.OIDC_ISSUER
+    client_id = settings.OIDC_CLIENT_ID or settings.OIDC_AUDIENCE
+    return {
+        "code": 0,
+        "data": {
+            "oidc_enabled": settings.OIDC_ENABLED,
+            "enforce_oidc": settings.AUTH_ENFORCE_OIDC,
+            "issuer_masked": _mask(issuer) if issuer else "",
+            "client_id_masked": _mask(client_id) if client_id else "",
+            "note": "AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，必须走真实企业 SSO。",
+        },
+    }
+
+
 # ── 后端代前端换码（标准 Authorization Code + PKCE）──────────────────────────
 # 放在后端做的好处：Casdoor token 端点无需开放浏览器 CORS；client_secret（若有）不出后端。
 class OidcExchangeRequest(BaseModel):
