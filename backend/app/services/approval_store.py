@@ -7,9 +7,26 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from app.services import pg_store
+from app.services import pg_store, tenant_store
 
 _TICKETS: Dict[str, Dict[str, Any]] = {}
+
+# 默认单级审批（与历史行为一致）：未配置租户模板时退化为单步。
+DEFAULT_STAGES = [{"name": "默认审批", "approver_role": None}]
+
+
+def resolve_stages(tenant_id: str) -> List[Dict[str, Any]]:
+    """按租户审批模板解析多级链路；无模板则单级（保持历史单步行为）。
+
+    tenant.config.approval = {"stages": [{"name": ..., "approver_role": "dept_admin"|...}, ...]}
+    末级 approve 才落 approved；任意级 reject 即时终态。
+    """
+    if tenant_id:
+        cfg = tenant_store.get_config(tenant_id) or {}
+        stages = (cfg.get("approval") or {}).get("stages")
+        if stages:
+            return [dict(s) for s in stages]
+    return [dict(s) for s in DEFAULT_STAGES]
 
 
 class TicketNotFound(Exception):
@@ -29,7 +46,8 @@ def _persist(t: Dict[str, Any]) -> None:
 
 
 def create_ticket(agent_id: str, requester_id: str, dept_id: str,
-                  tenant_id: str = "") -> Dict[str, Any]:
+                  tenant_id: str = "", stages: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    stages = stages or resolve_stages(tenant_id)
     approval_id = "apr_" + uuid.uuid4().hex[:12]
     ticket = {
         "approval_id": approval_id,
@@ -40,6 +58,9 @@ def create_ticket(agent_id: str, requester_id: str, dept_id: str,
         "requester_id": requester_id,
         "dept_id": dept_id,
         "tenant_id": tenant_id,    # M43：租户隔离；平台级 115 导入留空
+        "stages": stages,          # M46：多级审批链路（默认单级）
+        "current_stage": 0,
+        "decisions": [],           # 每级决策记录
         "status": "pending",  # pending | approved | rejected
         "decided_by": None,
         "comment": None,
@@ -53,7 +74,8 @@ def create_ticket(agent_id: str, requester_id: str, dept_id: str,
 
 def create_batch_ticket(agent_ids: List[str], requester_id: str, dept_id: str,
                         batch_name: str | None = None,
-                        tenant_id: str = "") -> Dict[str, Any]:
+                        tenant_id: str = "",
+                        stages: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
     """M15：批量导入合并为一张批次单。
 
     115 个技能包逐个开单会把审批台压垮且人工不可能逐条看；合并成一张
@@ -61,6 +83,7 @@ def create_batch_ticket(agent_ids: List[str], requester_id: str, dept_id: str,
     """
     if not agent_ids:
         raise ValueError("批次单至少需要一个 agent_id")
+    stages = stages or resolve_stages(tenant_id)
     approval_id = "apr_" + uuid.uuid4().hex[:12]
     ticket = {
         "approval_id": approval_id,
@@ -71,6 +94,9 @@ def create_batch_ticket(agent_ids: List[str], requester_id: str, dept_id: str,
         "requester_id": requester_id,
         "dept_id": dept_id,
         "tenant_id": tenant_id,    # M43：租户隔离；平台级 115 导入留空
+        "stages": stages,          # M46：多级审批链路（默认单级）
+        "current_stage": 0,
+        "decisions": [],
         "status": "pending",
         "decided_by": None,
         "comment": None,
@@ -98,17 +124,45 @@ def ticket_for_agent(agent_id: str) -> Dict[str, Any] | None:
 
 def decide(approval_id: str, decision: str, decider_id: str, decider_role: str,
            decider_dept: str, comment: str | None = None) -> Dict[str, Any]:
-    """决策审批单；返回单据（含终态）。状态迁移在此落账，智能体状态由路由同步。"""
+    """决策审批单；返回单据（含终态）。状态迁移在此落账，智能体状态由路由同步。
+
+    M46 多级：当前级 approve 且非末级 → 推进 current_stage（仍 pending）；
+    末级 approve → approved；任意级 reject → rejected（即时终态）。
+    """
     t = get_ticket(approval_id)
     if t["status"] != "pending":
         raise DuplicateDecision(approval_id)
-    # dept_admin 只能审本部门发起的单；platform_admin 全局可审
+    stages = t.get("stages") or DEFAULT_STAGES
+    idx = t.get("current_stage", 0)
+    stage = stages[idx] if idx < len(stages) else stages[-1]
+    # 按级角色校验：该级要求某角色，且决策人非 platform_admin 且不符 → 无权
+    req_role = stage.get("approver_role")
+    if req_role and decider_role != "platform_admin" and decider_role != req_role:
+        raise ForbiddenDecider(approval_id)
+    # 保留历史跨部门规则：dept_admin 只能审本部门发起的单
     if decider_role == "dept_admin" and t["dept_id"] != decider_dept:
         raise ForbiddenDecider(approval_id)
-    t["status"] = "approved" if decision == "approve" else "rejected"
-    t["decided_by"] = decider_id
-    t["comment"] = comment
-    t["decided_at"] = time.time()
+    t.setdefault("decisions", []).append({
+        "stage": idx,
+        "stage_name": stage.get("name"),
+        "decider_id": decider_id,
+        "decision": decision,
+        "comment": comment,
+        "at": time.time(),
+    })
+    if decision == "reject":
+        t["status"] = "rejected"
+        t["decided_by"] = decider_id
+        t["comment"] = comment
+        t["decided_at"] = time.time()
+    else:
+        if idx < len(stages) - 1:
+            t["current_stage"] = idx + 1  # 流转到下级，仍是 pending
+        else:
+            t["status"] = "approved"
+            t["decided_by"] = decider_id
+            t["comment"] = comment
+            t["decided_at"] = time.time()
     _persist(t)
     return t
 

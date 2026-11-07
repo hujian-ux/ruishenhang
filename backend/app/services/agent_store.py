@@ -33,6 +33,10 @@ VALID_STATUS = {"pending_review", "published", "rejected"}
 # 作用：对外界面打开即可直接提问，不必先挑一个技能包——否则用户第一句"你好"都发不出去。
 BUILTIN_ASSISTANT_ID = "ag_builtin_assistant"
 
+# M46 平台级「审批助手」：辅助层技能（填单/摘要/合规校验），明确只建议不落账。
+# 与内置通用助手同属 builtin，不进 115 业务口径、不进 catalog.total。
+APPROVAL_ASSISTANT_ID = "ag_approval_assistant"
+
 
 def ensure_builtin_assistant() -> Dict[str, Any]:
     """幂等注册内置通用助手；已存在则原样返回（不覆盖用户改过的配置）。"""
@@ -59,6 +63,41 @@ def ensure_builtin_assistant() -> Dict[str, Any]:
         "builtin": True,
         # 留空表示不覆盖运行时默认提示词（agent_runtime.SYSTEM_PROMPT）
         "system_prompt": "",
+    })
+
+
+def ensure_approval_assistant() -> Dict[str, Any]:
+    """幂等注册平台级「审批助手」；已存在则原样返回（不覆盖用户改过的配置）。
+
+    定位：辅助层技能——帮申请人填单、抽要点、做合规/风险校验，帮审批人看进度。
+    硬约束：只建议不落账；最终 approve/reject 由授权管理员在审批台 decide() 落账。
+    builtin=True 使其不进 115 业务口径、不进 catalog.total（与内置通用助手同待遇）。
+    """
+    cur = _AGENTS.get(APPROVAL_ASSISTANT_ID)
+    if cur:
+        if not cur.get("knowledge_scope"):
+            cur["knowledge_scope"] = "global"
+            save(cur)
+        return cur
+    return save({
+        "agent_id": APPROVAL_ASSISTANT_ID,
+        "name": "审批助手",
+        "description": "帮申请人自动填单、抽取待批要点、做合规与风险校验；帮审批人生成摘要与催办建议。注意：本助手只出建议，不替你批准或驳回。",
+        "adapter_type": "llm",
+        "scope": "global",
+        "knowledge_scope": "global",
+        "status": "published",
+        "category": "approval",
+        "category_cn": "审批",
+        "sub_function": "",
+        "builtin": True,
+        "system_prompt": (
+            "你是平台的「审批助手」，只做辅助、不落账。\n"
+            "可做的事：帮用户补全审批申请单（用途、知识域、理由）；"
+            "解释某张审批单当前走到第几级、还卡在哪；给出合规与风险提示。\n"
+            "绝对不做：调用或模拟审批的批准/驳回——那是授权管理员在审批台的操作。"
+            "若用户让你「帮我批了」，明确告知他审批必须由授权管理员 commit，你只能准备材料与提醒。"
+        ),
     })
 
 

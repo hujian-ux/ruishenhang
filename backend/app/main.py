@@ -52,6 +52,7 @@ async def lifespan(app: FastAPI):
     kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
     agent_store.load_from_pg()   # M15：注册的智能体/技能包重启不清零
     agent_store.ensure_builtin_assistant()  # 内置通用助手：新用户开口即可提问
+    agent_store.ensure_approval_assistant()  # M46 平台级审批助手（辅助层，只建议不落账）
     agent_store.ensure_public_skills()      # 公共库：文案/PPT/表格等办公基础技能（9 条，不进 115 口径）
     file_store.load_from_pg()    # M16：上传件与产出物重启后仍可下载
     pg_store._connect()  # 触发建表/探活（一次性）

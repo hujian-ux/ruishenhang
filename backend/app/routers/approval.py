@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import ApprovalDecisionRequest, ApprovalDecisionResponse
-from app.services import agent_store, approval_store, audit
+from app.services import agent_store, approval_store, audit, approval_assistant
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -51,10 +51,18 @@ async def decide(
         if agent_store.set_status(aid, new_status):
             migrated.append(aid)
     agent = agent_store.get(ticket["agent_id"])
+    # M46：多级进度信息
+    stages = ticket.get("stages") or [{"name": "默认审批"}]
+    total = len(stages)
+    cur = ticket.get("current_stage", 0)
+    finished = ticket["status"] != "pending"
+    stage_name = stages[cur]["name"] if not finished else None
+    next_stage_name = stages[cur + 1]["name"] if (not finished and cur + 1 < total) else None
     audit.record("approval", caller, target=approval_id, result=ticket["status"],
                  meta={"agent_id": ticket["agent_id"], "agent_ids": target_ids,
                        "batch": bool(ticket.get("batch")), "decision": req.decision,
-                       "migrated": len(migrated)}, trace_id=trace_id)
+                       "migrated": len(migrated), "current_stage": cur,
+                       "total_stages": total}, trace_id=trace_id)
     return {
         "code": 0,
         "data": {
@@ -66,6 +74,12 @@ async def decide(
             "migrated_count": len(migrated),
             "decided_by": caller.userId,
             "comment": ticket["comment"],
+            # M46 多级进度
+            "current_stage": cur,
+            "total_stages": total,
+            "stage_name": stage_name,
+            "next_stage_name": next_stage_name,
+            "finished": finished,
         },
     }
 
@@ -79,3 +93,56 @@ async def pending(caller: CallerContext = Depends(get_caller)):
     tenant_id = None if caller.role == "platform_admin" else caller.tenantId
     rows = approval_store.pending_list(dept, tenant_id)
     return {"code": 0, "data": {"count": len(rows), "tickets": rows}}
+
+
+@router.get("/{approval_id}")
+async def ticket_detail(approval_id: str = PathParam(...),
+                        caller: CallerContext = Depends(get_caller)):
+    """审批单详情（含多级进度）；申请人本人或管理员可读。"""
+    try:
+        t = approval_store.get_ticket(approval_id)
+    except approval_store.TicketNotFound:
+        raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
+    if caller.role not in ("platform_admin", "dept_admin") and t["requester_id"] != caller.userId:
+        raise HTTPException(status_code=403, detail="forbidden: 仅申请人或管理员可查看")
+    stages = t.get("stages") or [{"name": "默认审批"}]
+    total = len(stages)
+    cur = t.get("current_stage", 0)
+    finished = t["status"] != "pending"
+    return {
+        "code": 0,
+        "data": {
+            "approval_id": t["approval_id"],
+            "agent_id": t["agent_id"],
+            "agent_ids": t.get("agent_ids"),
+            "batch": bool(t.get("batch")),
+            "requester_id": t["requester_id"],
+            "dept_id": t["dept_id"],
+            "tenant_id": t.get("tenant_id"),
+            "status": t["status"],
+            "stages": stages,
+            "current_stage": cur,
+            "total_stages": total,
+            "stage_name": stages[cur]["name"] if not finished else "已完成",
+            "finished": finished,
+            "decisions": t.get("decisions") or [],
+            "created_at": t.get("created_at"),
+            "decided_at": t.get("decided_at"),
+        },
+    }
+
+
+@router.post("/{approval_id}/assist")
+async def assist(approval_id: str = PathParam(...),
+                 caller: CallerContext = Depends(get_caller)):
+    """审批助手（辅助层）：返回申请草稿/摘要/合规风险建议，不落账。
+
+    权限：申请人本人或管理员可读；最终 approve/reject 仍由审批台 decide() 落账。
+    """
+    try:
+        t = approval_store.get_ticket(approval_id)
+    except approval_store.TicketNotFound:
+        raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
+    if caller.role not in ("platform_admin", "dept_admin") and t["requester_id"] != caller.userId:
+        raise HTTPException(status_code=403, detail="forbidden: 仅申请人或管理员可使用")
+    return {"code": 0, "data": approval_assistant.assistant_advise(approval_id)}
