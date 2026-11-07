@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from app.core.config import settings
 from app.models.caller import CallerContext
-from app.services import kb_store
+from app.services import kb_store, guardrails
 
 TEXT_EXT = {".txt", ".md", ".markdown", ".csv", ".json", ".log", ".yml", ".yaml", ".sql"}
 HTML_EXT = {".html", ".htm"}
@@ -128,11 +128,23 @@ def import_corpus(root: str | Path, caller: CallerContext,
 
     rows: List[Dict[str, Any]] = []
     failed: List[Dict[str, str]] = []
+    poisoned: List[Dict[str, str]] = []
     for i, p in enumerate(files, start=1):
         try:
             item = extract(p)
-            rows.append({**item, "filename": p.name,
-                         "path": str(p.relative_to(root_path)).replace("\\", "/")})
+            rel = str(p.relative_to(root_path)).replace("\\", "/")
+            # M27/安全：入库防投毒 —— 命中强注入信号的文档默认不入库，计入 poisoned 清单
+            try:
+                pscan = guardrails.scan_ingest(item["content"])
+            except Exception:
+                pscan = {"poisoned": False, "hits": []}
+            item["poisoned"] = pscan["poisoned"]
+            item["poison_scan"] = pscan
+            if pscan["poisoned"] and settings.INGEST_REJECT_POISONED:
+                poisoned.append({"path": rel, "reason": "投毒命中：" +
+                                ", ".join(h.get("kind", "") for h in pscan.get("hits", []))})
+                continue
+            rows.append({**item, "filename": p.name, "path": rel})
         except IngestError as e:
             failed.append({"path": str(p.relative_to(root_path)).replace("\\", "/"),
                            "reason": str(e)})
@@ -166,6 +178,8 @@ def import_corpus(root: str | Path, caller: CallerContext,
         "duplicated": result["duplicated"],
         "failed_count": len(failed),
         "failed": failed,
+        "poisoned_count": len(poisoned),
+        "poisoned": poisoned,
         "chars_added": result["chars_added"],
         "elapsed_ms": elapsed,
         "files_per_sec": round(len(files) / (elapsed / 1000), 1) if elapsed else 0,

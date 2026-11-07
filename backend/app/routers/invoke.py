@@ -225,11 +225,14 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
                          meta={"run_id": run_id, "hits": len(input_guard["hits"])},
                          trace_id=trace_id)
             raise HTTPException(status_code=400, detail="输入命中提示注入 / 越权指令护栏，已拒绝执行")
+    # M27/DNS：归一化后的文本喂给运行时（清零宽/同形/控制字符），防不可见字符注入绕过字面检测；
+    # clean_text 缺失时回落原输入。必须放在 run_agent 之前，否则 safe_input 未绑定。
+    safe_input = input_guard.get("clean_text") or req.input
     t0 = time.time()
     # M15：把该智能体（技能包）的执行提示词与适配器类型交给运行时，不再全局共用默认助手
     try:
         result = agent_runtime.run_agent(
-            req.agent_id, req.input, caller, history=history,
+            req.agent_id, safe_input, caller, history=history,
             system_prompt=agent.get("system_prompt"),
             adapter_type=agent.get("adapter_type", ""),
             file_context=file_context,
@@ -243,6 +246,18 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
                      meta={"run_id": run_id, "error": str(exc)[:300]}, trace_id=trace_id)
         raise HTTPException(status_code=502, detail=f"模型调用失败：{exc}")
     elapsed_ms = int((time.time() - t0) * 1000)
+    result["answer"] = result.get("answer", "")
+    # M27 输出严格改写（opt-in）：GUARDRAILS_OUTPUT_ENFORCE=1 时把脱敏答案落回，
+    # 真正拦截泄密。默认关，仅观测，不动答案原文（保护依赖答案的验收断言）。
+    if getattr(settings, "GUARDRAILS_OUTPUT_ENFORCE", False):
+        try:
+            guarded = guardrails.apply_output_guard(
+                result["answer"], caller=caller,
+                hits=result.get("citations") or [],
+                evidence=_evidence_text(result))
+            result["answer"] = guarded["answer"]
+        except Exception:
+            pass
     # M27：安全扫描 / 证据核对 / 缓存观测 / 路由建议 / 置信 / 质量埋点（旁路，不改答案）
     m27 = _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard)
 

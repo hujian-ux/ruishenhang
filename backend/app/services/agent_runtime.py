@@ -9,7 +9,7 @@ LangGraph 为可选依赖；未安装时退化为确定性 stub，保证可运�
 from typing import Any, Dict, List, Optional, TypedDict
 
 from app.models.caller import CallerContext
-from app.services import knowledge, model_gateway, session_store, web_search
+from app.services import knowledge, model_gateway, session_store, web_search, guardrails
 from app.core.config import settings
 
 
@@ -193,7 +193,15 @@ def run_web_search(query: str, fetch_top: int = 0):
 
     build_graph 与 no-LangGraph fallback 两条路径都走这里，避免出现
     「装了 LangGraph 会查、没装就不查」这种只在某个环境复现的行为差异。
+    M27：出网前先过「工具统一过滤」护栏（私网 URL / 白名单）。
     """
+    try:
+        tc = guardrails.guard_tool_call("web_search", {"query": query}, None)
+        if not tc["allowed"]:
+            return [], {"ok": False, "degraded": True, "mode": "blocked_by_guard",
+                        "error": f"tool_guard:{tc['reason']}"}, {}
+    except Exception:
+        pass
     try:
         out = web_search.search(query, settings.WEB_SEARCH_MAX_RESULTS, fetch_top=fetch_top)
         meta = {k: out.get(k) for k in ("ok", "degraded", "mode", "provider",
@@ -227,7 +235,12 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
                                "query_rewritten": False,
                                "web_hits": [], "web_meta": {}}
         if use_retrieval:
-            hits, filtered = knowledge.retrieve(query, state["caller"], top_k=6)
+            # M27：检索工具统一过滤点（白名单 / scope / 越权拦截）。
+            tc = guardrails.guard_tool_call("rag_retrieve", {}, caller=state["caller"])
+            if tc["allowed"]:
+                hits, filtered = knowledge.retrieve(query, state["caller"], top_k=6)
+            else:
+                hits, filtered = [], 0
             out.update({"hits": hits, "filtered_out": filtered,
                         "query_rewritten": query != state["input"]})
         # M26：公网检索与内部检索并行取样，但结果分装两个键，永不合并
@@ -335,7 +348,11 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     except RuntimeError:
         # 骨架 stub：不依赖 LangGraph 也能演示「记忆→检索→生成」链路（LLM 接入见 model_gateway）
         query = session_store.rewritten_query(user_input, history) if use_retrieval else user_input
-        hits, filtered = (knowledge.retrieve(query, caller, top_k=6) if use_retrieval else ([], 0))
+        if use_retrieval:
+            tc = guardrails.guard_tool_call("rag_retrieve", {}, caller=caller)
+            hits, filtered = knowledge.retrieve(query, caller, top_k=6) if tc["allowed"] else ([], 0)
+        else:
+            hits, filtered = ([], 0)
         ctx = compose_evidence(hits) if use_retrieval else ""
         web_hits, web_meta, _ = (run_web_search(query, web_fetch_top) if use_web else ([], {}, {}))
         web_ctx = compose_web_evidence(web_hits, web_meta) if use_web else ""

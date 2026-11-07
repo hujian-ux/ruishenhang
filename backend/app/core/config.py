@@ -84,6 +84,8 @@ class Settings:
     # M8 批量导入：单次扫描文件数上限、入索引字符上限（超出部分只存原文不建索引）
     INGEST_MAX_FILES = int(_env("INGEST_MAX_FILES", "1000"))
     INGEST_INDEX_CHAR_CAP = int(_env("INGEST_INDEX_CHAR_CAP", "20000"))
+    # 入库防投毒：命中强注入信号的文档不入库（计入 poisoned 清单）。默认开。
+    INGEST_REJECT_POISONED = _env("INGEST_REJECT_POISONED", "1") == "1"
     # M8 试点：是否加载 18 篇演示语料。真实语料进场后必须设 0，
     # 否则演示文档会参与竞争、稀释真实召回（实测会把 Recall@10 抬高成假象）。
     SEED_DEMO_CORPUS = _env("SEED_DEMO_CORPUS", "1") == "1"
@@ -167,6 +169,8 @@ class Settings:
     GUARDRAILS_SOURCE_ALLOWLIST = _env("GUARDRAILS_SOURCE_ALLOWLIST", "")  # 逗号分隔可信域名
     GUARDRAILS_TOOL_AUTH = _env("GUARDRAILS_TOOL_AUTH", "1") == "1"
     GUARDRAILS_OUTPUT_MASK = _env("GUARDRAILS_OUTPUT_MASK", "1") == "1"
+    # 输出严格改写（脱敏后答案真正落回响应）。默认关：仅观测，避免把依赖答案原文的验收断言悄悄改掉。
+    GUARDRAILS_OUTPUT_ENFORCE = _env("GUARDRAILS_OUTPUT_ENFORCE", "0") == "1"
     GUARDRAILS_MAX_INJECTION_HITS = int(_env("GUARDRAILS_MAX_INJECTION_HITS", "3"))
 
     FEEDBACK_ENABLED = _env("FEEDBACK_ENABLED", "1") == "1"
