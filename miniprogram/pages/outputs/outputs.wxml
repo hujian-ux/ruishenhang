@@ -1,0 +1,8 @@
+<view class="card" wx:if="{{items.length===0 && !busy}}">
+  <view class="muted">暂无产出物。先在「技能对话」中执行技能，产出物会在这里出现。</view>
+</view>
+<view class="card" wx:for="{{items}}" wx:key="url" data-url="{{item.url}}" bindtap="open">
+  <view class="title">{{item.name}}</view>
+  <view class="muted">点击复制下载链接</view>
+</view>
+<view wx:if="{{err}}" class="card err">{{err}}</view>

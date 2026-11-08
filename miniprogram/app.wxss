@@ -1,0 +1,23 @@
+page {
+  background: #0b1f3a;
+  color: #e8eef7;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+.btn {
+  background: #2f6bff;
+  color: #fff;
+  border-radius: 12rpx;
+  padding: 22rpx 0;
+  text-align: center;
+  margin: 16rpx 0;
+}
+.btn.ghost { background: transparent; border: 1rpx solid #3a5680; color: #b9c8e0; }
+.card {
+  background: #12294a;
+  border: 1rpx solid #1f3c66;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 16rpx;
+}
+.muted { color: #8aa0c4; font-size: 24rpx; }
+.title { font-size: 34rpx; font-weight: 600; margin: 8rpx 0 16rpx; }

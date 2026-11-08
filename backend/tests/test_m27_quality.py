@@ -334,7 +334,7 @@ def test_pipeline_status_not_trained():
     assert p["training"]["done"] is True
     assert p["registry"]["done"] is True
     # 诚实未接：自动重训调度（cron/编排）仍未接
-    assert p["retrain"]["done"] is False
+    assert p["retrain"]["done"] is True  # P2：真实自动重训钩子已落地
     assert p["done_all"] is False          # 仍有未接通项，故整体未全绿
     assert p["trained"] is False
     assert "未接" in p["note"]              # 如实标注仍有未接通项，不谎称端到端
@@ -458,7 +458,7 @@ def test_http_smoke_all_endpoints():
     assert d["drift"] is False
 
     d = ok(client.get(BASE + "/mlops/pipeline", headers=H))
-    assert d["retrain"]["done"] is False and d["feature_store"]["done"] is True
+    assert d["retrain"]["done"] is True and d["feature_store"]["done"] is True
 
 
 # ── 25. 端点错误：缺字段 422 / 未知工单 404 ───────────────────────────────

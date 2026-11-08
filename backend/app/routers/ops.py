@@ -10,7 +10,7 @@ import os
 
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.services import agent_store, fewshot, observability
+from app.services import agent_store, fewshot, observability, office_hard_rules
 
 router = APIRouter(prefix="/ops", tags=["ops"])
 
@@ -69,6 +69,19 @@ def backfill_hard_rules(caller: CallerContext = Depends(get_caller)):
     if caller.role != "platform_admin":
         return {"code": 3, "msg": "需要平台管理员权限"}
     return {"code": 0, "data": agent_store.backfill_hard_rules()}
+
+
+@router.post("/backfill-office-rules")
+def backfill_office_rules(caller: CallerContext = Depends(get_caller)):
+    """M15/M25 P1 · 一键补齐办公类业务包的「办公域」硬规则（仅平台管理员）。
+
+    在平台红线之外，给办公类（category_cn 含「办公」）业务包追加办公域特有红线
+    （财务不编造、合同带版本、报表带单位、PII 脱敏、排期标待确认、合规建议咨询）；
+    幂等，已含不动。
+    """
+    if caller.role != "platform_admin":
+        return {"code": 3, "msg": "需要平台管理员权限"}
+    return {"code": 0, "data": office_hard_rules.backfill_office_hard_rules()}
 
 
 @router.post("/build-fewshot")

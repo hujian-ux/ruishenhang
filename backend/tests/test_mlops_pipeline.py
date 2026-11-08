@@ -128,5 +128,5 @@ def test_pipeline_status_honest():
     assert s["feature_store"]["done"] is True
     assert s["training"]["done"] is True
     assert s["registry"]["done"] is True
-    assert s["retrain"]["done"] is False      # 诚实标注：自动重训调度未接
+    assert s["retrain"]["done"] is True       # P2：真实自动重训钩子已落地（漂移→训练→可选晋升）
     assert isinstance(s["feature_store"]["feast_available"], bool)

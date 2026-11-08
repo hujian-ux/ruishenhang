@@ -1,0 +1,16 @@
+{
+  "description": "睿深行 AI 工作台 · 微信小程序（接同一后端 API）",
+  "packOptions": { "ignore": [], "include": [] },
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.0.0",
+  "appid": "touristappid",
+  "projectname": "ruishenxing-ai-workbench",
+  "condition": {}
+}

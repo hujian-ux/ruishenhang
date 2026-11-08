@@ -11,6 +11,7 @@
 - GET    /mlops/trains/{run_id}     训练任务状态/指标
 - POST   /mlops/models/{model_id}/promote  晋升 staging→production（platform_admin）
 - POST   /mlops/drift/run           多维特征漂移（PSI + 均值漂移）
+- POST   /mlops/retrain             真实自动重训入口（platform_admin；需 MLOPS_AUTO_RETRAIN=1）
 
 鉴权：全部需登录；promote 需 platform_admin；数据集/模型/训练按 tenant_id 隔离。
 """
@@ -18,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.services import mlops
@@ -165,6 +167,29 @@ async def mlops_drift_run(body: dict, caller: CallerContext = Depends(get_caller
     try:
         data = mlops.run_drift(caller.tenantId, body["baseline_dataset_id"],
                                observed_records=observed, observed_dataset_id=observed_id)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"code": 0, "data": data}
+
+
+@router.post("/retrain")
+async def mlops_retrain(body: dict, caller: CallerContext = Depends(get_caller)):
+    """P2 真实自动重训入口（platform_admin）：漂移 → 真实训练 → 可选晋升。
+
+    安全默认：需 MLOPS_AUTO_RETRAIN=1 才允许真正跑训练；否则返回 409 提示先开启，
+    避免误触发训练/晋升。observed_records 为空时只返回漂移建议（不训练）。
+    """
+    if caller.role != "platform_admin":
+        raise HTTPException(status_code=403, detail="forbidden: 仅 platform_admin 可触发重训")
+    if not settings.MLOPS_AUTO_RETRAIN:
+        raise HTTPException(status_code=409,
+                            detail="MLOPS_AUTO_RETRAIN 未开启；开启后才允许自动重训（安全默认）")
+    _require_keys(body, "baseline_dataset_id")
+    try:
+        data = mlops.scheduled_retrain(
+            body["baseline_dataset_id"], body.get("observed_records") or [],
+            tenant_id=caller.tenantId, caller=caller,
+            auto_promote=bool(body.get("auto_promote", False)))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return {"code": 0, "data": data}

@@ -163,10 +163,12 @@ class Settings:
     OIDC_TENANT_CLAIM = _env("OIDC_TENANT_CLAIM", "")
     OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
 
-    # P1-173 身份收口：当置 1 时，任何环境都拒绝 dev token（不止 prod），且
+    # P1-173 身份收口：显式置 1 时任何环境都拒绝 dev token（不止 prod），且
     # /auth/sso/callback 不再接受 dev_admin 捷径，必须走真实 SSO（带 id_token 验签）。
-    # 默认 0：保持现有行为（仅 prod 拒 dev，演示可用 dev_admin）。开启后即为「收口态」。
-    AUTH_ENFORCE_OIDC = _env("AUTH_ENFORCE_OIDC", "0") == "1"
+    # 收口默认（fail-closed）：生产环境（APP_ENV=prod）若未显式设 AUTH_ENFORCE_OIDC=0，
+    # 一律强制收口，杜绝「忘记开开关就暴露 dev 后门」。非生产保持演示可用。
+    _enforce_raw = _env("AUTH_ENFORCE_OIDC", None)
+    AUTH_ENFORCE_OIDC = (_enforce_raw == "1") if _enforce_raw is not None else (APP_ENV == "prod")
 
     # 演示/开发 token 有效期（秒）。默认 12 小时：默认 2 小时会让演示到一半
     # 突然全线 401「missing caller context」，看不出是过期。
@@ -203,6 +205,11 @@ class Settings:
     AUDIT_LEGAL_HOLD_ACTIONS = _env("AUDIT_LEGAL_HOLD_ACTIONS", "approval,download,handoff")
     # 审计只读加密导出的 Fernet 密钥（base64 urlsafe 32 字节）。留空则导出为明文 CSV（并告警）。
     AUDIT_EXPORT_KEY = _env("AUDIT_EXPORT_KEY", "")
+
+    # ── MLOps 自动重训调度（P2 真实管线）──
+    # 默认关：漂移检测 + 重训建议钩子始终可用；仅当显式开 MLOPS_AUTO_RETRAIN=1 时，
+    # /mlops/retrain 与 scripts/mlops_scheduler.py 才会在检测到漂移后真正训练并可选晋升。
+    MLOPS_AUTO_RETRAIN = _env("MLOPS_AUTO_RETRAIN", "0") == "1"
 
     OBSERVABILITY_ENABLED = _env("OBSERVABILITY_ENABLED", "1") == "1"
     OPS_ALERT_ERROR_RATE = float(_env("OPS_ALERT_ERROR_RATE", "0.01"))

@@ -1,0 +1,16 @@
+<view class="card">
+  <view class="title">选择技能</view>
+  <scroll-view scroll-x="true" style="white-space:nowrap">
+    <view wx:for="{{agents}}" wx:key="id" class="chip {{agentId===item.id?'on':''}}"
+          data-id="{{item.id}}" bindtap="selectAgent">{{item.name}}</view>
+  </scroll-view>
+</view>
+
+<view class="card" wx:if="{{agentId}}">
+  <view class="title">对话</view>
+  <textarea class="input" placeholder="输入需求…" value="{{input}}" bindinput="onInput"></textarea>
+  <view class="btn" bindtap="send">{{busy ? '处理中…' : '发送'}}</view>
+  <view wx:if="{{reply}}" class="reply">{{reply}}</view>
+  <view wx:if="{{err}}" class="err">{{err}}</view>
+  <navigator url="/pages/outputs/outputs" class="muted">查看产出物 →</navigator>
+</view>

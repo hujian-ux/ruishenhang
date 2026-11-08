@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企业 AI 智能体中台 · 蓝图对照与缺口清单</title>
+<style>
+  :root{
+    --brand:#1a5fd0; --brand-d:#0b1f3a; --ok:#1f9d55; --warn:#e0a100;
+    --bad:#d0453b; --ink:#16263d; --muted:#5b6b80; --line:#e3e9f2; --bg:#f5f8fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 22px 60px}
+  header{background:linear-gradient(135deg,var(--brand-d),var(--brand));color:#fff;border-radius:14px;padding:26px 28px;margin-bottom:22px}
+  header h1{margin:0 0 6px;font-size:24px;letter-spacing:.5px}
+  header p{margin:0;opacity:.9;font-size:14px}
+  .kpis{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0 8px}
+  .kpi{flex:1 1 150px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kpi b{display:block;font-size:26px;color:var(--brand)}
+  .kpi span{font-size:12.5px;color:var(--muted)}
+  h2{font-size:18px;margin:30px 0 12px;padding-left:11px;border-left:4px solid var(--brand)}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--brand-d)}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#eef3fb;color:var(--brand-d);font-weight:600;font-size:13px}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+  .t-ok{background:#e6f6ed;color:var(--ok)}
+  .t-warn{background:#fdf3da;color:var(--warn)}
+  .t-bad{background:#fbe6e3;color:var(--bad)}
+  .t-mid{background:#e8eefc;color:var(--brand)}
+  .pri{font-weight:700}
+  .p0{color:var(--bad)} .p1{color:var(--warn)} .p2{color:var(--brand)} .p3{color:var(--muted)}
+  ul{margin:8px 0;padding-left:20px} li{margin:5px 0}
+  .note{background:#fff;border:1px dashed var(--line);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--muted);margin-top:10px}
+  code{background:#eef3fb;padding:1px 6px;border-radius:5px;font-size:12.5px;color:var(--brand-d)}
+  footer{margin-top:34px;text-align:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>企业 AI 智能体中台 · 蓝图对照与缺口清单</h1>
+    <p>生成日期：2026-11-08 ｜ 对照源：项目长期记忆里程碑（M0–M48 + D层6项 + 下一步清单）vs 代码实际状态</p>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><b>48</b><span>里程碑阶段 M0–M48 主体完成</span></div>
+    <div class="kpi"><b>6/6</b><span>D层 backlog 全部启动</span></div>
+    <div class="kpi"><b>593</b><span>后端测试 passed / 0 failed</span></div>
+    <div class="kpi"><b>134</b><span>OpenAPI paths / reconcile 0 漂移</span></div>
+  </div>
+
+  <h2>一、里程碑完成度（摘要）</h2>
+  <table>
+    <tr><th>阶段</th><th>蓝图目标</th><th>现状</th><th>状态</th></tr>
+    <tr><td>M0–M11</td><td>脚手架/选型/RAG/评测门禁/语料去重/索引重写/多租户前移/真模型 Recall@5 0.98</td><td>已落地，延迟口径已规范</td><td><span class="tag t-ok">已完成</span></td></tr>
+    <tr><td>M12–M18</td><td>OIDC 可插拔/审计/115包融合/文件进出/五格式产出/对外产品界面</td><td>已落地</td><td><span class="tag t-ok">已完成</span></td></tr>
+    <tr><td>M19–M27</td><td>C类工程缺口：ops/observability/backup、feedback A/B、guardrails 三层、quality/zh_chunk/zh_bench、builder L2/L3、judge、P0 上生产三件套、identity-IM 企微 AES</td><td>蓝图标记为已补全；后续 M43+ 均依赖之</td><td><span class="tag t-mid">标记完成·建议抽验</span></td></tr>
+    <tr><td>M43 / M43b</td><td>多企业租户隔离 + Casdoor 多组织映射 + 品牌下发</td><td>已落地（497→多轮 passed）</td><td><span class="tag t-ok">已完成</span></td></tr>
+    <tr><td>M46–M48</td><td>多级审批状态机 + 审批助手 IM 卡片 + 多级模板可视化编辑</td><td>已落地</td><td><span class="tag t-ok">已完成</span></td></tr>
+    <tr><td>D层6项</td><td>编排画布 / MCP Server / MCP Client / LLM-as-Judge REST / 集团物理隔离 / MLOps / 本地文件网关 / 原生移动端准备</td><td>全部启动；MLOps 诚实降级（见下）</td><td><span class="tag t-ok">已启动</span></td></tr>
+  </table>
+
+  <h2>二、蓝图「下一步清单」逐项对照</h2>
+  <table>
+    <tr><th>蓝图项</th><th>目标</th><th>实际状态</th><th>判定</th></tr>
+    <tr>
+      <td>① 真模型验收</td>
+      <td>M17财务80%达标；M26联网验收；M25语义验收全PASS</td>
+      <td>全绿（2026-11-06）；残留 M17 财务 2 处 7B 措辞细节（非阻塞）</td>
+      <td><span class="tag t-ok">已完成</span></td>
+    </tr>
+    <tr>
+      <td>② 166 xlsx few-shot</td>
+      <td>把 166 个 xlsx 交付物做成 few-shot</td>
+      <td>脚手架已写：<code>fewshot.py</code> / <code>build_fewshot.py</code> / <code>test_m15c_fewshot.py</code>，明确针对 166 对（输入↔交付物）xlsx；但需方案库数据 + <code>FEWSHOT_ENABLED=1</code> 启用并验证</td>
+      <td><span class="tag t-warn">脚手架完成·待数据+启用</span></td>
+    </tr>
+    <tr>
+      <td>③ 补硬规则（办公62优先）</td>
+      <td>针对办公62类技能补硬规则</td>
+      <td>全局 guardrails 已有 forbid 机制（ForbiddenDecider 等）；但专属「办公62」硬规则集未见系统落地</td>
+      <td><span class="tag t-bad">缺口</span></td>
+    </tr>
+    <tr>
+      <td>④ Casdoor 收口</td>
+      <td>生产禁 dev 后门，走真实 SSO</td>
+      <td>后端能力就绪：<code>AUTH_ENFORCE_OIDC=1</code> 或 <code>APP_ENV=prod</code> 时拒绝 <code>dev_admin</code>（auth.py:46-48）；但<b>默认 AUTH_ENFORCE_OIDC="0"</b> 且前端 Login 仍暴露「管理员视角」入口</td>
+      <td><span class="tag t-warn">能力就绪·未启用+前端未隐藏</span></td>
+    </tr>
+    <tr>
+      <td>⑤ 容器化 + 备份</td>
+      <td>生产容器化与备份机制</td>
+      <td><code>backup_restore.py</code> 完整（backup/verify/restore+confirm 防护，但无测试）；基础 <code>docker-compose.yml</code> 在；<code>docker-compose.prod.yml</code> 持久卷不完整；审计调度示例已交付（<code>purge_audit.py/.service/.timer/.crontab</code>）</td>
+      <td><span class="tag t-warn">基本就绪·待演练+卷配置</span></td>
+    </tr>
+    <tr>
+      <td>⑥ 移动端（网页+小程序优先，原生后置）</td>
+      <td>网页版 PWA + 微信小程序 + 原生 App 后置</td>
+      <td><b>网页版 PWA ✅</b>（manifest/sw/icon + nginx/DEPLOY 文档，build 通过）；<b>小程序 ❌ 无代码</b>；原生 App ⏸ Capacitor 配置在但未编译/上架（P3 后置）</td>
+      <td><span class="tag t-warn">PWA完成·小程序缺·原生后置</span></td>
+    </tr>
+  </table>
+
+  <h2>三、明确缺口清单（按优先级）</h2>
+  <table>
+    <tr><th>优先级</th><th>缺口</th><th>说明 / 落地动作</th></tr>
+    <tr><td class="pri p0">P0</td><td>Casdoor 收口</td><td>生产部署时设 <code>AUTH_ENFORCE_OIDC=1</code> + <code>APP_ENV=prod</code>；前端登录页隐藏/移除「管理员视角」「dev_admin」入口，只走真实 SSO。否则公网暴露仍有 dev 后门风险。</td></tr>
+    <tr><td class="pri p1">P1</td><td>微信小程序脚手架</td><td>蓝图唯一未动的移动端项（P2）。需：小程序账号 + 已备案 HTTPS 后端 + 微信后台 request 合法域名白名单；DevTools 勾「不校验合法域名」可先用隧道联调。接同一套 <code>/api/v1</code>。</td></tr>
+    <tr><td class="pri p1">P1</td><td>166 xlsx few-shot 启用验证</td><td>确认方案库 166 对 xlsx 就位 → 跑 <code>build_fewshot.py</code> → 开 <code>FEWSHOT_ENABLED=1</code> → 抽测注入效果。当前仅脚手架。</td></tr>
+    <tr><td class="pri p1">P1</td><td>办公62 专属硬规则集</td><td>在 guardrails 基础上为办公62类技能沉淀明确硬规则（禁项/必含项/格式约束），并补测试。</td></tr>
+    <tr><td class="pri p1">P1</td><td>备份演练 + prod 持久卷</td><td>给 <code>backup_restore.py</code> 补测试；<code>docker-compose.prod.yml</code> 补全 pg/minio/qdrant/redis 持久卷；演练一次 restore。</td></tr>
+    <tr><td class="pri p2">P2</td><td>MLOps 真实管线</td><td>诚实未接：Feast 在线/离线特征服务、训练编排、自动重训调度（cron/Argo）、灰度与回滚审批流。<code>pipeline_status()</code> 已标注 <code>retrain.done=False</code>。</td></tr>
+    <tr><td class="pri p3">P3</td><td>原生 App 编译上架</td><td>iOS 需 macOS+Xcode+开发者$99；安卓需 Android Studio/SDK。本机 Windows 编不了，等用户侧环境。</td></tr>
+  </table>
+
+  <h2>四、诚实降级 / 非阻塞残留</h2>
+  <ul>
+    <li><b>MLOps</b>：本地特征库 + 基线 sklearn 训练 + 模型仓库 + 多维漂移已可用；Feast 在线服务、训练编排、自动重训调度、灰度回滚未接（已在 MEMORY 标注）。</li>
+    <li><b>M17 财务</b>：真模型验收达标，残留 2 处 7B 措辞细节，非阻塞。</li>
+    <li><b>外部 key 轮换</b>：Tavily/博查/硅基流动 key 曾在对话明文出现，用户 2026-11-06 表态「暂时不管」。</li>
+    <li><b>原生移动端</b>：Capacitor 配置就绪但未编译/上架，属计划后置（P3），非缺失。</li>
+  </ul>
+
+  <h2>五、建议执行顺序</h2>
+  <ul>
+    <li><b>P0 立即（上线前必做）</b>：Casdoor 收口——启用强制 OIDC + 前端隐藏 dev 入口。</li>
+    <li><b>P1 近期</b>：① 小程序脚手架；② 166 xlsx few-shot 数据灌入与启用；③ 办公62 硬规则；④ 备份演练 + prod 卷。</li>
+    <li><b>P2 迭代</b>：MLOps 真实管线（Feast/编排/自动重训/灰度）。</li>
+    <li><b>P3 条件达成后</b>：原生 App 编译上架（需 Mac/Studio）。</li>
+  </ul>
+
+  <div class="note">
+    数据口径：里程碑与缺口以 <code>deploy/../.workbuddy/memory/MEMORY.md</code> 为蓝图；代码状态经 2026-11-08 实机核查（grep/目录扫描/配置读取）。
+    未联网核验外部依赖（Casdoor 实例、微信小程序审核政策、App Store 费率）均按项目既有记录与官方文档惯例推断。
+  </div>
+
+  <footer>企业 AI 智能体中台 · 蓝图对照报告（自动生成）</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<view class="card">
+  <view class="title">睿深行 AI 工作台</view>
+  <view class="muted">企业智能体中台 · 把 115 个业务技能交到每位员工手里</view>
+  <view style="height:24rpx"></view>
+
+  <view wx:if="{{!enforce}}">
+    <view class="btn" bindtap="devLogin" data-admin="{{false}}">员工视角（演示）</view>
+    <view class="btn ghost" bindtap="devLogin" data-admin="{{true}}">管理员视角（演示）</view>
+  </view>
+  <view wx:else>
+    <view class="muted">身份已收口，请走企业统一身份（SSO）。生产环境请在后端接入后，
+      于本页改用 wx.login → 后端换码登录。</view>
+  </view>
+
+  <view wx:if="{{err}}" class="err">{{err}}</view>
+</view>

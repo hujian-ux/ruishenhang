@@ -1,0 +1,5 @@
+# 备份调度示例（crontab -e 追加；每天 03:10 全量备份，保留最近 14 天）。
+# 替换 /path/to/enterprise-ai-platform 为实际仓库根目录。
+10 3 * * * cd /path/to/enterprise-ai-platform && BACKUP_ROOT=/mnt/nas/backups ./deploy/backup.sh >> /var/log/aiplat-backup.log 2>&1
+# 清理 14 天前的备份
+30 3 * * * find /mnt/nas/backups -maxdepth 1 -type d -mtime +14 -exec rm -rf {} \;

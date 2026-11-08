@@ -1,0 +1,9 @@
+{
+  "_comment": "166 个方案目录的投放清单示例（非必须，便于核对配对）。每个条目对应一个子目录。",
+  "root": "corpus_inbox/fewshot_solutions",
+  "expected_count": 166,
+  "items": [
+    { "dir": "方案A", "input": "原始数据.xlsx", "output": "交付物.xlsx", "skill_id": "ag_xxx" },
+    { "dir": "方案B", "input": "data.xlsx", "output": "03_交付报告.xlsx", "skill_id": "ag_yyy" }
+  ]
+}

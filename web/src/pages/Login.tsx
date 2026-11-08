@@ -13,7 +13,9 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(notice);
   const [devBusy, setDevBusy] = useState(false);
-  const [enforce, setEnforce] = useState(false);
+  // 收口默认 fail-closed：默认视为已收口（隐藏演示入口），只有后端明确回传
+  // enforce_oidc=false 才放开。后端不可达也不暴露 dev 后门。
+  const [enforce, setEnforce] = useState(true);
 
   // 收口开关：AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，且已配身份源则直接跳 SSO。
   useEffect(() => {
@@ -21,9 +23,9 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
     api.getAuthSettings().then((r: any) => {
       if (!alive) return;
       const on = !!r?.data?.enforce_oidc;
-      setEnforce(on);
+      setEnforce(on);   // 仅当后端明确说「未收口」才放开演示入口
       if (on && configured) oidcLogin();
-    }).catch(() => { /* 拿不到就按非收口处理，演示入口可用 */ });
+    }).catch(() => { /* 拿不到也保持收口（fail-closed），不暴露演示入口 */ });
     return () => { alive = false; };
   }, [configured]);
 

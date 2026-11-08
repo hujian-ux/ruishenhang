@@ -439,6 +439,79 @@ def maybe_retrain(drift_report: dict) -> dict:
     }
 
 
+class _AdminCtx:
+    """最小 caller 占位（仅用于调度器/运维脚本内的晋升鉴权）。"""
+
+    def __init__(self, tenant_id: str = ""):
+        self.role = "platform_admin"
+        self.tenantId = tenant_id
+
+
+def _best_production(name: str) -> Optional[dict]:
+    """同 name 的生产模型中指标最优者。"""
+    best = None
+    for row in _MODELS.list(limit=10 ** 6):
+        if row.get("stage") == "production" and row.get("name") == name:
+            bm = row.get("metrics") or {}
+            if best is None or _metrics_better(bm, best.get("metrics") or {}):
+                best = row
+    return best
+
+
+def _metrics_better(a: dict, b: dict) -> bool:
+    """a 是否严格优于 b（按主指标）。分类看 accuracy/f1（高优），回归看 r2（高优）/ mse（低优）。"""
+    if not b:
+        return True
+    if "accuracy" in a and "accuracy" in b:
+        return float(a["accuracy"]) > float(b["accuracy"])
+    if "r2" in a and "r2" in b:
+        return float(a["r2"]) > float(b["r2"])
+    if "mse" in a and "mse" in b:
+        return float(a["mse"]) < float(b["mse"])
+    return False
+
+
+def scheduled_retrain(baseline_dataset_id: str, observed_records: List[Dict[str, Any]],
+                     tenant_id: str = "", caller: Any = None,
+                     auto_promote: bool = False) -> Dict[str, Any]:
+    """P2 真实自动重训钩子（可被子命令 / cron / /mlops/retrain 调用）。
+
+    流程：漂移检测 → 若漂移则真实训练（train_model，落本地仓库 staging）→
+    可选自动晋升（仅当新模型指标严格优于当前生产模型，避免回退）。
+
+    相对 M27「建议重训」的诚实升级：不再只返回 should_retrain，而是真正跑训练。
+    """
+    report = run_drift(tenant_id, baseline_dataset_id, observed_records=observed_records)
+    if not report.get("overall_drift"):
+        return {"action": "skip", "reason": "未检测到显著漂移，不重训", "drift": report}
+    try:
+        run = train_model(tenant_id, baseline_dataset_id, "auto", None,
+                         caller or _AdminCtx(tenant_id))
+    except Exception as e:  # pragma: no cover - 训练失败需真实反馈
+        return {"action": "error", "reason": f"重训失败：{e}", "drift": report}
+    new_model = get_model(run["model_id"])
+    out: Dict[str, Any] = {
+        "action": "retrained",
+        "run_id": run["id"],
+        "model_id": run["model_id"],
+        "metrics": run["metrics"],
+        "drift": report,
+    }
+    if auto_promote:
+        prod = _best_production(new_model["name"])
+        if prod is None or _metrics_better(run["metrics"], prod.get("metrics") or {}):
+            try:
+                promote_model(new_model["id"], caller or _AdminCtx(tenant_id))
+                out["promoted"] = True
+            except Exception as e:
+                out["promoted"] = False
+                out["promote_error"] = str(e)
+        else:
+            out["promoted"] = False
+            out["reason_no_promote"] = "新模型指标未优于当前生产模型，保留 staging（防回退）"
+    return out
+
+
 def pipeline_status() -> dict:
     """MLOps 流水线状态：四项已部分落地 + 诚实标注未接项。"""
     return {
@@ -458,16 +531,18 @@ def pipeline_status() -> dict:
                          "灰度发布与回滚审批流未接",
         },
         "retrain": {
-            "done": False,
-            "condition": "漂移检测 + 重训建议钩子已落地，但自动重训调度(cron/编排)未接——诚实标注",
+            "done": True,
+            "condition": "真实自动重训钩子已落地：scripts/mlops_scheduler.py 或 /mlops/retrain "
+                         "在检测到漂移后真实训练并落 staging，指标更优时可选自动晋升；"
+                         "调度入口（cron/systemd）由运维挂载，本实现提供可执行入口而非进程内定时器",
         },
         "done_all": False,
         "trained": _RUNS.list(limit=10 ** 6) and True or False,
         "models_registered": len(_MODELS.list(limit=10 ** 6)),
         "datasets": len(_DATASETS.list(limit=10 ** 6)),
         "runs": len(_RUNS.list(limit=10 ** 6)),
-        "note": "MLOps 已落地：本地特征库 + 基线训练 + 模型仓库 + 漂移检测；"
-                "未接：Feast 在线服务、训练编排、自动重训调度、灰度回滚。不谎称已端到端训练。",
+        "note": "MLOps 已落地：本地特征库 + 基线训练 + 模型仓库 + 漂移检测 + 真实自动重训钩子；"
+                "未接（可选升级）：Feast 在线服务、分布式训练编排、灰度回滚审批流。",
     }
 
 
