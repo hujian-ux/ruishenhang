@@ -3669,13 +3669,113 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/datasets:
+    get:
+      tags:
+      - mlops
+      summary: Mlops Datasets
+      description: 数据集列表（租户隔离）。
+      operationId: mlops_datasets_api_v1_mlops_datasets_get
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/datasets/export:
+    post:
+      tags:
+      - mlops
+      summary: Mlops Dataset Export
+      description: 导出训练数据集（本地特征库 materialize）。
+      operationId: mlops_dataset_export_api_v1_mlops_datasets_export_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /mlops/drift:
     post:
       tags:
-      - quality
+      - mlops
       summary: Mlops Drift
-      description: 简易 PSI + 均值漂移（骨架实现，未接训练流水线）。
+      description: 单变量 PSI + 均值漂移（兼容旧骨架）。
       operationId: mlops_drift_api_v1_mlops_drift_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/drift/run:
+    post:
+      tags:
+      - mlops
+      summary: Mlops Drift Run
+      description: 多维特征漂移（PSI + 均值漂移）。baseline 取数据集，observed 取记录或数据集。
+      operationId: mlops_drift_run_api_v1_mlops_drift_run_post
       parameters:
       - name: x-caller-context
         in: header
@@ -3708,11 +3808,45 @@ paths:
   /mlops/models:
     get:
       tags:
-      - quality
+      - mlops
       summary: Mlops Models
-      description: 列出已登记模型。
+      description: 模型仓库列表（按租户隔离，platform_admin 看全部）。
       operationId: mlops_models_api_v1_mlops_models_get
       parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/models/{model_id}/promote:
+    post:
+      tags:
+      - mlops
+      summary: Mlops Promote
+      description: 晋升 staging→production（需 platform_admin）。
+      operationId: mlops_promote_api_v1_mlops_models__model_id__promote_post
+      parameters:
+      - name: model_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Model Id
       - name: x-caller-context
         in: header
         required: false
@@ -3736,9 +3870,9 @@ paths:
   /mlops/pipeline:
     get:
       tags:
-      - quality
+      - mlops
       summary: Mlops Pipeline
-      description: 流水线状态：四项 done=False + 落地条件，明确未训练。
+      description: 流水线状态：四项已部分落地 + 诚实标注未接项。
       operationId: mlops_pipeline_api_v1_mlops_pipeline_get
       parameters:
       - name: x-caller-context
@@ -3764,9 +3898,9 @@ paths:
   /mlops/register:
     post:
       tags:
-      - quality
+      - mlops
       summary: Mlops Register
-      description: 登记模型元数据（骨架，仅内存）。
+      description: 登记模型元数据（兼容旧骨架；新增 tenant_id/artifact/stage 透传）。
       operationId: mlops_register_api_v1_mlops_register_post
       parameters:
       - name: x-caller-context
@@ -3785,6 +3919,76 @@ paths:
               type: object
               additionalProperties: true
               title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/trains:
+    post:
+      tags:
+      - mlops
+      summary: Mlops Train
+      description: 基线 sklearn 训练，返回 run 记录（含登记模型，阶段 staging）。
+      operationId: mlops_train_api_v1_mlops_trains_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/trains/{run_id}:
+    get:
+      tags:
+      - mlops
+      summary: Mlops Train Status
+      description: 训练任务状态/指标。
+      operationId: mlops_train_status_api_v1_mlops_trains__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
       responses:
         '200':
           description: Successful Response

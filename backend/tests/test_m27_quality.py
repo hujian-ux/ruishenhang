@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
 from app.core.security import create_dev_token
 from app.models.caller import CallerContext
-from app.routers import quality as q_router
+from app.routers import quality as q_router, mlops as mlops_router
 from app.services import quality, semantic_cache, model_router, degrade, mlops
 
 # ── 测试自建 app（严格按契约，不 import app.main）──────────────────────────
@@ -25,6 +25,7 @@ app = FastAPI()
 app.add_middleware(AuditTraceMiddleware)
 app.add_middleware(GatewayMiddleware)
 app.include_router(q_router.router, prefix="/api/v1")
+app.include_router(mlops_router.router, prefix="/api/v1")
 client = TestClient(app)
 
 H = {"Authorization": create_dev_token("u", "d", "employee")}
@@ -302,7 +303,7 @@ def test_psi_no_drift():
     assert r["drift"] is False
     assert r["psi"] < r["threshold"]
     assert r["mean_shift"] == 0.0
-    assert r["note"] == "骨架实现，未接训练流水线"
+    assert "多维特征漂移" in r["note"]      # 指向 /mlops/drift/run 多维检测
 
 
 # ── 19. PSI：有漂移 ──────────────────────────────────────────────────────
@@ -325,15 +326,18 @@ def test_mlops_register_and_list():
     assert len(mlops.list_models()) == 1
 
 
-# ── 21. pipeline_status：不谎称已训练，四项 done=False + 落地条件 ──────────
+# ── 21. pipeline_status：已落地的如实标 done，未接的（自动重训调度）诚实标 False ──
 def test_pipeline_status_not_trained():
     p = mlops.pipeline_status()
-    for k in ("feature_store", "training", "registry", "retrain"):
-        assert p[k]["done"] is False
-        assert p[k]["condition"]                          # 有落地条件
-    assert p["done_all"] is False
+    # 已落地：本地特征库 / 基线训练 / 模型仓库（staging→production 晋升）
+    assert p["feature_store"]["done"] is True
+    assert p["training"]["done"] is True
+    assert p["registry"]["done"] is True
+    # 诚实未接：自动重训调度（cron/编排）仍未接
+    assert p["retrain"]["done"] is False
+    assert p["done_all"] is False          # 仍有未接通项，故整体未全绿
     assert p["trained"] is False
-    assert "未接训练流水线" in p["note"]
+    assert "未接" in p["note"]              # 如实标注仍有未接通项，不谎称端到端
 
 
 # ── 22. reset_state 隔离：用例开始即干净，reset 后清空 ─────────────────────
@@ -454,7 +458,7 @@ def test_http_smoke_all_endpoints():
     assert d["drift"] is False
 
     d = ok(client.get(BASE + "/mlops/pipeline", headers=H))
-    assert all(not d[k]["done"] for k in ("feature_store", "training", "registry", "retrain"))
+    assert d["retrain"]["done"] is False and d["feature_store"]["done"] is True
 
 
 # ── 25. 端点错误：缺字段 422 / 未知工单 404 ───────────────────────────────

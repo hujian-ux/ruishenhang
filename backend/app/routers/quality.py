@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.services import degrade, judge, mlops, model_router, quality, semantic_cache
+from app.services import degrade, judge, model_router, quality, semantic_cache
 from app.services._m27_store import audit_event
 
 router = APIRouter(prefix="", tags=["quality"])
@@ -208,40 +208,3 @@ async def handoff_resolve(hid: str, body: dict,
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"code": 0, "data": data}
-
-
-# ── MLOps 骨架（第43章）───────────────────────────────────────────────────
-@router.post("/mlops/register")
-async def mlops_register(body: dict, caller: CallerContext = Depends(get_caller)):
-    """登记模型元数据（骨架，仅内存）。"""
-    _require_keys(body, "name", "version", "metrics")
-    if not isinstance(body.get("metrics"), dict):
-        raise HTTPException(status_code=422, detail="metrics 必须是对象")
-    data = mlops.register_model(
-        str(body.get("name") or ""), str(body.get("version") or ""),
-        body.get("metrics") or {}, str(body.get("fingerprint") or ""),
-    )
-    return {"code": 0, "data": data}
-
-
-@router.get("/mlops/models")
-async def mlops_models(caller: CallerContext = Depends(get_caller)):
-    """列出已登记模型。"""
-    items = mlops.list_models()
-    return {"code": 0, "data": {"items": items, "count": len(items)}}
-
-
-@router.post("/mlops/drift")
-async def mlops_drift(body: dict, caller: CallerContext = Depends(get_caller)):
-    """简易 PSI + 均值漂移（骨架实现，未接训练流水线）。"""
-    _require_keys(body, "baseline", "observed")
-    if not isinstance(body.get("baseline"), list) or not isinstance(body.get("observed"), list):
-        raise HTTPException(status_code=422, detail="baseline / observed 必须是列表")
-    data = mlops.drift_check(body.get("baseline") or [], body.get("observed") or [])
-    return {"code": 0, "data": data}
-
-
-@router.get("/mlops/pipeline")
-async def mlops_pipeline(caller: CallerContext = Depends(get_caller)):
-    """流水线状态：四项 done=False + 落地条件，明确未训练。"""
-    return {"code": 0, "data": mlops.pipeline_status()}

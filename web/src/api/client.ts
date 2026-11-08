@@ -1,7 +1,11 @@
 // 轻量 API 客户端：对接后端单体 /api/v1，自动携带 dev token（由 /auth/sso/callback 签发）
 import { getSession } from "../auth/session";
 
-const BASE = "/api/v1";
+// 基座 URL：
+// - Web 开发/自托管：留空 → 走相对路径 "/api/v1"（同源，经 Vite/Caddy 反代）。
+// - 原生包（Capacitor iOS/安卓）：编译时注入 VITE_API_BASE 指向部署后的后端，
+//   例如 https://ai.your-domain.com/api/v1（必须含 /api/v1 后缀）。
+const BASE: string = import.meta.env.VITE_API_BASE || "/api/v1";
 
 let token = "";
 

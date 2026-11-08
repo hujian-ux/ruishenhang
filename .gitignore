@@ -54,3 +54,6 @@ corpus_inbox/converted/**
 !corpus_inbox/raw/**/
 !corpus_inbox/converted/**/
 !corpus_inbox/**/PLACE_FILES_HERE.txt
+
+# MLOps 训练产物（数据集 csv / 模型 joblib）——运行时生成，不入库
+mlops_artifacts/

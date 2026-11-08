@@ -1,0 +1,22 @@
+# 本地文件网关 · 配置示例
+# 复制为 config.yaml 后按需修改；token 也可用环境变量覆盖（见 gateway.py 的环境变量说明）
+
+backend_url: "http://localhost:8080"   # 中台后端地址（生产填 https://你的域名）
+token: ""                               # 服务令牌；留空则网关启动时用 dev_admin 登录（仅演示/内网）
+tenant: ""                              # 可选：租户 ID（多租户部署时指定）
+
+watch_dirs:
+  - "D:/corpus_inbox/raw"               # 监听的本地目录（可多个）
+  - "D:/shared/solutions"
+
+include: []                             # 空=全部文件；如只传 xlsx：["*.xlsx","*.csv"]
+exclude:                                # exclude 优先于 include（支持 .git/* 顶层或嵌套）
+  - "*.tmp"
+  - ".git/*"
+  - "node_modules/*"
+
+target: "agent_files"                   # 预留：未来可支持 kb 等知识库目标
+endpoint: "/agent/files"                # 上传接收端点（默认技能包输入件）
+
+poll_interval: 30.0                      # 轮询间隔（秒）
+state_file: ".gw_state.json"            # 去重状态文件（记录已传文件的哈希）

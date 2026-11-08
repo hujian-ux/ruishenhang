@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware, RateLimitMiddleware
 from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
                         events, feedback, files, guardrails, integrations, invoke, kb,
-                        mcp, models, ops, quality, rag, search, selection, tenants, usage)
+                        mcp, mlops, models, ops, quality, rag, search, selection, tenants, usage)
 from app.services import (agent_store, approval_store, file_store, kb_store,
                           observability, pg_store, session_store, usage_store)
 
@@ -147,6 +147,7 @@ app.include_router(builder.router, prefix=settings.API_PREFIX)      # 自助建�
 app.include_router(integrations.router, prefix=settings.API_PREFIX)  # P1-173：企业微信/钉钉 集成与审批回推
 app.include_router(tenants.router, prefix=settings.API_PREFIX)        # M43：多企业租户开通
 app.include_router(mcp.router, prefix=settings.API_PREFIX)             # MCP 方向2：消费外部工具
+app.include_router(mlops.router, prefix=settings.API_PREFIX)            # MLOps 训练流水线
 
 
 @app.get("/healthz")
