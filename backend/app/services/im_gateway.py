@@ -14,6 +14,7 @@ import hmac
 import json
 import struct
 import threading
+import time
 import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, List, Optional
 
@@ -34,6 +35,46 @@ def set_http_post(fn: Callable[[str, dict, dict], dict]) -> None:
     """测试钩子：替换底层 HTTP POST 实现。"""
     global _http_post
     _http_post = fn
+
+
+# ── 回调重放防护（A 层安全收尾） ──────────────────────────────────────────────
+# 签名只证明「来源可信」，不防「同一条合法回调被截获后重放」。加时间窗 + nonce 去重，
+# 拦截重放的企微/钉钉回调。默认窗口 300s；置 0 关闭（开发/单测）。钉钉时间戳为毫秒，自动兼容。
+_REPLAY_SEEN: Dict[str, float] = {}
+_REPLAY_LOCK = threading.Lock()
+_REPLAY_MAX = 100000
+
+
+def _prune_replay(now: float) -> None:
+    if len(_REPLAY_SEEN) < _REPLAY_MAX:
+        expired = [k for k, exp in _REPLAY_SEEN.items() if exp < now]
+        for k in expired:
+            _REPLAY_SEEN.pop(k, None)
+    else:
+        _REPLAY_SEEN.clear()  # 超上限整体清，保内存有界
+
+
+def _check_replay(provider: str, timestamp: str, nonce: str) -> bool:
+    """返回 True=放行（新鲜且 nonce 未见过）；False=拒（过期/重放/时间戳非法）。"""
+    window = settings.IM_REPLAY_WINDOW_S
+    if window <= 0:
+        return True
+    try:
+        ts = int(timestamp)
+    except (TypeError, ValueError):
+        return False
+    if ts > 10 ** 12:  # 钉钉时间戳为毫秒
+        ts = ts / 1000.0
+    now = time.time()
+    if abs(now - ts) > window:
+        return False
+    key = f"{provider}:{nonce}"
+    with _REPLAY_LOCK:
+        _prune_replay(now)
+        if key in _REPLAY_SEEN:
+            return False
+        _REPLAY_SEEN[key] = now + window
+    return True
 
 
 # ── 企业微信 ────────────────────────────────────────────────────────────────
@@ -298,17 +339,29 @@ class IMGateway:
         return "；".join(lines)
 
     def verify(self, tenant: str, provider: str, **params) -> Any:
-        """回调验签：wecom 用 verify_url/verify_message，dingtalk 用 verify_callback。"""
+        """回调验签：wecom 用 verify_url/verify_message，dingtalk 用 verify_callback。
+
+        消息/事件回调节点在签名校验之上叠加重放防护（时间窗 + nonce 去重）；
+        URL 验证是一次性握手（回显 echostr 无副作用），仅签名即可。
+        """
         ad = self._adapter(tenant, provider)
         if provider == "wecom":
             if "echostr" in params:
                 return ad.verify_url(params["msg_signature"], params["timestamp"],
                                      params["nonce"], params["echostr"])
-            return ad.verify_message(params["msg_signature"], params["timestamp"],
-                                     params["nonce"], params["encrypt"])
+            if not ad.verify_message(params["msg_signature"], params["timestamp"],
+                                     params["nonce"], params["encrypt"]):
+                return False
+            if not _check_replay("wecom", params["timestamp"], params["nonce"]):
+                return False
+            return True
         if provider == "dingtalk":
-            return ad.verify_callback(params["timestamp"], params["nonce"],
-                                      params["signature"])
+            if not ad.verify_callback(params["timestamp"], params["nonce"],
+                                      params["signature"]):
+                return False
+            if not _check_replay("dingtalk", params["timestamp"], params["nonce"]):
+                return False
+            return True
         raise ValueError(f"不支持的 provider：{provider}")
 
 

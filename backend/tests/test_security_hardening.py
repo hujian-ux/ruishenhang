@@ -11,6 +11,9 @@
 所有「客户端直塞 X-Caller-Context」的路径均被网关剥离，必须改为持 Authorization
 （dev token / OIDC）走真实网关翻译链路——这也是生产形态。
 """
+import base64
+import hashlib
+import hmac
 import json
 import time
 
@@ -20,9 +23,9 @@ from fastapi.testclient import TestClient
 
 from app.core import security
 from app.core.config import settings
-from app.main import app
+from app.main import app, _fail_if_insecure_for_prod
 from app.models.caller import CallerContext
-from app.services import agent_builder, agent_store, approval_store, audit, workflows
+from app.services import agent_builder, agent_store, approval_store, audit, im_gateway, workflows
 
 c = TestClient(app)
 
@@ -256,3 +259,128 @@ def test_audit_get_logs_scoped_by_tenant():
     assert all(r["tenant_id"] == "t_h5b" for r in rows_b)
     assert any(r["target"] == "tgt_a" for r in rows_a)
     assert not any(r["target"] == "tgt_b" for r in rows_a)
+
+
+# ── A1 · CORS 收紧 ──────────────────────────────────────────────────────────
+
+def test_cors_echoes_configured_origin_with_credentials():
+    # 默认配置仅放本机前端；携带该 Origin 应回显且允许凭据
+    r = c.get("/api/v1/ops/health", headers={"Origin": "http://localhost:5173"})
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    assert r.headers.get("access-control-allow-credentials") == "true"
+
+
+def test_cors_does_not_echo_unknown_origin():
+    # 非白名单 Origin 不得回显（杜绝任意站点带凭据跨站读取）
+    r = c.get("/api/v1/ops/health", headers={"Origin": "http://evil.example.com"})
+    assert r.headers.get("access-control-allow-origin") != "http://evil.example.com"
+
+
+# ── A2 · IM 回调重放防护 ──────────────────────────────────────────────────
+
+def test_im_replay_protection_rejects_replay_and_stale():
+    # 假适配器替代真实租户配置；签名由本测试自行计算，适配器只回 True
+    fake = type("FakeAdapter", (), {
+        "verify_message": lambda self, *a, **k: True,
+        "verify_callback": lambda self, *a, **k: True,
+    })()
+    orig = im_gateway.IMGateway._adapter
+    orig_window = settings.IM_REPLAY_WINDOW_S
+    im_gateway.IMGateway._adapter = lambda self, t, p: fake
+    settings.IM_REPLAY_WINDOW_S = 300
+    try:
+        token = "tok"
+        enc = "<blob>"
+        ts_now = str(int(time.time()))
+        ts_old = str(int(time.time()) - 1000)
+        nonce1, nonce2 = "n_unique_1", "n_unique_2"
+
+        def wecom_sig(ts, nonce):
+            return hashlib.sha1("".join(sorted([token, ts, nonce, enc])).encode()).hexdigest()
+
+        # 新鲜 + 未见过 → 通过
+        assert im_gateway.gateway.verify(
+            "t", "wecom", msg_signature=wecom_sig(ts_now, nonce1),
+            timestamp=ts_now, nonce=nonce1, encrypt=enc) is True
+        # 同 nonce 重放 → 拒绝
+        assert im_gateway.gateway.verify(
+            "t", "wecom", msg_signature=wecom_sig(ts_now, nonce1),
+            timestamp=ts_now, nonce=nonce1, encrypt=enc) is False
+        # 过期时间戳 → 拒绝（即便 nonce 新）
+        assert im_gateway.gateway.verify(
+            "t", "wecom", msg_signature=wecom_sig(ts_old, nonce2),
+            timestamp=ts_old, nonce=nonce2, encrypt=enc) is False
+
+        # 钉钉：HMAC 加签，同样重放防护（毫秒时间戳兼容）
+        secret = "signsecret"
+        ts_now_ms = str(int(time.time() * 1000))
+        ts_old_ms = str(int((time.time() - 1000) * 1000))
+
+        def dt_sig(ts, nonce):
+            s = f"{ts}\n{secret}"
+            return base64.b64encode(
+                hmac.new(secret.encode("utf-8"), s.encode("utf-8"), hashlib.sha256).digest()
+            ).decode()
+
+        assert im_gateway.gateway.verify(
+            "t", "dingtalk", timestamp=ts_now_ms, nonce="dn1",
+            signature=dt_sig(ts_now_ms, "dn1")) is True
+        # 同 nonce 重放 → 拒绝
+        assert im_gateway.gateway.verify(
+            "t", "dingtalk", timestamp=ts_now_ms, nonce="dn1",
+            signature=dt_sig(ts_now_ms, "dn1")) is False
+        # 过期时间戳（毫秒）→ 拒绝
+        assert im_gateway.gateway.verify(
+            "t", "dingtalk", timestamp=ts_old_ms, nonce="dn2",
+            signature=dt_sig(ts_old_ms, "dn2")) is False
+    finally:
+        im_gateway.IMGateway._adapter = orig
+        settings.IM_REPLAY_WINDOW_S = orig_window
+
+
+# ── A3 · HTTP 网关节流 ─────────────────────────────────────────────────────
+
+def test_rate_limit_returns_429_after_burst(monkeypatch):
+    monkeypatch.setattr(settings, "HTTP_RATE_LIMIT_RPS", 5.0)
+    monkeypatch.setattr(settings, "HTTP_RATE_LIMIT_BURST", 5.0)
+    monkeypatch.setattr(settings, "HTTP_AUTH_RATE_LIMIT_RPS", 0.0)
+    monkeypatch.setattr(settings, "HTTP_AUTH_RATE_LIMIT_BURST", 200.0)
+    codes = []
+    for _ in range(12):
+        r = c.get("/api/v1/agents")  # 无凭据 → 401，但请求已计入限流桶
+        codes.append(r.status_code)
+    assert 429 in codes  # 突发耗尽后开始限流
+
+
+# ── A 层生产启动自检 ───────────────────────────────────────────────────────
+
+def _safe_prod_baseline(monkeypatch):
+    # 先把与 A 层无关的生产红线置为安全值，确保触发的是本次新增的 CORS/限流检查
+    monkeypatch.setattr(settings, "APP_ENV", "prod")
+    monkeypatch.setattr(settings, "CALLER_SIGNING_SECRET", "prod-strong-secret")
+    monkeypatch.setattr(settings, "WEBHOOK_TOKEN_SECRET", "prod-strong-wh")
+    monkeypatch.setattr(settings, "OIDC_ISSUER", "https://idp.example.com")
+
+
+def test_prod_guard_rejects_wildcard_cors(monkeypatch):
+    _safe_prod_baseline(monkeypatch)
+    monkeypatch.setattr(settings, "CORS_ALLOW_ORIGINS", "*")
+    monkeypatch.setattr(settings, "HTTP_RATE_LIMIT_RPS", 100.0)
+    with pytest.raises(RuntimeError):
+        _fail_if_insecure_for_prod()
+
+
+def test_prod_guard_rejects_missing_cors(monkeypatch):
+    _safe_prod_baseline(monkeypatch)
+    monkeypatch.setattr(settings, "CORS_ALLOW_ORIGINS", "   ")
+    monkeypatch.setattr(settings, "HTTP_RATE_LIMIT_RPS", 100.0)
+    with pytest.raises(RuntimeError):
+        _fail_if_insecure_for_prod()
+
+
+def test_prod_guard_rejects_disabled_rate_limit(monkeypatch):
+    _safe_prod_baseline(monkeypatch)
+    monkeypatch.setattr(settings, "CORS_ALLOW_ORIGINS", "https://app.example.com")
+    monkeypatch.setattr(settings, "HTTP_RATE_LIMIT_RPS", 0.0)
+    with pytest.raises(RuntimeError):
+        _fail_if_insecure_for_prod()

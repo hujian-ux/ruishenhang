@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
-from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware
+from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware, RateLimitMiddleware
 from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
                         events, feedback, files, guardrails, integrations, invoke, kb,
                         models, ops, quality, rag, search, selection, tenants, usage)
@@ -64,6 +64,17 @@ def _fail_if_insecure_for_prod() -> None:
         raise RuntimeError(
             "生产环境未配置 OIDC_ISSUER（统一身份收口未生效），拒绝启动。"
             "请配置企业 SSO 的 issuer。")
+    # CORS：禁止「通配 + 凭据」跨站暴露；生产必须配置明确的前端域名清单。
+    _cors = [o.strip() for o in settings.CORS_ALLOW_ORIGINS.split(",") if o.strip()]
+    if not _cors or "*" in _cors:
+        raise RuntimeError(
+            "生产环境 CORS_ALLOW_ORIGINS 为空或含通配符 *，拒绝启动。"
+            "请配置明确的前端域名清单（禁止通配+凭据）。")
+    # HTTP 网关节流：生产必须开启，防止认证/Webhook 端点被暴力或耗尽。
+    if settings.HTTP_RATE_LIMIT_RPS <= 0:
+        raise RuntimeError(
+            "生产环境未开启 HTTP 网关节流（HTTP_RATE_LIMIT_RPS<=0），拒绝启动。"
+            "请设置每秒请求上限（如 100），认证端点另可设 HTTP_AUTH_RATE_LIMIT_RPS。")
 
 
 @asynccontextmanager
@@ -89,15 +100,24 @@ app = FastAPI(title="企业 AI 智能体中台", version="0.8.0", lifespan=lifes
 app.add_middleware(AuditTraceMiddleware)
 # 网关中间件：身份注入 + 单一过滤点前置（拆容器后整体迁到 api-gateway）
 app.add_middleware(GatewayMiddleware)
+# CORS（A 层安全收尾）：默认仅放本机前端；生产须显式配置 CORS_ALLOW_ORIGINS。
+# 若配置含通配符，降级为「通配不带凭据」，避免任意站点带凭据跨站读取。
+_cors_origins = [o.strip() for o in settings.CORS_ALLOW_ORIGINS.split(",") if o.strip()]
+_cors_allow_creds = True
+if "*" in _cors_origins:
+    _cors_origins = ["*"]  # 通配时不带凭据（安全降级）
+    _cors_allow_creds = False
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 开发期放开；生产收紧为前端域名
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 if settings.OBSERVABILITY_ENABLED:
-    app.add_middleware(ObservabilityMiddleware)  # M27：最外层，记录所有请求含 4xx/5xx
+    app.add_middleware(ObservabilityMiddleware)  # M27：记录所有请求含 4xx/5xx
+# A 层安全收尾：HTTP 层按 IP 限流（默认关，生产强制开启）；最外层优先挡暴力/耗尽。
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(rag.router, prefix=settings.API_PREFIX)

@@ -222,6 +222,13 @@ class Settings:
     GATEWAY_THROTTLE_RPS = float(_env("GATEWAY_THROTTLE_RPS", "0"))
     GATEWAY_THROTTLE_BURST = float(_env("GATEWAY_THROTTLE_BURST", "20"))
 
+    # HTTP 层网关节流（A 层安全收尾）：按客户端 IP 令牌桶，保护认证/Webhook 端点免暴力与资源耗尽。
+    # 默认全关（=0）；生产经 _fail_if_insecure_for_prod 强制开启。认证/集成端点用更严格的 AUTH_* 桶。
+    HTTP_RATE_LIMIT_RPS = float(_env("HTTP_RATE_LIMIT_RPS", "0"))
+    HTTP_RATE_LIMIT_BURST = float(_env("HTTP_RATE_LIMIT_BURST", "200"))
+    HTTP_AUTH_RATE_LIMIT_RPS = float(_env("HTTP_AUTH_RATE_LIMIT_RPS", "0"))
+    HTTP_AUTH_RATE_LIMIT_BURST = float(_env("HTTP_AUTH_RATE_LIMIT_BURST", "30"))
+
     # 中文特化：长度感知切分（蓝图第 43 章）。默认关，沿用原「一句话一块」；
     # 开启后改用 zh_chunk 合并碎句/劈开超长句，改善检索块粒度。
     ZH_CHUNK_ENABLED = _env("ZH_CHUNK_ENABLED", "0") == "1"
@@ -234,6 +241,12 @@ class Settings:
     WORKFLOW_MAX_NODES = int(_env("WORKFLOW_MAX_NODES", "12"))
     WEBHOOK_TOKEN_SECRET = _env("WEBHOOK_TOKEN_SECRET", "dev-only-change-me")
     WEBHOOK_TIMEOUT_S = float(_env("WEBHOOK_TIMEOUT_S", "3.0"))
+    # CORS（A 层安全收尾）：逗号分隔的前端域名白名单；默认仅放本机前端（开发期）。
+    # 生产必须显式配置真实域名；含 * 会在启动自检被拒（不允许「通配+凭据」跨站）。
+    CORS_ALLOW_ORIGINS = _env(
+        "CORS_ALLOW_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    # IM 回调重放防护窗口（秒）：默认 300s；置 0 关闭（开发/测试）。钉钉毫秒时间戳自动兼容。
+    IM_REPLAY_WINDOW_S = int(_env("IM_REPLAY_WINDOW_S", "300"))
     # 岗位由组织下发：1 = 服务端按 deptId 解析岗位，忽略前端自选的越权岗位
     ROLE_FROM_ORG = _env("ROLE_FROM_ORG", "0") == "1"
     # deptId → 岗位映射（组织侧真实数据到位后改这里 / 换成 IdP 下发）
