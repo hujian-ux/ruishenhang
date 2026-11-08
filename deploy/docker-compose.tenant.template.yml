@@ -1,0 +1,107 @@
+# 企业 AI 智能体中台 · 单租户物理隔离栈（模板）
+# 本文件由 scripts/gen_tenant_stack.py 生成具体实例（把 ${TENANT} 等占位符替换为实际租户）。
+# 每个租户一套完全独立的底座 + 后端，数据（PG/Qdrant/MinIO/Redis 卷）物理隔离，
+# 且通过独立 Docker 网络彼此不可达 —— 满足集团「数据不出租户、监管物理隔离」要求。
+#
+# 占位符：
+#   ${TENANT}        租户标识（小写字母/数字/连字符，如 acme / 集团子公司编码）
+#   ${PG_PORT}       宿主机 PostgreSQL 端口
+#   ${QDRANT_PORT}   宿主机 Qdrant 端口
+#   ${MINIO_PORT}    宿主机 MinIO API 端口
+#   ${REDIS_PORT}    宿主机 Redis 端口
+#   ${APP_PORT}      宿主机 backend 端口
+#   ${PG_PASSWORD}   该租户专属数据库密码（生成器写入 .env.${TENANT}）
+
+services:
+  ${TENANT}_postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: aiplat
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: "${PG_PASSWORD}"
+    ports:
+      - "${PG_PORT}:5432"
+    volumes:
+      - ${TENANT}_pgdata:/var/lib/postgresql/data
+    networks: [${TENANT}_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d aiplat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ${TENANT}_qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "${QDRANT_PORT}:6333"
+      - "${QDRANT_PORT4}:6334"
+    volumes:
+      - ${TENANT}_qdrant_storage:/qdrant/storage
+    networks: [${TENANT}_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ${TENANT}_minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_PORT1}:9001"
+    volumes:
+      - ${TENANT}_minio_data:/data
+    networks: [${TENANT}_net]
+
+  ${TENANT}_redis:
+    image: redis:7
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - ${TENANT}_redis_data:/data
+    networks: [${TENANT}_net]
+
+  ${TENANT}_backend:
+    build: ./backend
+    env_file: .env.${TENANT}
+    environment:
+      # 物理隔离栈：后端直连本租户专属底座（容器名即服务名）
+      PG_HOST: ${TENANT}_postgres
+      PG_PORT: "5432"
+      PG_PASSWORD: "${PG_PASSWORD}"
+      QDRANT_HOST: ${TENANT}_qdrant
+      QDRANT_PORT: "6333"
+      MINIO_ENDPOINT: ${TENANT}_minio:9000
+      MINIO_USER: ${MINIO_USER}
+      MINIO_PASSWORD: ${MINIO_PASSWORD}
+      REDIS_URL: redis://${TENANT}_redis:6379/0
+      APP_PORT: "8080"
+      # 单租户独立栈：本栈只服务一个租户，PLATFORM_TENANT 留空（共享资源即该租户独占）
+    ports:
+      - "${APP_PORT}:8080"
+    networks: [${TENANT}_net]
+    depends_on:
+      ${TENANT}_postgres: { condition: service_healthy }
+      ${TENANT}_qdrant:   { condition: service_healthy }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz').status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+networks:
+  ${TENANT}_net:
+    driver: bridge
+    name: ${TENANT}_net
+
+volumes:
+  ${TENANT}_pgdata:
+  ${TENANT}_qdrant_storage:
+  ${TENANT}_minio_data:
+  ${TENANT}_redis_data:

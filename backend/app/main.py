@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware, RateLimitMiddleware
 from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
                         events, feedback, files, guardrails, integrations, invoke, kb,
-                        models, ops, quality, rag, search, selection, tenants, usage)
+                        mcp, models, ops, quality, rag, search, selection, tenants, usage)
 from app.services import (agent_store, approval_store, file_store, kb_store,
                           observability, pg_store, session_store, usage_store)
 
@@ -91,6 +91,11 @@ async def lifespan(app: FastAPI):
     agent_store.ensure_public_skills()      # 公共库：文案/PPT/表格等办公基础技能（9 条，不进 115 口径）
     file_store.load_from_pg()    # M16：上传件与产出物重启后仍可下载
     pg_store._connect()  # 触发建表/探活（一次性）
+    # MCP 方向2：若配置了外部 MCP Server，启动时连接并枚举工具（缺省不连接，零副作用）。
+    if settings.MCP_SERVERS:
+        from app.services import mcp_client
+        mcp_client.configure_manager(settings.MCP_SERVERS)
+        mcp_client.ensure_connected()
     yield
 
 
@@ -141,6 +146,7 @@ app.include_router(quality.router, prefix=settings.API_PREFIX)      # 评测 / �
 app.include_router(builder.router, prefix=settings.API_PREFIX)      # 自助建部门 / L2 建包 / L3 编排
 app.include_router(integrations.router, prefix=settings.API_PREFIX)  # P1-173：企业微信/钉钉 集成与审批回推
 app.include_router(tenants.router, prefix=settings.API_PREFIX)        # M43：多企业租户开通
+app.include_router(mcp.router, prefix=settings.API_PREFIX)             # MCP 方向2：消费外部工具
 
 
 @app.get("/healthz")

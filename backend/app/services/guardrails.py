@@ -471,6 +471,42 @@ def grounding_check(answer: str, evidence: str) -> dict:
 
 
 # ==================================================================== 5. 工具侧
+def _mcp_allow_set() -> set[str]:
+    raw = (getattr(settings, "MCP_TOOL_ALLOW", "") or "").strip()
+    if not raw:
+        return set()
+    return {a.strip() for a in raw.split(",") if a.strip()}
+
+
+def _mcp_tool_allowed(qualified: str, allow: set[str]) -> bool:
+    if not allow:
+        return False
+    if qualified in allow:
+        return True
+    server = qualified.split("__", 2)[1] if qualified.startswith("mcp__") else ""
+    if server and f"mcp__{server}__*" in allow:
+        return True
+    return "*" in allow
+
+
+def _guard_mcp_tool(tool: str, args: dict, caller) -> dict:
+    """外部 MCP 工具守门：显式授权 + 经 mcp_client 调用，结果原样回传。"""
+    if not _tool_auth():
+        return {"allowed": False, "reason": "GUARDRAILS_TOOL_AUTH=0"}
+    if not _mcp_tool_allowed(tool, _mcp_allow_set()):
+        return {"allowed": False,
+                "reason": f"mcp_tool_not_allowed: {tool}（请在 MCP_TOOL_ALLOW 显式放行）"}
+    try:
+        from app.services import mcp_client
+        res = mcp_client.call_mcp_tool(tool, args)
+    except Exception as exc:
+        return {"allowed": False, "reason": f"mcp_call_failed: {str(exc)[:160]}"}
+    if res.get("is_error"):
+        return {"allowed": False,
+                "reason": f"mcp_tool_error: {str(res.get('content', ''))[:200]}"}
+    return {"allowed": True, "result": {"content": res.get("content", "")}}
+
+
 def _is_private_url(url: str) -> bool:
     """字面 IP 用 ipaddress 判私网；域名只拦 localhost / 内网后缀，不做 DNS。"""
     try:
@@ -520,6 +556,9 @@ def guard_tool_call(tool: str, args: dict, caller) -> dict:
     """工具调用前置校验：白名单 / 单一过滤点 / 出网脱敏 / 私网拦截 / 审计。"""
     t = tool if isinstance(tool, str) else str(tool or "")
     a = dict(args) if isinstance(args, dict) else {}
+    # 外部 MCP 工具（mcp__server__tool）走独立守门分支，不进内部白名单/脱敏逻辑。
+    if t.startswith("mcp__"):
+        return _guard_mcp_tool(t, a, caller)
     scopes: list[str] = []
     allowed, reason = True, "ok"
 

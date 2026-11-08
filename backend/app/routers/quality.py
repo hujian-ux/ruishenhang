@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.services import degrade, mlops, model_router, quality, semantic_cache
+from app.services import degrade, judge, mlops, model_router, quality, semantic_cache
 from app.services._m27_store import audit_event
 
 router = APIRouter(prefix="", tags=["quality"])
@@ -35,6 +35,84 @@ async def eval_judge(body: dict, caller: CallerContext = Depends(get_caller)):
         str(body.get("evidence") or ""),
     )
     return {"code": 0, "data": data}
+
+
+@router.post("/eval/judge-one")
+async def eval_judge_one(body: dict, caller: CallerContext = Depends(get_caller)):
+    """LLM-as-Judge 单条判分（真模型；无真模型时诚实返回 llm_real=false）。
+
+    入参：query（问题）、reference（标准依据）、answer（待评审答案）、可选 model。
+    出参：correctness/groundedness/completeness/verdict/reason + llm_real。
+    """
+    _require_keys(body, "query", "reference", "answer")
+    sc = judge.judge_one(
+        str(body.get("query") or ""), str(body.get("reference") or ""),
+        str(body.get("answer") or ""), model_id=body.get("model") or None,
+    )
+    return {"code": 0, "data": {
+        "query": body.get("query"), "reference": body.get("reference"),
+        "answer": body.get("answer"), "model": body.get("model") or None,
+        "correctness": sc.correctness, "groundedness": sc.groundedness,
+        "completeness": sc.completeness, "verdict": sc.verdict,
+        "reason": sc.reason, "llm_real": sc.llm_real,
+        "overall": sc.overall(),
+    }}
+
+
+@router.post("/eval/judge-run")
+async def eval_judge_run(body: dict, caller: CallerContext = Depends(get_caller)):
+    """LLM-as-Judge 整轮跑批（真模型；平台管理员）。
+
+    入参：可选 golden（内联用例列表，否则用 services/qa_golden.jsonl）、可选 model。
+    出参：按部门聚合 + 覆盖度 + 门禁结论（与 judge.run_judge 同构）。
+    """
+    if caller.role != "platform_admin":
+        return {"code": 403, "msg": "forbidden: 仅平台管理员可跑判分"}
+    golden = body.get("golden") if isinstance(body.get("golden"), list) else None
+    try:
+        report = judge.run_judge(golden, model_id=body.get("model") or None)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"code": 0, "data": report}
+
+
+@router.post("/eval/judge-regression")
+async def eval_judge_regression(body: dict, caller: CallerContext = Depends(get_caller)):
+    """LLM-as-Judge 回归门禁（真模型；平台管理员）。
+
+    跑一轮判分并与已存基线比对：平均分跌幅超阈值标 regression；可选 save_baseline 把本次存为基线。
+    入参：可选 golden / model / save_baseline(bool)。
+    """
+    if caller.role != "platform_admin":
+        return {"code": 403, "msg": "forbidden: 仅平台管理员可跑回归门禁"}
+    golden = body.get("golden") if isinstance(body.get("golden"), list) else None
+    try:
+        report = judge.run_judge(golden, model_id=body.get("model") or None)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    reg = judge.regression_gate(report)
+    if bool(body.get("save_baseline")):
+        judge.save_baseline(report)
+        reg["baseline_saved"] = True
+    return {"code": 0, "data": {"report": report, "regression": reg}}
+
+
+@router.get("/eval/judge-baseline")
+async def eval_judge_baseline(caller: CallerContext = Depends(get_caller)):
+    """读取已存的 LLM-as-Judge 回归基线（无则 null）。"""
+    return {"code": 0, "data": judge.load_baseline()}
+
+
+@router.post("/eval/judge-save-baseline")
+async def eval_judge_save_baseline(body: dict, caller: CallerContext = Depends(get_caller)):
+    """将一次判分报告存为回归基线（平台管理员）。入参：report（judge.run_judge 的结构化结果）。"""
+    if caller.role != "platform_admin":
+        return {"code": 403, "msg": "forbidden: 仅平台管理员可保存基线"}
+    rep = body.get("report")
+    if not isinstance(rep, dict):
+        raise HTTPException(status_code=422, detail="report 必须是 judge.run_judge 的结果对象")
+    judge.save_baseline(rep)
+    return {"code": 0, "data": {"saved": True, "avg_overall": rep.get("avg_overall")}}
 
 
 @router.post("/eval/prompt-regression")

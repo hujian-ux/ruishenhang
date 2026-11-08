@@ -184,6 +184,14 @@ class Settings:
     GUARDRAILS_OUTPUT_ENFORCE = _env("GUARDRAILS_OUTPUT_ENFORCE", "0") == "1"
     GUARDRAILS_MAX_INJECTION_HITS = int(_env("GUARDRAILS_MAX_INJECTION_HITS", "3"))
 
+    # ── MCP 方向2：平台消费外部 MCP 工具 ──
+    # MCP_SERVERS：JSON（数组或对象）。每个 server：{name, transport(stdio|http|sse),
+    #   command/args/env 或 url/headers, timeout}。留空则不连接任何外部 MCP。
+    # 例：[{"name":"brave","transport":"stdio","command":"npx","args":["-y","@modelcontextprotocol/server-brave-search"],"env":{"BRAVE_API_KEY":"x"}]
+    MCP_SERVERS = _env("MCP_SERVERS", "")
+    # 外部 MCP 工具白名单（默认全拒）。支持 mcp__server__tool / mcp__server__* / *。
+    MCP_TOOL_ALLOW = _env("MCP_TOOL_ALLOW", "")
+
     FEEDBACK_ENABLED = _env("FEEDBACK_ENABLED", "1") == "1"
     EVOLUTION_REQUIRE_APPROVAL = _env("EVOLUTION_REQUIRE_APPROVAL", "1") == "1"
     # A/B 实验与灰度发布（蓝图第 20/30/41 章）：默认关，零行为变更

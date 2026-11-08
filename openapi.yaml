@@ -1536,6 +1536,193 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /eval/judge-baseline:
+    get:
+      tags:
+      - quality
+      summary: Eval Judge Baseline
+      description: 读取已存的 LLM-as-Judge 回归基线（无则 null）。
+      operationId: eval_judge_baseline_api_v1_eval_judge_baseline_get
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /eval/judge-one:
+    post:
+      tags:
+      - quality
+      summary: Eval Judge One
+      description: 'LLM-as-Judge 单条判分（真模型；无真模型时诚实返回 llm_real=false）。
+
+
+        入参：query（问题）、reference（标准依据）、answer（待评审答案）、可选 model。
+
+        出参：correctness/groundedness/completeness/verdict/reason + llm_real。'
+      operationId: eval_judge_one_api_v1_eval_judge_one_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /eval/judge-regression:
+    post:
+      tags:
+      - quality
+      summary: Eval Judge Regression
+      description: 'LLM-as-Judge 回归门禁（真模型；平台管理员）。
+
+
+        跑一轮判分并与已存基线比对：平均分跌幅超阈值标 regression；可选 save_baseline 把本次存为基线。
+
+        入参：可选 golden / model / save_baseline(bool)。'
+      operationId: eval_judge_regression_api_v1_eval_judge_regression_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /eval/judge-run:
+    post:
+      tags:
+      - quality
+      summary: Eval Judge Run
+      description: 'LLM-as-Judge 整轮跑批（真模型；平台管理员）。
+
+
+        入参：可选 golden（内联用例列表，否则用 services/qa_golden.jsonl）、可选 model。
+
+        出参：按部门聚合 + 覆盖度 + 门禁结论（与 judge.run_judge 同构）。'
+      operationId: eval_judge_run_api_v1_eval_judge_run_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /eval/judge-save-baseline:
+    post:
+      tags:
+      - quality
+      summary: Eval Judge Save Baseline
+      description: 将一次判分报告存为回归基线（平台管理员）。入参：report（judge.run_judge 的结构化结果）。
+      operationId: eval_judge_save_baseline_api_v1_eval_judge_save_baseline_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /eval/latest:
     get:
       tags:
@@ -3288,6 +3475,90 @@ paths:
       summary: Kb Stats
       description: 语料画像（试点每日开机第一屏）：规模 / 分布 / 截断 / 存储与持久化状态。
       operationId: kb_stats_api_v1_kb_stats_get
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mcp/reload:
+    post:
+      tags:
+      - mcp
+      summary: Reload External Tools
+      description: 重读 MCP_SERVERS 环境变量并重新连接所有外部 MCP Server（platform_admin 专用）。
+      operationId: reload_external_tools_api_v1_mcp_reload_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mcp/status:
+    get:
+      tags:
+      - mcp
+      summary: Mcp Status
+      description: MCP Client 连接状态：已配置/已连接的 server 清单。
+      operationId: mcp_status_api_v1_mcp_status_get
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /mcp/tools:
+    get:
+      tags:
+      - mcp
+      summary: List External Tools
+      description: 列出已接入的外部 MCP 工具（含 server / 名称 / 描述 / 入参 schema / 平台内限定名）。
+      operationId: list_external_tools_api_v1_mcp_tools_get
       parameters:
       - name: x-caller-context
         in: header
