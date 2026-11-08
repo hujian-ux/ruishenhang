@@ -22,12 +22,23 @@ class AuditTraceMiddleware(BaseHTTPMiddleware):
 
 class GatewayMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        authorization = request.headers.get("Authorization")
+        # C1（安全加固）：网关闭权——客户端不得自报 X-Caller-Context，网关是唯一可信注入方。
+        # 先剥离任何进来的 x-caller-context，再按 Authorization 解析后重新签名注入。
+        # 业务层（deps.get_caller）只读取并验签此头，不再信任任何客户端传来的身份。
+        raw_headers = list(request.scope.get("headers", []))
+        stripped = [(k, v) for (k, v) in raw_headers if k.lower() != b"x-caller-context"]
+        request.scope["headers"] = stripped
+        # 直接读 scope（避免提前触发 request.headers 缓存，否则上面的剥离对下游不可见）。
+        authorization = None
+        for k, v in stripped:
+            if k.lower() == b"authorization":
+                authorization = v.decode("latin-1")
+                break
         caller = decode_token(authorization) if authorization else None
         request.state.caller = caller
-        # 将签名上下文写入下游信任的头（即便后续拆服务，此头即契约）
+        # 仅当 Authorization 解析成功才注入签名上下文；否则下游既无 caller 也无伪造头。
         if caller is not None:
             ctx = encode_caller_context(caller).encode("utf-8")
-            request.scope["headers"] = list(request.scope.get("headers", [])) + [(b"x-caller-context", ctx)]
+            request.scope["headers"] = stripped + [(b"x-caller-context", ctx)]
         response = await call_next(request)
         return response

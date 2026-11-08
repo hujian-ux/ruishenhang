@@ -82,14 +82,10 @@ def _verify_oidc_token(token: str, issuer: str = "", audience: str = "") -> Call
     issuer = issuer or settings.OIDC_ISSUER
     audience = audience or settings.OIDC_AUDIENCE
     if not issuer:
-        # 自服务 / 演示：未固定 issuer 时，用 token 自带的 iss 拉 JWKS 验签
-        # （仅当 token 确由某可达 IdP 签发才通过，伪造 token 因无对应私钥而失败）
-        try:
-            issuer = jwt.decode(token, options={"verify_signature": False}).get("iss")
-        except Exception:
-            return None
-        if not issuer:
-            return None
+        # C2（安全加固）：固定 issuer 收口——未显式配置 OIDC_ISSUER 时，拒绝任何
+        # 自报 iss 的 token，杜绝「伪造 token 借任一可达 IdP 通过验签」的 IdP 冒用。
+        # 生产必须配置 OIDC_ISSUER 后才接受真实 SSO 身份。
+        return None
     try:
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
@@ -108,7 +104,7 @@ def _verify_oidc_token(token: str, issuer: str = "", audience: str = "") -> Call
         # 未配 audience 时显式关闭校验（自服务），配了就严格校验。
         payload = jwt.decode(token, key, algorithms=[jwk.get("alg", "RS256")],
                             audience=audience or None,
-                            issuer=issuer or None,
+                            issuer=issuer,
                             options={"verify_aud": bool(audience)})
         # 用户名：优先配置 claim，其次 preferred_username / email，最后 sub（保证非空）
         user = (payload.get(settings.OIDC_USER_CLAIM)

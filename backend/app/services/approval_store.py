@@ -45,14 +45,17 @@ def _persist(t: Dict[str, Any]) -> None:
     pg_store.upsert("approval_tickets", t["approval_id"], t)
 
 
-def _can_decide_at_stage(ticket: Dict[str, Any], role: str, dept: str) -> bool:
+def _can_decide_at_stage(ticket: Dict[str, Any], role: str, dept: str, tenant: str = "") -> bool:
     """当前级是否可由该角色/部门审批（用于待审列表裁剪，不含终态判断）。
 
     与 decide() 的授权规则对称：platform_admin 可审任何级；否则须满足
-    当前级 approver_role 要求，且 dept_admin 不能跨部审。
+    当前级 approver_role 要求，且 dept_admin 不能跨部、也不能跨租户审。
     """
     if role == "platform_admin":
         return True
+    # H4（安全加固）：跨租户强边界——dept_admin 不能审别的租户的单（即便部门名相同）。
+    if ticket.get("tenant_id") and tenant and ticket["tenant_id"] != tenant:
+        return False
     stages = ticket.get("stages") or DEFAULT_STAGES
     idx = ticket.get("current_stage", 0)
     stage = stages[idx] if idx < len(stages) else stages[-1]
@@ -142,7 +145,7 @@ def ticket_for_agent(agent_id: str) -> Dict[str, Any] | None:
 
 
 def decide(approval_id: str, decision: str, decider_id: str, decider_role: str,
-           decider_dept: str, comment: str | None = None) -> Dict[str, Any]:
+           decider_dept: str, comment: str | None = None, decider_tenant: str = "") -> Dict[str, Any]:
     """决策审批单；返回单据（含终态）。状态迁移在此落账，智能体状态由路由同步。
 
     M46 多级：当前级 approve 且非末级 → 推进 current_stage（仍 pending）；
@@ -157,6 +160,9 @@ def decide(approval_id: str, decision: str, decider_id: str, decider_role: str,
     # 按级角色校验：该级要求某角色，且决策人非 platform_admin 且不符 → 无权
     req_role = stage.get("approver_role")
     if req_role and decider_role != "platform_admin" and decider_role != req_role:
+        raise ForbiddenDecider(approval_id)
+    # H4（安全加固）：跨租户强边界——非平台管理员不得决策其它租户的单据。
+    if decider_role != "platform_admin" and t.get("tenant_id") and decider_tenant and t["tenant_id"] != decider_tenant:
         raise ForbiddenDecider(approval_id)
     # 保留历史跨部门规则：dept_admin 只能审本部门发起的单
     if decider_role == "dept_admin" and t["dept_id"] != decider_dept:
@@ -213,5 +219,5 @@ def pending_list(dept_id: str | None = None, tenant_id: str | None = None,
     if tenant_id:
         rows = [t for t in rows if t.get("tenant_id") == tenant_id]
     if only_my_stage and caller_role:
-        rows = [t for t in rows if _can_decide_at_stage(t, caller_role, caller_dept)]
+        rows = [t for t in rows if _can_decide_at_stage(t, caller_role, caller_dept, tenant_id or "")]
     return sorted(rows, key=lambda t: t["created_at"])

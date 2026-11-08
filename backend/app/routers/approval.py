@@ -31,7 +31,7 @@ async def decide(
         raise HTTPException(status_code=400, detail="decision 必须为 approve|reject")
     try:
         ticket = approval_store.decide(
-            approval_id, req.decision, caller.userId, caller.role, caller.deptId, req.comment,
+            approval_id, req.decision, caller.userId, caller.role, caller.deptId, req.comment, caller.tenantId,
         )
     except approval_store.TicketNotFound:
         audit.record("approval", caller, target=approval_id, result="error:not_found", trace_id=trace_id)
@@ -115,7 +115,13 @@ async def ticket_detail(approval_id: str = PathParam(...),
         t = approval_store.get_ticket(approval_id)
     except approval_store.TicketNotFound:
         raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
-    if caller.role not in ("platform_admin", "dept_admin") and t["requester_id"] != caller.userId:
+    if caller.role == "platform_admin":
+        pass  # 平台管理员看全域
+    elif t.get("tenant_id") and t["tenant_id"] != caller.tenantId:
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户审批单")
+    elif caller.role == "dept_admin":
+        pass  # 本部门管理员可读本租户单据
+    elif t["requester_id"] != caller.userId:
         raise HTTPException(status_code=403, detail="forbidden: 仅申请人或管理员可查看")
     stages = t.get("stages") or [{"name": "默认审批"}]
     total = len(stages)
@@ -158,6 +164,12 @@ async def assist(approval_id: str = PathParam(...),
         t = approval_store.get_ticket(approval_id)
     except approval_store.TicketNotFound:
         raise HTTPException(status_code=404, detail=f"审批单不存在：{approval_id}")
-    if caller.role not in ("platform_admin", "dept_admin") and t["requester_id"] != caller.userId:
+    if caller.role == "platform_admin":
+        pass
+    elif t.get("tenant_id") and t["tenant_id"] != caller.tenantId:
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户审批单")
+    elif caller.role == "dept_admin":
+        pass
+    elif t["requester_id"] != caller.userId:
         raise HTTPException(status_code=403, detail="forbidden: 仅申请人或管理员可使用")
     return {"code": 0, "data": approval_assistant.assistant_advise(approval_id, enrich=enrich)}

@@ -118,9 +118,15 @@ def read(rec: Dict[str, Any]) -> Optional[bytes]:
 
 
 def can_access(rec: Dict[str, Any], caller) -> bool:
-    """第18章权限语义：管理员看全域、部门管理员看本部门、员工看本人。"""
+    """第18章权限语义：管理员看全域、部门管理员看本部门、员工看本人。
+    H1（安全加固）：跨租户拦截——非平台管理员不得访问其它租户的文件（即便 owner/dept 同名）。
+    平台级资产（tenant_id 留空）对所有租户可见，与全局共享语义一致。"""
     if caller.role == "platform_admin":
         return True
+    rec_tenant = rec.get("tenant_id") or ""
+    caller_tenant = getattr(caller, "tenantId", "") or ""
+    if rec_tenant and rec_tenant != caller_tenant:
+        return False
     if rec.get("owner_id") == caller.userId:
         return True
     if caller.role == "dept_admin" and rec.get("dept_id") == caller.deptId:

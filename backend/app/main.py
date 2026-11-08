@@ -43,9 +43,33 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def _fail_if_insecure_for_prod() -> None:
+    """C1（安全加固）：生产环境安全自检。
+
+    网关与下游之间用 CALLER_SIGNING_SECRET 作 HMAC 签名信任边界；若仍是默认弱密钥，
+    任何知道默认值的人都能伪造 X-Caller-Context，身份体系形同虚设。故生产启动即拒绝。
+    测试默认 APP_ENV=dev，不受影响。
+    """
+    if settings.APP_ENV != "prod":
+        return
+    weak = {"dev-only-change-me"}
+    if settings.CALLER_SIGNING_SECRET in weak:
+        raise RuntimeError(
+            "生产环境 CALLER_SIGNING_SECRET 仍为默认弱密钥（dev-only-change-me），"
+            "拒绝启动。请设置高强度随机值并通过环境变量注入。")
+    if settings.WEBHOOK_TOKEN_SECRET in weak:
+        raise RuntimeError(
+            "生产环境 WEBHOOK_TOKEN_SECRET 仍为默认弱密钥，拒绝启动。")
+    if not settings.OIDC_ISSUER:
+        raise RuntimeError(
+            "生产环境未配置 OIDC_ISSUER（统一身份收口未生效），拒绝启动。"
+            "请配置企业 SSO 的 issuer。")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """PG 就绪时把会话/审批单/用量记录/知识文档载回内存（重启不丢）；不可达时静默用内存。"""
+    _fail_if_insecure_for_prod()
     session_store.load_from_pg()
     approval_store.load_from_pg()
     usage_store.load_from_pg()   # M7：重启后账单不清零

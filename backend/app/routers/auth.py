@@ -43,11 +43,12 @@ async def sso_callback(req: SsoCallbackRequest):
             },
         }
 
-    # 收口态：禁止 dev_admin 捷径，必须走真实 SSO（携带 id_token）。
-    if settings.AUTH_ENFORCE_OIDC:
+    # 收口态或生产环境：禁止 dev_admin 捷径，必须走真实 SSO（携带 id_token）。
+    # C3（安全加固）：生产环境即便未开 AUTH_ENFORCE_OIDC，也绝不允许 dev 后门换平台管理员令牌。
+    if settings.AUTH_ENFORCE_OIDC or settings.APP_ENV == "prod":
         raise HTTPException(
             403,
-            "身份收口已开启（AUTH_ENFORCE_OIDC=1）：禁止 dev 捷径，请走真实企业 SSO（携带 id_token）",
+            "身份收口已开启或处于生产环境：禁止 dev 捷径，请走真实企业 SSO（携带 id_token）",
         )
 
     # 演示/开发路径（默认）：由 code 换演示身份。生产应关闭 OIDC 之外的此捷径。

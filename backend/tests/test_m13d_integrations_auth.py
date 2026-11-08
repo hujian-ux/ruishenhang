@@ -2,22 +2,22 @@
 
 早年实现误把 `caller: CallerContext = Query(default=None)` 写进 IM 管理端点，
 既导致 401，又等于任何人都能在 query 里伪造 `role=platform_admin`。
-本测试断言：鉴权必须走网关签名的 X-Caller-Context（Depends(get_caller)），
+本测试断言：鉴权必须走网关链路——客户端持 `Authorization`（dev token / OIDC），
+由 GatewayMiddleware 翻译并签名注入 `X-Caller-Context`，下游 `Depends(get_caller)`
+只读取并验签（C1 安全加固：客户端直塞的 X-Caller-Context 会被网关剥离，不可伪造）。
 拒绝缺失 / 伪造 / 越权。
 """
 from fastapi.testclient import TestClient
 
 from app.core import security
 from app.main import app
-from app.models.caller import CallerContext
 
 c = TestClient(app)
 
 
 def _ctx(role: str, tenant: str = "t_demo") -> str:
-    return security.encode_caller_context(
-        CallerContext(userId="u1", deptId="d1", role=role, tenantId=tenant)
-    )
+    """返回网关签发的 dev token（Authorization 值），模拟真实客户端凭据。"""
+    return security.create_dev_token(user_id="u1", dept_id="d1", role=role, tenant_id=tenant)
 
 
 def test_im_config_requires_auth():
@@ -33,20 +33,20 @@ def test_im_config_rejects_query_spoof():
 
 
 def test_im_config_allows_platform_admin():
-    h = {"X-Caller-Context": _ctx("platform_admin")}
+    h = {"Authorization": _ctx("platform_admin")}
     r = c.get("/api/v1/integrations/im/config", headers=h)
     assert r.status_code == 200
     assert r.json()["code"] == 0
 
 
 def test_im_config_rejects_employee():
-    h = {"X-Caller-Context": _ctx("employee")}
+    h = {"Authorization": _ctx("employee")}
     r = c.get("/api/v1/integrations/im/config", headers=h)
     assert r.status_code == 403
 
 
 def test_im_config_create_delete_as_admin():
-    h = {"X-Caller-Context": _ctx("platform_admin")}
+    h = {"Authorization": _ctx("platform_admin")}
     # 创建
     r = c.post(
         "/api/v1/integrations/im/config", headers=h, json={

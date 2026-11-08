@@ -26,9 +26,8 @@ def _trigger_startup():
 
 
 def _ctx(role, tenant="t_demo", userId="u1", deptId="d1"):
-    return security.encode_caller_context(
-        CallerContext(userId=userId, deptId=deptId, role=role, tenantId=tenant)
-    )
+    """返回网关签发的 dev token（Authorization 值），模拟真实客户端凭据。"""
+    return security.create_dev_token(user_id=userId, dept_id=deptId, role=role, tenant_id=tenant)
 
 
 # ── 组织 ↔ 租户映射 ──
@@ -84,12 +83,12 @@ def test_current_branding_authenticated():
     t = tenant_store.create_tenant("BrandCo2", {"brand": {"name": "乙方制造"}})
     try:
         r = c.get("/api/v1/auth/branding",
-                  headers={"X-Caller-Context": _ctx("employee", tenant=t["tenant_id"])})
+                  headers={"Authorization": _ctx("employee", tenant=t["tenant_id"])})
         assert r.status_code == 200
         assert r.json()["data"]["branding"]["name"] == "乙方制造"
         # 平台管理员（t_platform）回落平台默认
         r2 = c.get("/api/v1/auth/branding",
-                   headers={"X-Caller-Context": _ctx("platform_admin", tenant="t_platform")})
+                   headers={"Authorization": _ctx("platform_admin", tenant="t_platform")})
         assert r2.json()["data"]["branding"]["name"] == "企业 AI 智能体中台"
     finally:
         tenant_store._TENANTS.pop(t["tenant_id"], None)
@@ -98,7 +97,7 @@ def test_current_branding_authenticated():
 # ── 租户品牌管理 CRUD（platform_admin）──
 def test_tenant_branding_admin_crud():
     t = tenant_store.create_tenant("BrandCo3", {})
-    h_admin = {"X-Caller-Context": _ctx("platform_admin", tenant="t_platform")}
+    h_admin = {"Authorization": _ctx("platform_admin", tenant="t_platform")}
     try:
         # 初始：平台默认
         g0 = c.get(f"/api/v1/tenants/{t['tenant_id']}/branding", headers=h_admin)
@@ -118,7 +117,7 @@ def test_tenant_branding_admin_crud():
         # casdoor_org 映射即时生效
         assert tenant_store.resolve_tenant_by_org("gamma-org") == t["tenant_id"]
         # 非管理员 403
-        h_emp = {"X-Caller-Context": _ctx("employee", tenant=t["tenant_id"])}
+        h_emp = {"Authorization": _ctx("employee", tenant=t["tenant_id"])}
         assert c.get(f"/api/v1/tenants/{t['tenant_id']}/branding", headers=h_emp).status_code == 403
         # 未知租户 404
         assert c.get("/api/v1/tenants/t_noexist/branding", headers=h_admin).status_code == 404

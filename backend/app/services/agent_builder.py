@@ -115,6 +115,7 @@ def build_agent(name: str, goal: str, inputs_contract: str, outputs_contract: st
         "status": "draft",
         "created_by": caller_id(caller),
         "dept_id": str(getattr(caller, "deptId", "") or ""),
+        "tenant_id": getattr(caller, "tenantId", "") or "",  # H3：草稿归属当前租户
         "created_at": now(),
         "created_iso": iso(),
     }
@@ -128,7 +129,12 @@ def list_drafts(caller=None, status: str | None = None) -> list:
     filters: Dict[str, Any] = {}
     if status:
         filters["status"] = status
-    return _DRAFTS.list(filters=filters)
+    rows = _DRAFTS.list(filters=filters)
+    # H3（安全加固）：非平台管理员仅看本租户草稿，杜绝跨租户串看。
+    if caller is not None and caller_role(caller) != "platform_admin":
+        tid = getattr(caller, "tenantId", "") or ""
+        rows = [r for r in rows if (r.get("tenant_id") or "") == tid]
+    return rows
 
 
 def publish(agent_id: str, caller) -> dict:
@@ -137,6 +143,9 @@ def publish(agent_id: str, caller) -> dict:
     draft = _DRAFTS.get(agent_id)
     if draft is None:
         raise HTTPException(status_code=404, detail=f"草稿不存在：{agent_id}")
+    # H3（安全加固）：跨租户——非平台管理员不能发布其它租户的草稿。
+    if caller.role != "platform_admin" and (draft.get("tenant_id") or "") != (getattr(caller, "tenantId", "") or ""):
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户草稿")
     # 唯一会触碰 agent_store._AGENTS 的路径。status 用 pending_review：
     # invoke.py 的 M5 红线会拦下一切未 published 的调用（403）。
     from app.services import agent_store

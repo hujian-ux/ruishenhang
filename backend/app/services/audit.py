@@ -174,8 +174,10 @@ def get_logs(caller: CallerContext, action: Optional[str] = None,
             params: List[Any] = []
             if caller.role == "dept_admin":
                 sql += " AND dept_id=%s"; params.append(caller.deptId)
+                sql += " AND tenant_id=%s"; params.append(caller.tenantId)
             elif caller.role == "employee":
                 sql += " AND user_id=%s"; params.append(caller.userId)
+                sql += " AND tenant_id=%s"; params.append(caller.tenantId)
             if action:
                 sql += " AND action=%s"; params.append(action)
             sql += " ORDER BY created_at DESC LIMIT %s"; params.append(limit)
@@ -190,8 +192,10 @@ def get_logs(caller: CallerContext, action: Optional[str] = None,
             params = []
             if caller.role == "dept_admin":
                 sql += " AND dept_id=?"; params.append(caller.deptId)
+                sql += " AND tenant_id=?"; params.append(caller.tenantId)
             elif caller.role == "employee":
                 sql += " AND user_id=?"; params.append(caller.userId)
+                sql += " AND tenant_id=?"; params.append(caller.tenantId)
             if action:
                 sql += " AND action=?"; params.append(action)
             sql += " ORDER BY created_at DESC LIMIT ?"; params.append(limit)

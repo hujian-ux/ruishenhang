@@ -45,6 +45,7 @@ def create_workflow(name: str, nodes: list, caller) -> dict:
     row = {
         "id": wid, "name": name or "", "nodes": normalized,
         "status": "draft", "created_by": caller_id(caller),
+        "tenant_id": getattr(caller, "tenantId", "") or "",  # H3：工作流归属当前租户
         "created_at": now(), "created_iso": iso(),
     }
     _WF.put(row)
@@ -54,7 +55,12 @@ def create_workflow(name: str, nodes: list, caller) -> dict:
 
 
 def list_workflows(caller=None) -> list:
-    return _WF.list()
+    rows = _WF.list()
+    # H3（安全加固）：非平台管理员仅看本租户工作流，杜绝跨租户串看。
+    if caller is not None and caller.role != "platform_admin":
+        tid = getattr(caller, "tenantId", "") or ""
+        rows = [r for r in rows if (r.get("tenant_id") or "") == tid]
+    return rows
 
 
 def _rag_node(node: dict, input_text: str, caller):
@@ -118,6 +124,9 @@ def run_workflow(wid: str, input_text: str, caller) -> dict:
     wf = _WF.get(wid)
     if wf is None:
         raise HTTPException(status_code=404, detail=f"工作流不存在：{wid}")
+    # H3（安全加固）：跨租户——非平台管理员不能运行其它租户的工作流。
+    if caller is not None and caller.role != "platform_admin" and (wf.get("tenant_id") or "") != (getattr(caller, "tenantId", "") or ""):
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户工作流")
     run_id = new_id("run")
     context: Dict[str, Any] = {"input": input_text}
     steps: List[Dict[str, Any]] = []

@@ -133,9 +133,15 @@ def test_upload_returns_preview_and_meta(clean_files):
 
 
 def test_upload_same_file_reuses_record(clean_files):
-    """同一用户重复上传同一份文件 → 复用记录，不在对象存储堆副本。"""
-    a = _upload().json()["data"]["file_id"]
-    b = _upload().json()["data"]["file_id"]
+    """同一用户重复上传同一份文件 → 复用记录，不在对象存储堆副本。
+
+    注：openpyxl 把 xlsx 写成 zip 时会用当前时间写 zip 成员时间戳，
+    多次 _xlsx() 生成的「同内容」字节并不相等，故这里构造一份字节后上传两次，
+    直接验证「按内容哈希去重」这一被测能力（与 zip 时间戳无关）。
+    """
+    data = _xlsx(LEDGER)
+    a = _upload(data=data).json()["data"]["file_id"]
+    b = _upload(data=data).json()["data"]["file_id"]
     assert a == b
 
 

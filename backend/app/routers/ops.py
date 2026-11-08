@@ -85,16 +85,39 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
     pairs = fewshot.scan_solution_pairs(root)
     by_dir = {p["solution_dir"]: p for p in pairs}
     attached = 0
+    skipped_no_pair = 0
     for a in list(agent_store._AGENTS.values()):
         if a.get("builtin") or a.get("category") == "public":
             continue
-        src = a.get("source_path") or ""
-        key = a.get("solution_dir") or (src.rsplit("/", 1)[0] if src else "")
+        src = a.get("source_path") or a.get("solution_dir") or ""
+        # 向上回退到最近的含 xlsx 的祖先目录（板块04 skill.md 比 xlsx 深两级）
+        key = _resolve_solution_dir(src, by_dir)
         p = by_dir.get(key)
         if not p:
+            skipped_no_pair += 1
             continue
         block = fewshot.build_fewshot_block(p["input_path"], p["output_path"])
         fewshot.attach_fewshot(a, block)
         agent_store.save(a)
         attached += 1
-    return {"code": 0, "data": {"pairs_found": len(pairs), "attached": attached}}
+    return {"code": 0, "data": {"pairs_found": len(pairs), "attached": attached,
+                                "skipped_no_pair": skipped_no_pair}}
+
+
+def _resolve_solution_dir(src: str, by_dir: dict) -> str:
+    """把 agent 的 source_path / solution_dir 解析成 by_dir 里存在的键。
+
+    板块 01-03 的 skill.md 与 xlsx 同目录；板块 04 的 skill.md 嵌套更深，
+    xlsx 在其上两级。逐层向上回退到「by_dir 中已知含 xlsx 的目录」，
+    使 115 个业务包都能匹配到交付物（原精确相等只命中 9 个）。
+    路径统一为正斜杠（scan_solution_pairs 与 import_solutions 均如此规范化）。
+    """
+    key = (src or "").replace("\\", "/")
+    while key:
+        if key in by_dir:
+            return key
+        parent = key.rsplit("/", 1)[0] if "/" in key else ""
+        if parent == key:
+            break
+        key = parent
+    return ""

@@ -158,6 +158,7 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
             "model_id": it.model_id,
             "registered_by": caller.userId,
             "dept_id": caller.deptId,
+            "tenant_id": caller.tenantId,  # H2（安全加固）：导入即归属当前租户，避免被越权当成平台级（全租户可见）
             "status": "pending_review",
             "description": it.description,
             "system_prompt": it.system_prompt,
@@ -177,10 +178,10 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
 
     ids = [c["agent_id"] for c in created]
     if req.batch_approval:
-        ticket = approval_store.create_batch_ticket(ids, caller.userId, caller.deptId, req.batch_name)
+        ticket = approval_store.create_batch_ticket(ids, caller.userId, caller.deptId, req.batch_name, tenant_id=caller.tenantId)
         approvals = [{"approval_id": ticket["approval_id"], "agent_ids": ids, "batch": True}]
     else:
-        approvals = [{"approval_id": approval_store.create_ticket(i, caller.userId, caller.deptId)["approval_id"],
+        approvals = [{"approval_id": approval_store.create_ticket(i, caller.userId, caller.deptId, caller.tenantId)["approval_id"],
                       "agent_ids": [i], "batch": False} for i in ids]
 
     # M49：批量导入同样自动回推当前级审批人（best-effort，非阻塞）

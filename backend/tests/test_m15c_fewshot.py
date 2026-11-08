@@ -73,3 +73,19 @@ def test_attach_and_compose_opt_in():
     out = fewshot.compose_with_fewshot("你是专家。", agent)
     assert "产出物样例" in out and block in out
     settings.FEWSHOT_ENABLED = False  # 复原
+
+
+def test_resolve_solution_dir_walks_up_to_xlsx_ancestor():
+    """166 交付物匹配修复：agent 的 source_path 可能比 xlsx 深多级（板块04 嵌套两层），
+    必须向上回退到最近的含 xlsx 祖先，否则 115 个业务包绝大多数匹配不到（原精确相等只命中 9 个）。"""
+    from app.routers import ops
+    by_dir = {"01_制造业/方案A": {"p": 1}, "00_办公/模板": {"p": 2}}
+    # 板块04：skill.md 在 xlsx 上级再深两级
+    assert ops._resolve_solution_dir("01_制造业/方案A/子/孙/skill.md", by_dir) == "01_制造业/方案A"
+    # 直接命中
+    assert ops._resolve_solution_dir("00_办公/模板", by_dir) == "00_办公/模板"
+    # 反斜杠也能归一
+    assert ops._resolve_solution_dir("01_制造业\\方案A\\skill.md", by_dir) == "01_制造业/方案A"
+    # 找不到返回空（后续跳过，不挂）
+    assert ops._resolve_solution_dir("99_不存在/xx", by_dir) == ""
+

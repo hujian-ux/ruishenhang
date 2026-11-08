@@ -30,9 +30,8 @@ def _trigger_startup():
 
 
 def _ctx(role, tenant="t_demo", userId="u1", deptId="d1"):
-    return security.encode_caller_context(
-        CallerContext(userId=userId, deptId=deptId, role=role, tenantId=tenant)
-    )
+    """返回网关签发的 dev token（Authorization 值），模拟真实客户端凭据。"""
+    return security.create_dev_token(user_id=userId, dept_id=deptId, role=role, tenant_id=tenant)
 
 
 # ── 智能体目录租户隔离 ──
@@ -75,11 +74,11 @@ def test_invoke_cross_tenant_returns_404():
     })
     try:
         # 跨租户调用 → 404（与「无权=不存在」统一口径）
-        r = c.post("/api/v1/agent/invoke", headers={"X-Caller-Context": _ctx("employee", tenant="t_iso_b")},
+        r = c.post("/api/v1/agent/invoke", headers={"Authorization": _ctx("employee", tenant="t_iso_b")},
                    json={"agent_id": "ag_inv_iso", "input": "hi"})
         assert r.status_code == 404
         # 同租户调用 → 不因租户被拒（可能走 stub，但绝不是 404）
-        r2 = c.post("/api/v1/agent/invoke", headers={"X-Caller-Context": _ctx("employee", tenant="t_iso_a")},
+        r2 = c.post("/api/v1/agent/invoke", headers={"Authorization": _ctx("employee", tenant="t_iso_a")},
                     json={"agent_id": "ag_inv_iso", "input": "hi"})
         assert r2.status_code != 404
     finally:
@@ -115,9 +114,9 @@ def test_session_list_scoped_by_tenant():
 
 # ── 租户注册表 ──
 def test_tenant_create_requires_platform_admin():
-    r = c.post("/api/v1/tenants", headers={"X-Caller-Context": _ctx("employee")}, json={"name": "Acme"})
+    r = c.post("/api/v1/tenants", headers={"Authorization": _ctx("employee")}, json={"name": "Acme"})
     assert r.status_code == 403
-    h_admin = {"X-Caller-Context": _ctx("platform_admin")}
+    h_admin = {"Authorization": _ctx("platform_admin")}
     r2 = c.post("/api/v1/tenants", headers=h_admin, json={"name": "Acme"})
     assert r2.status_code == 200
     tid = r2.json()["data"]["tenant_id"]
