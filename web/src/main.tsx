@@ -8,6 +8,13 @@ import { setToken } from "./api/client";
 const session = getSession();
 if (session) setToken(session.idToken);
 
+// PWA：仅生产构建注册 Service Worker（开发态不注册，避免缓存干扰 HMR）
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <Root />

@@ -1,0 +1,27 @@
+{
+  "name": "睿深行 AI 工作台",
+  "short_name": "AI 工作台",
+  "description": "企业 AI 智能体中台 · 移动网页版（PWA）",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1f3a",
+  "theme_color": "#0b1f3a",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
