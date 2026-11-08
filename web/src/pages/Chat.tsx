@@ -43,11 +43,11 @@ function cleanAnswer(s: string) {
 const ACCEPT = ".xlsx,.xlsm,.csv,.tsv,.txt,.md,.markdown,.json";
 
 const FORMATS: { key: string; label: string; ext: string }[] = [
+  { key: "html", label: "网页", ext: "HTML" },
   { key: "xlsx", label: "Excel", ext: "XLSX" },
   { key: "docx", label: "Word", ext: "DOCX" },
   { key: "pptx", label: "PPT", ext: "PPTX" },
   { key: "pdf", label: "PDF", ext: "PDF" },
-  { key: "html", label: "网页", ext: "HTML" },
 ];
 
 const ICONS = ["◑", "◧", "◔", "◩", "◐", "◨"];
@@ -109,7 +109,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
       (seed.turns || []).flatMap((t) => t.artifacts || [])
         .map((a: any) => a?.meta?.format).filter(Boolean),
     )) as string[];
-    return seen.length ? seen : ["xlsx"];
+    return seen.length ? seen : ["html"];
   });
   const [skillPop, setSkillPop] = useState(false);
   const [fmtPop, setFmtPop] = useState(false);
@@ -206,10 +206,9 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   // 页面上唯一变化是输入区按钮那串小字，用户会以为点了没反应。
   const pickSkill = (id: string) => {
     setAgentId(id);
-    // 技能包自带建议产出（表格类出 Excel、PPT 类出 PPTX）。用户没手动改过就跟着走，
-    // 省掉"选完还要再去设一次格式"这一步。
-    const hit = agents.find((a) => a.agent_id === id);
-    if (!fmtTouched && hit?.default_format) setFormats([hit.default_format]);
+    // 平台优先 HTML：选技能包时默认 HTML，技能自然格式仅作提示标签（Skills 页展示）。
+    // 用户手动改格式后不再替他改（fmtTouched）。
+    if (!fmtTouched) setFormats(["html"]);
     setSkillPop(false);
     setQ("");
     requestAnimationFrame(() => taRef.current?.focus());

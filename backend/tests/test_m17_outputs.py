@@ -5,7 +5,7 @@
 2. 失败不静默：LLM_STRICT=1 时抛 LLMUnavailable，invoke 转 502，绝不出 stub 结果
    —— 这是 M17 最重要的一条：「链路通了」不等于「效果达标」
 3. 多格式渲染：xlsx/docx/pptx/html/pdf 五种都能出件，且结构正确（不是空壳文件）
-4. 格式协商：默认沿用 xlsx（不破坏 M16 调用方）、auto 按技能包产出契约猜、非法值被丢弃
+4. 格式协商：默认 html（平台优先 HTML）、auto 按技能包产出契约猜（猜不到落 html）、非法值被丢弃
 """
 import io
 import re
@@ -186,9 +186,10 @@ def test_renderers_share_one_model():
 
 
 # ────────────── 4. 格式协商 ──────────────
-def test_normalize_formats_defaults_to_xlsx():
-    assert artifact.normalize_formats(None) == ["xlsx"]
-    assert artifact.normalize_formats([]) == ["xlsx"]
+def test_normalize_formats_defaults_to_html():
+    """平台默认优先 HTML：不传/空 → html，对方要其它格式再显式传。"""
+    assert artifact.normalize_formats(None) == ["html"]
+    assert artifact.normalize_formats([]) == ["html"]
 
 
 def test_normalize_formats_dedupes_and_drops_unknown():
@@ -198,7 +199,8 @@ def test_normalize_formats_dedupes_and_drops_unknown():
 def test_normalize_formats_auto_from_contract():
     assert artifact.normalize_formats(["auto"], "产出：汇报用 PPT 一份") == ["pptx"]
     assert artifact.normalize_formats(["auto"], "输出 Word 文档") == ["docx"]
-    assert artifact.normalize_formats(["auto"], "") == ["xlsx"]
+    # 契约没点名任何格式 → 平台默认 HTML（不再回退 xlsx）
+    assert artifact.normalize_formats(["auto"], "") == ["html"]
 
 
 # ────────────── 5. 端到端：一次调用出多格式 ──────────────
@@ -247,8 +249,8 @@ def test_invoke_outputs_multiple_formats_and_downloads():
         assert a["content_type"] == artifact.MEDIA_TYPES[a["meta"]["format"]]
 
 
-def test_invoke_default_format_is_still_xlsx():
-    """M16 的老调用方不传 output_formats，行为必须不变。"""
+def test_invoke_default_format_is_html():
+    """不传 output_formats → 平台默认 HTML（优先网页交付）。"""
     from app.services import agent_store
     agent_store.save({"agent_id": "ag_m17_default", "name": "M17 默认格式",
                       "adapter_type": "llm", "knowledge_scope": "global",
@@ -260,7 +262,7 @@ def test_invoke_default_format_is_still_xlsx():
                     headers=ADMIN)
     assert r.status_code == 200, r.text
     fmts = [a["meta"]["format"] for a in r.json()["data"]["artifacts"]]
-    assert fmts == ["xlsx"]
+    assert fmts == ["html"]
 
 
 def test_gateway_status_exposes_provider_and_key_state():

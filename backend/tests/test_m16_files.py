@@ -3,7 +3,7 @@
 覆盖：
 1. 表格解析的「真」行为：标题行干扰下仍能认出表头（真实台账第一行常是标题）
 2. 解析失败降级不抛异常（上传损坏文件不该让 invoke 500）
-3. 上传→invoke→产出物→下载 全链路，产出物是合法 xlsx 且带「执行结论」
+3. 上传→invoke→产出物→下载 全链路，产出物是合法 HTML（平台默认优先 HTML）且带「执行结论」
 4. 越权隔离：别的部门既下不到输入件，也不能拿别人的 file_id 去执行
 5. 回归护栏：持久化表白名单必须包含 agents / agent_files
    （M15 曾建了 agents 表却漏加白名单，写穿 PG 静默失效）
@@ -148,9 +148,10 @@ def test_upload_same_file_reuses_record(clean_files):
 # ── 3. 全链路 ────────────────────────────────────────────────────────────────
 def test_invoke_with_file_returns_artifact(clean_files, published_skill):
     fid = _upload().json()["data"]["file_id"]
+    # 显式要 xlsx+html：验证「默认 HTML + 按需出 xlsx」两条路径都正确。
     r = client.post("/api/v1/agent/invoke", headers=EMP,
                     json={"agent_id": "agt_m16_review", "input": "做 6 月费用复盘",
-                          "file_ids": [fid]})
+                          "file_ids": [fid], "output_formats": ["xlsx", "html"]})
     assert r.status_code == 200
     d = r.json()["data"]
 
@@ -160,19 +161,25 @@ def test_invoke_with_file_returns_artifact(clean_files, published_skill):
     assert "file_parse" in [t["tool"] for t in d["tool_calls"]]
     assert d["agent"]["skill_applied"] is True
 
-    arts = d["artifacts"]
-    assert len(arts) == 1 and arts[0]["kind"] == "artifact"
-    assert arts[0]["filename"].endswith(".xlsx")
+    arts = {a["filename"].rsplit(".", 1)[-1]: a for a in d["artifacts"]}
+    assert len(arts) == 2 and all(a["kind"] == "artifact" for a in arts.values())
 
-    dl = client.get(f"/api/v1/agent/files/{arts[0]['file_id']}", headers=EMP)
-    assert dl.status_code == 200
-    assert "spreadsheetml" in dl.headers["content-type"]
-    wb = load_workbook(io.BytesIO(dl.content))
+    # xlsx：仍是合法工作簿，含「执行结论」「输入数据摘要」，且能溯源到技能包与输入
+    xlsx = arts["xlsx"]
+    dlx = client.get(f"/api/v1/agent/files/{xlsx['file_id']}", headers=EMP)
+    assert dlx.status_code == 200
+    assert "spreadsheetml" in dlx.headers["content-type"]
+    wb = load_workbook(io.BytesIO(dlx.content))
     assert "执行结论" in wb.sheetnames
     assert "输入数据摘要" in wb.sheetnames     # 可溯源：附件行列与列名
-    # 执行结论页要能看出这是哪个技能包、吃了哪些输入
     text = "\n".join(str(c.value) for row in wb["执行结论"].iter_rows() for c in row if c.value)
     assert "经营复盘" in text and "费用台账.xlsx" in text
+
+    # html：平台默认优先格式，是可下载的合法 HTML
+    dlh = client.get(f"/api/v1/agent/files/{arts['html']['file_id']}", headers=EMP)
+    assert dlh.status_code == 200
+    assert "text/html" in dlh.headers["content-type"]
+    assert "经营复盘" in dlh.text and "费用台账.xlsx" in dlh.text
 
 
 def test_skill_agent_gets_artifact_even_without_files(clean_files, published_skill):

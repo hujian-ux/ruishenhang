@@ -271,9 +271,9 @@ def artifact_name(agent_name: str, source_name: str = "", fmt: str = "xlsx") -> 
     return f"{a}_{s}_{stamp}.{ext}" if s else f"{a}_{stamp}.{ext}"
 
 
-# ───────────── M17：多格式产出物（Word / PPT / HTML / PDF / xlsx）─────────────
-# 一次调用可以同时要多种格式：财务要 xlsx 核数、老板要 pptx 汇报、
-# 归档要 pdf、发群要 html —— 都从同一份答案渲染，不重复调模型（省 token 也是省时间）。
+# ───────────── M17：多格式产出物（HTML / Word / PPT / PDF / xlsx）─────────────
+# 平台默认优先 HTML（网页可直接看/分享/打印）；对方显式要求 docx/pptx/pdf/xlsx
+# 时才额外渲染——都从同一份答案渲染，不重复调模型（省 token 也是省时间）。
 SUPPORTED_FORMATS = ("xlsx", "docx", "pptx", "html", "pdf")
 
 MEDIA_TYPES = {
@@ -296,9 +296,9 @@ _FORMAT_HINTS = {
 def normalize_formats(fmts: Optional[List[str]], outputs_contract: str = "") -> List[str]:
     """把请求里的格式规格收敛成去重后的合法列表。
 
-    - 空 → 沿用旧行为 xlsx（不改变 M16 已有调用方）
-    - "auto" → 按技能包产出契约猜，猜不到默认 xlsx
-    - 未知格式直接丢弃；全被丢弃时回退 xlsx（宁可给表，不可给空）
+    - 空 → 平台默认 **HTML**（优先网页交付，可直接看/分享/打印；对方要其它格式再显式要）
+    - "auto" → 按技能包产出契约猜，猜不到默认 HTML
+    - 未知格式直接丢弃；全被丢弃时回退 HTML（宁可给网页，不可给空）
     """
     got: List[str] = []
     for f in fmts or []:
@@ -307,7 +307,7 @@ def normalize_formats(fmts: Optional[List[str]], outputs_contract: str = "") -> 
             v = _guess_format(outputs_contract)
         if v in SUPPORTED_FORMATS and v not in got:
             got.append(v)
-    return got or ["xlsx"]
+    return got or ["html"]
 
 
 def _guess_format(contract: str) -> str:
@@ -315,14 +315,15 @@ def _guess_format(contract: str) -> str:
     for kw, fmt in _FORMAT_HINTS.items():
         if kw in text:
             return fmt
-    return "xlsx"
+    # 平台默认优先 HTML；auto 也只在契约显式点名其它格式时才偏离
+    return "html"
 
 
 def build(fmt: str, answer: str, meta: Dict[str, Any],
           input_summary: Optional[List[List[str]]] = None,
           raw_sheet: Optional[Dict[str, Any]] = None) -> bytes:
     """按格式生成产出物字节流（统一入口，路由层不用关心渲染分支）。"""
-    fmt = (fmt or "xlsx").lower()
+    fmt = (fmt or "html").lower()
     if fmt == "xlsx":
         return build_xlsx(answer, meta, input_summary, raw_sheet)
     if fmt == "docx":

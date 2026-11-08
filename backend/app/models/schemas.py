@@ -66,10 +66,10 @@ class AgentInvokeRequest(BaseModel):
     # M16 文件进出：先 POST /agent/files 上传拿 file_id，再在这里引用；
     # 产出物由后端生成并通过 data.artifacts 返回下载地址。
     file_ids: List[str] = Field(default_factory=list)
-    # M17 产出格式：xlsx|docx|pptx|html|pdf|auto，可多选（同一份答案渲多种格式，
-    # 不重复调模型）。不传 = xlsx，保持 M16 行为不变。
+    # M17 产出格式：html|xlsx|docx|pptx|pdf|auto，可多选（同一份答案渲多种格式，
+    # 不重复调模型）。不传 = html（平台优先 HTML，对方要其它格式再显式传）。
     output_formats: List[str] = Field(default_factory=list,
-                                      description="xlsx|docx|pptx|html|pdf|auto，可多选")
+                                      description="html|xlsx|docx|pptx|pdf|auto，可多选")
 
 class Citation(BaseModel):
     doc_id: str

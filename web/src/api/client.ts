@@ -122,7 +122,7 @@ export const api = {
     req<any>("POST", "/agents/import", body),
   // M4 会话记忆：session_id 传入续聊，缺省新建
   // M16 文件进出：fileIds 为已上传附件的 file_id（先调 uploadAgentFile）
-  // M17 产出格式：outputFormats 可多选（xlsx/docx/pptx/html/pdf），不传=xlsx
+  // M17 产出格式：outputFormats 可多选（html/xlsx/docx/pptx/pdf），不传=html（平台优先 HTML）
   invokeAgent: (agentId: string, input: string, sessionId?: string,
                 fileIds?: string[], outputFormats?: string[]) =>
     req<any>("POST", "/agent/invoke", {
