@@ -14,6 +14,18 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
+
+# ── 预检：docker 必须在（容器化备份依赖守护 + compose 项目）──
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: 未找到 docker 命令，无法执行容器化备份。请安装 Docker 或在已装 Docker 的主机上运行。" >&2
+  exit 2
+fi
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker 守护未运行（docker info 失败）。请先启动 Docker Desktop / dockerd，" >&2
+  echo "       并确保 'docker compose up -d' 已拉起生产栈，再执行本备份脚本。" >&2
+  exit 3
+fi
+
 BACKUP_ROOT="${BACKUP_ROOT:-./backups}"
 TS="$(date +%Y%m%d-%H%M%S)"
 DEST="$BACKUP_ROOT/$TS"

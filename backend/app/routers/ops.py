@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 import os
 
+from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.services import agent_store, fewshot, observability, office_hard_rules
@@ -94,7 +95,7 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
     """
     if caller.role != "platform_admin":
         return {"code": 3, "msg": "需要平台管理员权限"}
-    root = os.environ.get("SOLUTIONS_ROOT", r"D:/workbuddy_解决方案")
+    root = settings.SOLUTIONS_ROOT or os.environ.get("SOLUTIONS_ROOT", r"D:/workbuddy_解决方案")
     pairs = fewshot.scan_solution_pairs(root)
     by_dir = {p["solution_dir"]: p for p in pairs}
     attached = 0

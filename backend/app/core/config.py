@@ -53,6 +53,11 @@ class Settings:
     # M15/M17 P1：166 个 xlsx 交付物转 few-shot，默认关；开启后运行时把样例拼进
     # 命中技能的 system_prompt，提升产出物格式一致性。置 1 才生效。
     FEWSHOT_ENABLED = _env("FEWSHOT_ENABLED", "0") == "1"
+    # few-shot 方案库根目录（存放「原始数据 ↔ 交付物」成对 xlsx）。为空时
+    # /ops/build-fewshot 回退到 os.environ 或默认 D:/workbuddy_解决方案。
+    # 真实启用：指向实际 166 包语料目录；本仓附带示例语料见
+    # corpus_inbox/fewshot_solutions/（仅 2 个验收样例，验证配对→挂载链路）。
+    SOLUTIONS_ROOT = _env("SOLUTIONS_ROOT", "")
 
     # ── M17 真模型接入：两种通道，业务代码不感知 ──
     # litellm —— 经 LiteLLM 代理（多厂商统一账单，生产推荐）

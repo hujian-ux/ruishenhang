@@ -15,6 +15,17 @@ if [ -z "$SRC" ] || [ ! -d "$SRC" ]; then
   echo "用法: ./deploy/restore.sh <备份目录，如 backups/20261108-120000>" >&2
   exit 1
 fi
+
+# ── 预检：docker 必须在（容器化恢复依赖守护 + compose 项目）──
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: 未找到 docker 命令，无法执行容器化恢复。" >&2
+  exit 2
+fi
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker 守护未运行（docker info 失败）。请先启动 Docker Desktop / dockerd 再恢复。" >&2
+  exit 3
+fi
+
 echo "== 从 $SRC 恢复 =="
 
 # ── PostgreSQL 逻辑恢复 ──
