@@ -1,0 +1,20 @@
+[Unit]
+Description=Enterprise AI Platform - 审计留存定期清理（闭环 180 天留存）
+Documentation=scripts/purge_audit.py
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# ===== 按实际部署路径修改下面三行 =====
+User=aiplatform
+WorkingDirectory=/opt/enterprise-ai-platform/backend
+ExecStart=/opt/enterprise-ai-platform/backend/.venv/bin/python scripts/purge_audit.py
+
+# 若 DB/缓存连接依赖环境变量，在此注入部署环境文件：
+# EnvironmentFile=/opt/enterprise-ai-platform/backend/.env
+
+# 如需 HTTP 模式（远程调用已运行的服务，替换真实 token）：
+# ExecStart=/opt/enterprise-ai-platform/backend/.venv/bin/python scripts/purge_audit.py --http http://127.0.0.1:8080 --token <PLATFORM_ADMIN_TOKEN>
+
+Nice=10

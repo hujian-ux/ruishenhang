@@ -55,6 +55,11 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.4",
 ]
+mcp = [
+    # MCP Server（把平台暴露给 Claude Desktop / Cursor / Cline 等外部 AI 客户端）。
+    # 仅 scripts/mcp_stdio_server.py 使用；核心后端不依赖，故放可选组。
+    "mcp>=1.0,<2",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

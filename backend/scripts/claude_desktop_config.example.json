@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "enterprise-ai": {
+      "command": "D:/enterprise-ai-platform/backend/.venv/Scripts/python.exe",
+      "args": ["D:/enterprise-ai-platform/backend/scripts/mcp_stdio_server.py"],
+      "env": {
+        "ENTERPRISE_AI_BASE_URL": "http://localhost:8080/api/v1",
+        "ENTERPRISE_AI_TOKEN": "<你的平台鉴权裸 token：dev <...> 或 JWT>"
+      }
+    }
+  }
+}

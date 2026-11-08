@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from collections import deque
 from typing import Any, Dict, List
 
 from fastapi import HTTPException
@@ -23,27 +24,109 @@ _WF = Store("workflow")
 
 VALID_NODE_TYPES = {"llm", "rag", "tool", "approval"}
 
+_NG = 94   # 节点高度（与前端 WfNode 的 H 对齐）
+_GAP = 30  # 节点垂直间距
 
-def create_workflow(name: str, nodes: list, caller) -> dict:
+
+def _normalize_nodes(nodes: list, edges: list | None):
+    """给每个节点补 id / position（坐标），并把边规整为 {from,to}。
+
+    不传 edges 时，默认生成顺序链（n0→n1→…），保证无图结构时仍保持线性执行语义。
+    """
+    norm = []
+    for i, n in enumerate(nodes):
+        nid = n.get("id") or new_id("nd")
+        pos = n.get("position") or {"x": 40, "y": 30 + i * (_NG + _GAP)}
+        norm.append({
+            "id": nid,
+            "type": n["type"],
+            "name": n.get("name") or n["type"],
+            "config": n.get("config") or {},
+            "position": pos,
+        })
+    ids = [n["id"] for n in norm]
+    if edges:
+        clean = []
+        for e in edges:
+            f = e.get("from") or e.get("source")
+            t = e.get("to") or e.get("target")
+            if f in ids and t in ids and f != t:
+                clean.append({"from": f, "to": t})
+        edges = clean
+    else:
+        edges = [{"from": ids[i], "to": ids[i + 1]} for i in range(len(ids) - 1)]
+    return norm, edges
+
+
+def _check_dag(nodes: list, edges: list) -> None:
+    """校验边引用的节点都存在、且无环（工作流必须是 DAG）。"""
+    ids = [n["id"] for n in nodes]
+    adj: Dict[str, List[str]] = {i: [] for i in ids}
+    indeg = {i: 0 for i in ids}
+    for e in edges:
+        f, t = e["from"], e["to"]
+        if f not in adj or t not in adj:
+            raise HTTPException(status_code=400, detail=f"边引用了不存在的节点：{f}→{t}")
+        adj[f].append(t)
+        indeg[t] += 1
+    q = deque(i for i in ids if indeg[i] == 0)
+    seen = 0
+    while q:
+        u = q.popleft(); seen += 1
+        for v in adj[u]:
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                q.append(v)
+    if seen != len(ids):
+        raise HTTPException(status_code=400, detail="工作流存在环路（DAG 不允许），请检查连线")
+
+
+def _execution_order(wf: dict) -> list:
+    """按 edges 拓扑排序得到执行顺序；无边或存在环（理论上已被拦）则退回数组顺序。"""
+    nodes = wf["nodes"]
+    edges = wf.get("edges") or []
+    if not edges:
+        return list(nodes)
+    ids = [n["id"] for n in nodes]
+    pos = {n["id"]: n for n in nodes}
+    adj: Dict[str, List[str]] = {i: [] for i in ids}
+    indeg = {i: 0 for i in ids}
+    for e in edges:
+        f, t = e["from"], e["to"]
+        if f in adj and t in adj:
+            adj[f].append(t); indeg[t] += 1
+    q = deque(i for i in ids if indeg[i] == 0)
+    order = []
+    while q:
+        u = q.popleft(); order.append(u)
+        for v in adj[u]:
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                q.append(v)
+    if len(order) != len(ids):
+        return list(nodes)
+    return [pos[i] for i in order]
+
+
+def _validate_nodes(nodes: list) -> None:
     if not isinstance(nodes, list) or len(nodes) == 0:
         raise HTTPException(status_code=400, detail="工作流至少需要一个节点")
-    max_nodes = settings.WORKFLOW_MAX_NODES  # 运行时读，便于 monkeypatch
-    if len(nodes) > max_nodes:
+    if len(nodes) > settings.WORKFLOW_MAX_NODES:
         raise HTTPException(status_code=400,
-                            detail=f"节点数 {len(nodes)} 超过上限 WORKFLOW_MAX_NODES={max_nodes}")
+                            detail=f"节点数 {len(nodes)} 超过上限 WORKFLOW_MAX_NODES={settings.WORKFLOW_MAX_NODES}")
     for i, n in enumerate(nodes):
         if not isinstance(n, dict) or n.get("type") not in VALID_NODE_TYPES:
             bad = n.get("type") if isinstance(n, dict) else n
             raise HTTPException(status_code=400,
                                 detail=f"第 {i + 1} 个节点类型非法：{bad}，应为 {sorted(VALID_NODE_TYPES)}")
+
+
+def create_workflow(name: str, nodes: list, caller, edges: list | None = None) -> dict:
+    _validate_nodes(nodes)
+    normalized, edges = _normalize_nodes(nodes, edges)
     wid = new_id("wf")
-    normalized = [{
-        "type": n["type"],
-        "name": n.get("name") or n["type"],
-        "config": n.get("config") or {},
-    } for n in nodes]
     row = {
-        "id": wid, "name": name or "", "nodes": normalized,
+        "id": wid, "name": name or "", "nodes": normalized, "edges": edges,
         "status": "draft", "created_by": caller_id(caller),
         "tenant_id": getattr(caller, "tenantId", "") or "",  # H3：工作流归属当前租户
         "created_at": now(), "created_iso": iso(),
@@ -52,6 +135,38 @@ def create_workflow(name: str, nodes: list, caller) -> dict:
     audit_event("workflow.create", caller, target=wid,
                 meta={"name": name, "node_count": len(normalized)})
     return dict(row)
+
+
+def get_workflow(wid: str, caller=None) -> dict:
+    wf = _WF.get(wid)
+    if wf is None:
+        raise HTTPException(status_code=404, detail=f"工作流不存在：{wid}")
+    # H3：跨租户——非平台管理员不能看其它租户的工作流
+    if caller is not None and caller.role != "platform_admin" and \
+            (wf.get("tenant_id") or "") != (getattr(caller, "tenantId", "") or ""):
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户工作流")
+    return dict(wf)
+
+
+def update_workflow(wid: str, name: str, nodes: list, edges: list | None, caller) -> dict:
+    wf = _WF.get(wid)
+    if wf is None:
+        raise HTTPException(status_code=404, detail=f"工作流不存在：{wid}")
+    if caller is not None and caller.role != "platform_admin" and \
+            (wf.get("tenant_id") or "") != (getattr(caller, "tenantId", "") or ""):
+        raise HTTPException(status_code=403, detail="forbidden: 非本租户工作流")
+    _validate_nodes(nodes)
+    normalized, edges = _normalize_nodes(nodes, edges)
+    _check_dag(normalized, edges)
+    _WF.update(wid, {
+        "name": name or wf.get("name", ""),
+        "nodes": normalized,
+        "edges": edges,
+        "updated_at": now(),
+    })
+    audit_event("workflow.update", caller, target=wid,
+                meta={"name": name, "node_count": len(normalized)})
+    return get_workflow(wid, caller)
 
 
 def list_workflows(caller=None) -> list:
@@ -131,7 +246,7 @@ def run_workflow(wid: str, input_text: str, caller) -> dict:
     context: Dict[str, Any] = {"input": input_text}
     steps: List[Dict[str, Any]] = []
     status = "completed"
-    for node in wf["nodes"]:
+    for node in _execution_order(wf):
         t = node["type"]
         name = node.get("name") or t
         if t == "rag":

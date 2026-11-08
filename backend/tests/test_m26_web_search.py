@@ -339,5 +339,9 @@ def test_invoke_web_skill_returns_sources(seeded):
 
 def test_openapi_documents_search_paths():
     text = (ROOT / "openapi.yaml").read_text(encoding="utf-8")
+    # 联网检索两个端点必须在契约中声明
     assert "  /search/web:" in text and "  /search/status:" in text
-    assert "WebSearchHit:" in text and "public_web" in text
+    # 请求体 schema 已自动生成（原手工 WebSearchHit 已随 app.openapi() 重生收敛）
+    assert "WebSearchRequest:" in text
+    # 安全属性：公网结果必须带 public_web 标记且与内部 citations 分离（已写入端点描述）
+    assert "public_web" in text

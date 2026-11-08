@@ -224,10 +224,6 @@ def _legal_hold() -> list[str]:
     return [a.strip() for a in (settings.AUDIT_LEGAL_HOLD_ACTIONS or "").split(",") if a.strip()]
 
 
-def _legal_hold() -> list[str]:
-    return [a.strip() for a in (settings.AUDIT_LEGAL_HOLD_ACTIONS or "").split(",") if a.strip()]
-
-
 def purge_expired(retention_days: Optional[int] = None) -> int:
     """按留存策略清理过期审计：超过 retention_days 的天数且非法定保留动作才删。
 

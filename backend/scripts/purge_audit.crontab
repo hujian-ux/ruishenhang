@@ -1,0 +1,14 @@
+# 审计留存定期清理 —— crontab 示例
+#
+# 安装方式：在部署机器上执行 `crontab -e`，粘贴下面「生效行」之一即可。
+# 注意：cron 环境 PATH 极简，必须用 venv 解释器的【绝对路径】；用 HTTP 模式同理。
+# 日志建议重定向到专用目录（需提前 `mkdir -p /var/log/aiplatform`）。
+
+# ===== 生效行（函数模式，每日 03:17 本地时间）=====
+17 3 * * * cd /opt/enterprise-ai-platform/backend && /opt/enterprise-ai-platform/backend/.venv/bin/python scripts/purge_audit.py >> /var/log/aiplatform/purge_audit.log 2>&1
+
+# ===== 或：HTTP 模式（远程调用已运行的服务，替换真实 token）=====
+# 17 3 * * * /opt/enterprise-ai-platform/backend/.venv/bin/python scripts/purge_audit.py --http http://127.0.0.1:8080 --token <PLATFORM_ADMIN_TOKEN> >> /var/log/aiplatform/purge_audit.log 2>&1
+
+# ===== 自定义留存天数（覆盖默认的 180 天）=====
+# 17 3 * * * cd /opt/enterprise-ai-platform/backend && /opt/enterprise-ai-platform/backend/.venv/bin/python scripts/purge_audit.py --days 365 >> /var/log/aiplatform/purge_audit.log 2>&1

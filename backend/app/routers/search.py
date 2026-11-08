@@ -23,6 +23,11 @@ router = APIRouter(prefix="/search", tags=["search"])
 @router.post("/web")
 async def search_web(req: WebSearchRequest, caller: CallerContext = Depends(get_caller),
                      trace_id: str = Depends(get_trace_id)):
+    """执行一次公网检索。
+
+    安全属性：结果统一带 `origin="public_web"` 标记，与内部 RAG 引用（citations）在响应里
+    分字段回传（web_sources vs citations），永不合并——公网内容不会被当成企业内部制度。
+    """
     # M26 P1：opt-in 检索词拆解。默认关，走原 web_search.search（零行为变更）。
     if settings.WEB_SEARCH_DECOMPOSE:
         out = search_intel.search_decomposed(req.query, req.top_k, fetch_top=req.fetch_top)

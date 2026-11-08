@@ -263,6 +263,7 @@ function AgentBuilder({ session, prefill, prefillNonce }: { session: Session; pr
 
 type WfType = "llm" | "rag" | "tool" | "approval";
 type WfNode = { id: string; type: WfType; name: string; config: any; x: number; y: number };
+type WfEdge = { from: string; to: string };
 
 const NODE_META: Record<WfType, { label: string; cls: string; desc: string }> = {
   llm: { label: "LLM 生成", cls: "nt-llm", desc: "占位节点：仅汇总上下文，不调模型（dry_run），不冒充真实生成" },
@@ -272,14 +273,6 @@ const NODE_META: Record<WfType, { label: string; cls: string; desc: string }> = 
 };
 
 const W = 210, H = 94;
-
-function autoLayout(nodes: { type: WfType; name: string; config: any }[]): WfNode[] {
-  return nodes.map((n, i) => ({
-    id: "n" + Math.random().toString(36).slice(2, 8),
-    type: n.type, name: n.name || NODE_META[n.type].label,
-    config: n.config || {}, x: 40, y: 30 + i * (H + 30),
-  }));
-}
 
 function nodeSummary(n: WfNode): string {
   if (n.type === "rag") return n.config.query || "检索授权知识片段";
@@ -309,12 +302,14 @@ function cleanConfig(n: WfNode): any {
 function WorkflowCanvas() {
   const [name, setName] = useState("未命名工作流");
   const [nodes, setNodes] = useState<WfNode[]>([]);
+  const [edges, setEdges] = useState<WfEdge[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [run, setRun] = useState<any>(null);
   const [msg, setMsg] = useState<string>("");
   const [wfList, setWfList] = useState<any[]>([]);
   const [runInput, setRunInput] = useState("");
+  const [linkFrom, setLinkFrom] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
@@ -378,20 +373,46 @@ function WorkflowCanvas() {
   const removeNode = () => {
     if (!sel) return;
     setNodes((ns) => ns.filter((n) => n.id !== sel));
+    setEdges((es) => es.filter((e) => e.from !== sel && e.to !== sel));
     setSel(null);
   };
+
+  // ── 连线（端口拖拽）──
+  const onPortDown = (id: string, isOut: boolean) => {
+    if (isOut) { setLinkFrom((cur) => (cur === id ? null : id)); return; }
+    setLinkFrom((cur) => {
+      if (cur && cur !== id) {
+        setEdges((es) => es.some((e) => e.from === cur && e.to === id)
+          ? es : [...es, { from: cur, to: id }]);
+      }
+      return null;
+    });
+  };
+  const removeEdge = (i: number) => setEdges((es) => es.filter((_, j) => j !== i));
+
+  const buildPayload = () => ({
+    name,
+    nodes: nodes.map((n) => ({
+      id: n.id, type: n.type, name: n.name,
+      config: cleanConfig(n), position: { x: n.x, y: n.y },
+    })),
+    edges: edges.map((e) => ({ from: e.from, to: e.to })),
+  });
 
   const doSave = async (): Promise<string | null> => {
     if (nodes.length === 0) { setMsg("画布为空，先添加节点"); return null; }
     try {
-      const r = await api.createWorkflow({
-        name,
-        nodes: nodes.map((n) => ({ type: n.type, name: n.name, config: cleanConfig(n) })),
-      });
-      setSavedId(r.data.id);
-      setMsg(`已保存工作流：${r.data.id}（${r.data.name}），状态=${r.data.status}。`);
+      const payload = buildPayload();
+      if (savedId) {
+        await api.updateWorkflow(savedId, payload);
+        setMsg(`已更新工作流 ${savedId}（${name}）：布局、连线与节点一并保存。`);
+      } else {
+        const r = await api.createWorkflow(payload);
+        setSavedId(r.data.id);
+        setMsg(`已保存工作流：${r.data.id}（${r.data.name}），状态=${r.data.status}。`);
+      }
       loadList();
-      return r.data.id;
+      return savedId ?? payload.name;
     } catch (e: any) { setMsg("保存失败：" + e.message); return null; }
   };
 
@@ -407,29 +428,42 @@ function WorkflowCanvas() {
     } catch (e: any) { setMsg("运行失败：" + e.message); }
   };
 
-  const loadWf = (wid: string) => {
-    const w = wfList.find((x) => x.id === wid);
-    if (!w) return;
-    setName(w.name);
-    setNodes(autoLayout((w.nodes || []).map((n: any) => ({ type: n.type, name: n.name, config: n.config || {} }))));
-    setSavedId(wid);
-    setSel(null);
-    setRun(null);
-    setMsg(`已载入工作流 ${wid}（${w.nodes?.length || 0} 个节点）。`);
+  const loadWf = async (wid: string) => {
+    try {
+      const r = await api.getWorkflow(wid);
+      const w = r.data;
+      setName(w.name);
+      setNodes((w.nodes || []).map((n: any) => ({
+        id: n.id, type: n.type, name: n.name,
+        config: n.config || {},
+        x: n.position?.x ?? 40, y: n.position?.y ?? 30,
+      })));
+      setEdges((w.edges || []).map((e: any) => ({ from: e.from || e.source, to: e.to || e.target })));
+      setSavedId(wid);
+      setSel(null); setRun(null); setLinkFrom(null);
+      setMsg(`已载入工作流 ${wid}（${w.nodes?.length || 0} 节点 · ${w.edges?.length || 0} 连线）。`);
+    } catch (e: any) { setMsg("载入失败：" + e.message); }
   };
 
   const selNode = nodes.find((n) => n.id === sel) || null;
-  const maxX = nodes.reduce((m, n) => Math.max(m, n.x + W), 600);
-  const maxY = nodes.reduce((m, n) => Math.max(m, n.y + H), 400);
+  const maxX = Math.max(600, ...nodes.map((n) => n.x + W), ...edges.map((e) => {
+    const a = nodes.find((n) => n.id === e.from); return a ? a.x + W : 0;
+  }));
+  const maxY = Math.max(400, ...nodes.map((n) => n.y + H));
 
   return (
     <>
       <div className="card">
-        <h3>L3 工作流编排画布（节点式，顺序执行）</h3>
+        <h3>L3 工作流编排画布（节点式 DAG，拖拽摆位）</h3>
         <div className="hint" style={{ marginBottom: 12 }}>
-          点下方按钮添加节点 → 拖动卡片摆位 → 点卡片改配置 → 保存后可运行。连线表示执行顺序（上→下）。
-          注意：当前为 dry_run 框架，rag/tool 真实行为由后端按身份过滤，不冒充执行。
+          点下方按钮添加节点 → 拖动卡片摆位 → 点卡片改配置 → 从节点底部<b>蓝点</b>拖到另一节点顶部<b>白点</b>连线（点连线可删除）。
+          保存后布局与连线一并持久化，再载入会原样恢复。注意：当前为 dry_run 框架，rag/tool 真实行为由后端按身份过滤，不冒充执行。
         </div>
+        {linkFrom && (
+          <div className="hint" style={{ color: "var(--blue)", marginBottom: 8 }}>
+            连线中：点目标节点顶部的输入端口完成；再次点同一输出端口取消。
+          </div>
+        )}
         <div className="wf-palette">
           <input style={{ width: 200, padding: "8px 11px", border: "1px solid var(--line)", borderRadius: 9, fontSize: 13, fontFamily: "inherit", background: "#fff", color: "var(--ink)" }} value={name}
             onChange={(e) => setName(e.target.value)} placeholder="工作流名称" />
@@ -452,9 +486,19 @@ function WorkflowCanvas() {
             onPointerLeave={onUp}
           >
             <svg style={{ position: "absolute", left: 0, top: 0, width: maxX, height: maxY, pointerEvents: "none" }}>
-              {nodes.slice(0, -1).map((n, i) => (
-                <path key={n.id} d={connectPath(n, nodes[i + 1])} fill="none" stroke="#c9c9c2" strokeWidth={2} />
-              ))}
+              {edges.map((e, i) => {
+                const a = nodes.find((n) => n.id === e.from);
+                const b = nodes.find((n) => n.id === e.to);
+                if (!a || !b) return null;
+                return (
+                  <path key={i} d={connectPath(a, b)} fill="none"
+                    stroke={linkFrom === e.from ? "#1a5fd0" : "#b9b9b0"} strokeWidth={2}
+                    style={{ pointerEvents: "visibleStroke", cursor: "pointer" }}
+                    onClick={() => removeEdge(i)}>
+                    <title>点击删除连线</title>
+                  </path>
+                );
+              })}
             </svg>
             {nodes.length === 0 && <div className="wf-empty">画布为空 · 点上方「＋ 节点」开始编排</div>}
             {nodes.map((n) => (
@@ -464,6 +508,12 @@ function WorkflowCanvas() {
                 style={{ left: n.x, top: n.y }}
                 onPointerDown={(e) => onNodeDown(e, n)}
               >
+                <div className={"wf-port in" + (linkFrom && linkFrom !== n.id ? " arm" : "")}
+                     onPointerDown={(e) => { e.stopPropagation(); onPortDown(n.id, false); }}
+                     title="输入端口（连线终点）" />
+                <div className={"wf-port out" + (linkFrom === n.id ? " on" : "")}
+                     onPointerDown={(e) => { e.stopPropagation(); onPortDown(n.id, true); }}
+                     title="输出端口（连线起点）" />
                 <div className="nh">
                   <span className={"nt " + NODE_META[n.type].cls}>{NODE_META[n.type].label}</span>
                   <span className="nm">{n.name}</span>
@@ -515,7 +565,7 @@ function WorkflowCanvas() {
         <div className="field"><label>载入已有工作流</label>
           <select value="" onChange={(e) => e.target.value && loadWf(e.target.value)}>
             <option value="">— 选择 —</option>
-            {wfList.map((w) => <option key={w.id} value={w.id}>{w.name}（{w.id} · {w.nodes?.length || 0} 节点）</option>)}
+            {wfList.map((w) => <option key={w.id} value={w.id}>{w.name}（{w.id} · {(w.nodes || []).length} 节点）</option>)}
           </select>
         </div>
         {msg && <div className="ok">{msg}</div>}

@@ -332,6 +332,12 @@ button{font-family:inherit}
 .wf-node .nt{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:6px;white-space:nowrap}
 .wf-node .nm{font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wf-node .nc{font-size:11.5px;color:var(--muted);line-height:1.5;white-space:pre-wrap;max-height:32px;overflow:hidden}
+.wf-node .wf-port{position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--blue);cursor:crosshair;z-index:3}
+.wf-node .wf-port.in{top:-8px;left:calc(50% - 7px)}
+.wf-node .wf-port.out{background:var(--blue);bottom:-8px;left:calc(50% - 7px)}
+.wf-node .wf-port.in.arm{box-shadow:0 0 0 3px rgba(26,95,208,.15);animation:pulse 1.2s infinite}
+.wf-node .wf-port.out.on{box-shadow:0 0 0 4px rgba(26,95,208,.25)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
 .nt-llm{background:#eef4ff;color:var(--blue)}
 .nt-rag{background:#eafaf0;color:var(--ok)}
 .nt-tool{background:#fff4e8;color:var(--warn)}

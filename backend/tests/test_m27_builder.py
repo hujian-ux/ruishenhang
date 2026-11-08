@@ -359,3 +359,75 @@ def test_reset_state_isolation():
     assert workflows.list_workflows() == []
     # 默认路径从未写 agent_store
     assert len(agent_store._AGENTS) == _DYNAMIC_BASELINE[0]
+
+
+# ── L3 工作流图结构（坐标 + 边 + DAG）─────────────────────────────────────
+
+def _post_wf(nodes, edges=None, name="G"):
+    body = {"name": name, "nodes": nodes}
+    if edges is not None:
+        body["edges"] = edges
+    return client.post("/api/v1/builder/workflows", json=body, headers=EMP).json()["data"]
+
+
+def test_workflow_graph_roundtrip_positions_and_edges():
+    nodes = [
+        {"id": "a", "type": "rag", "name": "A", "config": {"query": "q"}, "position": {"x": 10, "y": 20}},
+        {"id": "b", "type": "llm", "name": "B", "config": {}, "position": {"x": 10, "y": 160}},
+    ]
+    wf = _post_wf(nodes, edges=[{"from": "a", "to": "b"}])
+    got = client.get(f"/api/v1/builder/workflows/{wf['id']}", headers=EMP).json()["data"]
+    assert got["name"] == "G"
+    assert got["edges"] == [{"from": "a", "to": "b"}]
+    assert got["nodes"][0]["position"] == {"x": 10, "y": 20}
+    # 更新：改名称 + 加节点 + 加边，验证原地更新（不再新建副本）
+    nodes2 = nodes + [{"id": "c", "type": "tool", "name": "C", "config": {}, "position": {"x": 300, "y": 20}}]
+    upd = client.put(f"/api/v1/builder/workflows/{wf['id']}", json={
+        "name": "G2", "nodes": nodes2,
+        "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "c"}],
+    }, headers=EMP).json()["data"]
+    assert upd["name"] == "G2"
+    assert {e["from"] for e in upd["edges"]} == {"a", "b"}
+    assert len(upd["nodes"]) == 3
+    # 列表里仍只有 1 条（更新而非新建）
+    assert len(workflows.list_workflows()) == 1
+
+
+def test_workflow_update_rejects_cycle():
+    wf = _post_wf([{"id": "a", "type": "llm", "name": "A", "config": {}},
+                   {"id": "b", "type": "llm", "name": "B", "config": {}}])
+    r = client.put(f"/api/v1/builder/workflows/{wf['id']}", json={
+        "name": "cyc",
+        "nodes": [{"id": "a", "type": "llm", "name": "A", "config": {}},
+                  {"id": "b", "type": "llm", "name": "B", "config": {}}],
+        "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "a"}],
+    }, headers=EMP)
+    assert r.status_code == 400
+
+
+def test_workflow_runs_in_edge_topo_order():
+    nodes = [{"id": "a", "type": "llm", "name": "A", "config": {}},
+             {"id": "b", "type": "rag", "name": "B", "config": {}},
+             {"id": "c", "type": "llm", "name": "C", "config": {}}]
+    # 数组顺序 A,B,C；但边定义 c→a→b，拓扑序应覆盖数组序
+    wf = _post_wf(nodes, edges=[{"from": "c", "to": "a"}, {"from": "a", "to": "b"}])
+    d = client.post(f"/api/v1/builder/workflows/{wf['id']}/run",
+                    json={"input": "x"}, headers=EMP).json()["data"]
+    assert [s["name"] for s in d["steps"]] == ["C", "A", "B"]
+
+
+def test_workflow_get_and_update_missing_404():
+    assert client.get("/api/v1/builder/workflows/wf_not_exist", headers=EMP).status_code == 404
+    r = client.put("/api/v1/builder/workflows/wf_not_exist", json={
+        "name": "x", "nodes": [{"id": "a", "type": "llm", "name": "A", "config": {}}], "edges": [],
+    }, headers=EMP)
+    assert r.status_code == 404
+
+
+def test_workflow_auto_assigns_id_and_sequential_edges():
+    # 不传 id / edges 时，后端补 id 并默认生成顺序边（保持线性语义）
+    wf = _new_workflow([{"type": "rag", "name": "R", "config": {}},
+                        {"type": "llm", "name": "L", "config": {}}])
+    got = client.get(f"/api/v1/builder/workflows/{wf['id']}", headers=EMP).json()["data"]
+    assert len(got["nodes"]) == 2 and all(n.get("id") for n in got["nodes"])
+    assert len(got["edges"]) == 1 and got["edges"][0]["from"] == got["nodes"][0]["id"]

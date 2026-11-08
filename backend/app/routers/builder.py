@@ -38,6 +38,13 @@ class DepartmentCreateRequest(BaseModel):
 class WorkflowCreateRequest(BaseModel):
     name: str
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkflowUpdateRequest(BaseModel):
+    name: str
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class WorkflowRunRequest(BaseModel):
@@ -99,8 +106,19 @@ async def post_department_approve(did: str, caller: CallerContext = Depends(get_
 @router.post("/workflows")
 async def post_workflow(req: WorkflowCreateRequest,
                         caller: CallerContext = Depends(get_caller)):
-    out = workflows.create_workflow(req.name, req.nodes, caller)
+    out = workflows.create_workflow(req.name, req.nodes, caller, edges=req.edges)
     return {"code": 0, "data": out}
+
+
+@router.get("/workflows/{wid}")
+async def get_workflow(wid: str, caller: CallerContext = Depends(get_caller)):
+    return {"code": 0, "data": workflows.get_workflow(wid, caller)}
+
+
+@router.put("/workflows/{wid}")
+async def put_workflow(wid: str, req: WorkflowUpdateRequest,
+                       caller: CallerContext = Depends(get_caller)):
+    return {"code": 0, "data": workflows.update_workflow(wid, req.name, req.nodes, req.edges, caller)}
 
 
 @router.get("/workflows")
