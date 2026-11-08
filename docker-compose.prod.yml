@@ -1,0 +1,31 @@
+# 生产部署叠加层：在 docker-compose.yml（仅底座依赖 + app profile backend）之上加 Caddy 自动 HTTPS 网关。
+#
+# 用法：
+#   1) cp deploy/.env.prod.example .env      # 填 SITE_DOMAIN / CADDY_EMAIL，并设 AUTH_ENFORCE_OIDC=1
+#   2) docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d
+#
+# 说明：
+#   - 后端 backend 定义在基础 compose 的 app profile 下；本文件只新增 caddy，二者同项目、同默认网络。
+#   - caddy 同时服务 web/dist（挂到 /srv/web）并把 /api、/healthz 反代到 backend:8080 → 单源、免 CORS。
+#   - 首次启动 Caddy 会自动向 Let's Encrypt 申请并续期证书，要求 80/443 可达且域名 A 记录指向本机。
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web/dist:/srv/web:ro
+      - caddy_data:/data        # 证书持久化（别删，否则频繁申请被限流）
+      - caddy_config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

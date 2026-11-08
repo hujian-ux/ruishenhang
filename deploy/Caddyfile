@@ -1,0 +1,24 @@
+# 睿深行 AI 工作台 · 生产反向代理（Caddy 自动 HTTPS）
+# 单源同时承载：① 静态前端 dist  ② 反代 /api、/healthz 到后端 → 免 CORS，PWA/小程序最省心。
+{
+    # Let's Encrypt 申请证书用的联系邮箱（必填）
+    email {$CADDY_EMAIL}
+    # 内网/无公网调试时改用 staging，避免限流：
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$SITE_DOMAIN} {
+    # ── 前端静态资源（SPA）──
+    root * /srv/web
+    encode gzip zstd
+    try_files {path} /index.html   # 深链接刷新不 404
+    file_server
+
+    # ── 后端 API（同域反代，保留 /api 前缀）──
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+    handle /healthz {
+        reverse_proxy backend:8080
+    }
+}
