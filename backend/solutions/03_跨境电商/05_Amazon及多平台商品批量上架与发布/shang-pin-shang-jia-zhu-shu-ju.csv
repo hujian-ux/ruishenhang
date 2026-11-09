@@ -1,0 +1,7 @@
+﻿SKU,父SKU,产品系列,颜色,变体主题,提交类目节点,推荐类目节点,主图尺寸px,附图数量,证书状态,变体关系状态,归属站点
+HT-K09-Black,HT-K09,HT-K09 系列,Black,Color,Home&Kitchen>Heating Pads,Home&Kitchen>Heating Pads,800x800,3,已上传,独立SKU-未挂父体,US
+HT-K09-White,HT-K09,HT-K09 系列,White,Color,Home&Kitchen>Heating Pads,Home&Kitchen>Heating Pads,950x950,2,已上传,独立SKU-未挂父体,US
+HT-K09-Blue,HT-K09,HT-K09 系列,Blue,Color,Home&Kitchen>Heating Pads,Home&Kitchen>Heating Pads,1200x1200,5,已上传,独立SKU-未挂父体,US
+HT-L10-Black,HT-L10,HT-L10 系列,Black,Color,Home&Kitchen>Air Purifiers,Home&Kitchen>Air Purifiers,1200x1200,5,已上传,独立SKU-应挂父子体,US
+HT-L10-White,HT-L10,HT-L10 系列,White,Color,Home&Kitchen>Air Purifiers,Home&Kitchen>Air Purifiers,1200x1200,5,已上传,独立SKU-应挂父子体,US
+HT-L10-Red,HT-L10,HT-L10 系列,Red,Color,Home&Kitchen>Air Purifiers,Home&Kitchen>Air Purifiers,1200x1200,4,已上传,独立SKU-应挂父子体,US

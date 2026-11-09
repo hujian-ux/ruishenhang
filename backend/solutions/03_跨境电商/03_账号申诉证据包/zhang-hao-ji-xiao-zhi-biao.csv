@@ -1,0 +1,13 @@
+﻿指标代码,指标名称,统计口径,平台阈值,当前值,单位,是否超标,统计窗口,数据来源
+PM-01,订单缺陷率 ODR,负评+A-to-z索赔+信用卡拒付订单占比,<1.00,1.42,%,是,近60天,Account Health Dashboard
+PM-02,安全相关投诉数,买家反馈中含过热/异味/起火等安全描述的投诉件数,0,3,件,是,近90天,Product Safety Complaints
+PM-03,政策违规通知数,收到的商品安全类政策违规通知件数,0,1,件,是,近180天,Policy Compliance
+PM-04,商品真实性投诉数,买家投诉商品为仿品的件数,0,0,件,否,近180天,Account Health Dashboard
+PM-05,迟发率 Late Shipment Rate,超出承诺发货时间的订单占比,<4.00,0.60,%,否,近30天,Shipping Performance
+PM-06,有效追踪率 Valid Tracking Rate,含有效物流追踪号的订单占比,>95.00,99.20,%,否,近30天,Shipping Performance
+PM-07,订单取消率 Pre-fulfilment Cancel Rate,发货前卖家取消订单占比,<2.50,0.30,%,否,近7天,Shipping Performance
+PM-08,负评率,1-2星评价占比,<1.00,0.90,%,否,近90天,Customer Feedback
+PM-09,买家消息24小时回复率,24小时内首次回复买家消息占比,>90.00,93.50,%,否,近30天,Buyer-Seller Messaging
+PM-10,退货不满意率 Return Dissatisfaction Rate,退货流程收到负面反馈占比,<10.00,6.80,%,否,近60天,Returns Performance
+PM-11,A-to-z 索赔率,买家发起A-to-z索赔订单占比,<0.10,0.14,%,是,近60天,Account Health Dashboard
+PM-12,合规文档完整率,ASIN在档合规文件齐备的比例（内部口径）,100.00,78.00,%,是,当前,内部合规台账

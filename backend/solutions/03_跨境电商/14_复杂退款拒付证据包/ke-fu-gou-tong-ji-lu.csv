@@ -1,0 +1,12 @@
+﻿记录编号,时间_UTC,方向,渠道,主题,原文摘录,抗辩用途
+CS-01,2026-02-27 09:15,系统→客户,邮件,Order confirmation #HT-SP-10428,"Your order has been confirmed. Ship to: Unit 3B, 218 Maple Ave, Dover, DE 19901.",证明下单地址由客户提供且被确认
+CS-02,2026-03-05 14:31,系统→客户,邮件,Your order was delivered,Tracking ML7742891055 was delivered on Mar 5 at 2:22 PM.,证明已主动告知投递完成
+CS-03,2026-03-06 10:31,客户→客服,邮件,Order still not arrived,My order still has not arrived. Can you check?,对方主张原文（争议点 C1）
+CS-04,2026-03-06 12:08,客服→客户,邮件,Re: Order still not arrived,The carrier tracking shows the parcel was delivered on Mar 5 at 2:22 PM.,本次仅引用轨迹，未附 POD —— 流程缺陷记录
+CS-05,2026-03-07 08:12,客户→客服,邮件,Re: Order still not arrived,"Nobody at home signed for it, maybe it was left at the door and taken.",客户自述包裹已到门口（争议点 C1 关键反驳）
+CS-06,2026-03-07 09:20,客服→客户,邮件,Re: Order still not arrived,We can reship the same item or issue a refund once the carrier confirms a loss report. Please confirm which you prefer.,证明我方在拒付前已提供救济方案
+CS-07,2026-03-08 00:00,系统,备注,No customer reply within 24h,"Follow-up sent, no response received.",证明客户未走商户退款流程即发起拒付
+CS-08,2026-03-09 16:02,承运商→客服,邮件,Claim ML-CLM-55831 result,Delivery confirmed at the shipping address; GPS deviation 8 m; no re-delivery or return record.,排除地址错误（争议点 C3）
+CS-09,2026-03-10 11:30,客服→客户,邮件,Carrier confirmation attached,The carrier confirmed delivery at your address with GPS and photo evidence. Please advise if you would like us to file a porch-theft report.,证明我方在拒付前已披露 POD 证据
+CS-10,2026-03-11 03:02,支付通道→商户,系统通知,Dispute opened dp_1QmT9xHT0428,Reason: product_not_received (13.1). Evidence due by 2026-03-16 23:59 UTC.,案件受理与时限依据
+CS-11,2026-03-12 09:00,内部,备注,Evidence pack kickoff,Owner: 苏婷；remaining 4 days；prior loss case DP-2025-1187 reviewed.,编制记录

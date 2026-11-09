@@ -27,7 +27,11 @@ import re
 import statistics
 import sys
 
-SOLUTIONS_ROOT = os.environ.get("SOLUTIONS_ROOT", r"D:/workbuddy_解决方案")
+# 默认指向仓库内自带的 115 包源（backend/solutions），使交付物自包含：
+# 客户 clone 后无需外部目录即可导入/自动灌库。可用环境变量 SOLUTIONS_ROOT 覆盖。
+_DEFAULT_ROOT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "solutions")
+SOLUTIONS_ROOT = os.environ.get("SOLUTIONS_ROOT", _DEFAULT_ROOT)
 SHRINK_THRESHOLD = 600  # 去空白字数低于此值视为模板壳
 
 # M15/M25 P1：业务包全局补平台硬规则。优先用平台单一来源；若脚本独立运行且

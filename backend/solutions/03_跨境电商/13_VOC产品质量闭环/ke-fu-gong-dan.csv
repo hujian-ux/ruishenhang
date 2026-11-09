@@ -1,0 +1,97 @@
+﻿ticket_id,sku,created_date,marketplace,channel,subject,customer_verbatim,first_reply_hours,resolution,linked_order_id,theme_tag
+TK-0046,HT-H03,2025-12-17,UK,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",8.2,话术解释+退货退款,HT-UK-10160,尺寸误解
+TK-0075,HT-H03,2025-12-17,UK,邮件,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",4.1,升级产品部,HT-UK-10037,噪音
+TK-0031,HT-H03,2025-12-18,DE,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",3.8,话术解释+退货退款,HT-DE-10055,尺寸误解
+TK-0050,HT-H03,2025-12-18,DE,电话,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,1.9,话术解释,HT-DE-10025,尺寸误解
+TK-0051,HT-H03,2025-12-19,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",9.1,退货退款,HT-US-10032,尺寸误解
+TK-0063,HT-H03,2025-12-20,UK,WhatsApp,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",10.0,升级产品部,HT-UK-10116,噪音
+TK-0086,HT-H03,2025-12-20,FR,WhatsApp,水箱底部渗水,Water leaks from the bottom of the tank overnight.,4.2,换货,HT-FR-10114,漏水
+TK-0035,HT-H03,2025-12-22,FR,电话,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,1.8,话术解释,HT-FR-10083,尺寸误解
+TK-0049,HT-H03,2025-12-22,US,WhatsApp,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",8.4,话术解释+退货退款,HT-US-10018,尺寸误解
+TK-0003,HT-H03,2025-12-23,UK,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",8.0,退货退款,HT-UK-10022,尺寸误解
+TK-0052,HT-H03,2025-12-25,US,站内信,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",9.4,话术解释+退货退款,HT-US-10039,尺寸误解
+TK-0011,HT-H03,2025-12-28,DE,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,10.2,话术解释,HT-DE-10078,尺寸误解
+TK-0042,HT-H03,2025-12-30,FR,站内信,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",8.7,退货退款,HT-FR-10132,尺寸误解
+TK-0091,HT-H03,2025-12-31,US,电话,滤芯在哪里买,Where can I buy the replacement filter for this model?,8.6,话术解释,HT-US-10149,其他
+TK-0018,HT-H03,2026-01-01,FR,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",10.2,退货退款,HT-FR-10127,尺寸误解
+TK-0060,HT-H03,2026-01-01,US,邮件,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",9.6,换货,HT-US-10095,噪音
+TK-0025,HT-H03,2026-01-02,US,电话,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",3.8,话术解释+退货退款,HT-US-10013,尺寸误解
+TK-0014,HT-H03,2026-01-03,FR,WhatsApp,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,5.7,话术解释,HT-FR-10099,尺寸误解
+TK-0082,HT-H03,2026-01-03,US,电话,水箱底部渗水,Water leaks from the bottom of the tank overnight.,1.3,换货,HT-US-10086,漏水
+TK-0076,HT-H03,2026-01-04,FR,站内信,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",4.5,换货,HT-FR-10044,噪音
+TK-0039,HT-H03,2026-01-06,US,WhatsApp,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",9.5,退货退款,HT-US-10111,尺寸误解
+TK-0067,HT-H03,2026-01-06,FR,邮件,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",3.9,升级产品部,HT-FR-10144,噪音
+TK-0094,HT-H03,2026-01-07,DE,邮件,滤芯在哪里买,Where can I buy the replacement filter for this model?,11.4,话术解释,HT-DE-10007,其他
+TK-0006,HT-H03,2026-01-08,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",9.9,退货退款,HT-US-10043,尺寸误解
+TK-0084,HT-H03,2026-01-08,US,站内信,水箱底部渗水,Water leaks from the bottom of the tank overnight.,5.8,换货,HT-US-10100,漏水
+TK-0013,HT-H03,2026-01-09,US,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",1.9,话术解释+退货退款,HT-US-10092,尺寸误解
+TK-0066,HT-H03,2026-01-09,DE,站内信,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",2.7,换货,HT-DE-10137,噪音
+TK-0056,HT-H03,2026-01-10,FR,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,9.4,话术解释,HT-FR-10067,尺寸误解
+TK-0002,HT-H03,2026-01-12,FR,站内信,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,7.2,话术解释,HT-FR-10015,尺寸误解
+TK-0085,HT-H03,2026-01-12,DE,邮件,补水后底座积水,After refilling there is water under the base within an hour.,7.5,升级产品部,HT-DE-10107,漏水
+TK-0015,HT-H03,2026-01-14,US,电话,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",7.5,退货退款,HT-US-10106,尺寸误解
+TK-0034,HT-H03,2026-01-14,UK,WhatsApp,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",5.3,话术解释+退货退款,HT-UK-10076,尺寸误解
+TK-0010,HT-H03,2026-01-15,US,电话,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",7.3,话术解释+退货退款,HT-US-10071,尺寸误解
+TK-0023,HT-H03,2026-01-15,FR,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,5.4,话术解释,HT-FR-10162,尺寸误解
+TK-0092,HT-H03,2026-01-16,US,邮件,缺少德文说明书,The German manual was missing in the box.,10.7,补发配件,HT-US-10156,其他
+TK-0029,HT-H03,2026-01-17,UK,WhatsApp,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,2.8,话术解释,HT-UK-10041,尺寸误解
+TK-0032,HT-H03,2026-01-20,US,站内信,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,11.4,话术解释,HT-US-10062,尺寸误解
+TK-0053,HT-H03,2026-01-20,UK,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,6.4,话术解释,HT-UK-10046,尺寸误解
+TK-0038,HT-H03,2026-01-21,FR,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,8.1,话术解释,HT-FR-10104,尺寸误解
+TK-0040,HT-H03,2026-01-22,US,电话,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",4.3,话术解释+退货退款,HT-US-10118,尺寸误解
+TK-0001,HT-H03,2026-01-23,US,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",7.3,话术解释+退货退款,HT-US-10008,尺寸误解
+TK-0017,HT-H03,2026-01-23,US,站内信,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,5.9,话术解释,HT-US-10120,尺寸误解
+TK-0005,HT-H03,2026-01-26,FR,电话,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,10.7,话术解释,HT-FR-10036,尺寸误解
+TK-0021,HT-H03,2026-01-26,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",8.2,退货退款,HT-US-10148,尺寸误解
+TK-0045,HT-H03,2026-01-26,US,电话,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",3.3,退货退款,HT-US-10153,尺寸误解
+TK-0072,HT-H03,2026-01-27,US,邮件,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",5.5,换货,HT-US-10016,噪音
+TK-0012,HT-H03,2026-01-29,US,站内信,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",6.1,退货退款,HT-US-10085,尺寸误解
+TK-0089,HT-H03,2026-01-30,US,邮件,缺少德文说明书,The German manual was missing in the box.,4.4,补发配件,HT-US-10135,其他
+TK-0033,HT-H03,2026-01-31,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",2.9,退货退款,HT-US-10069,尺寸误解
+TK-0055,HT-H03,2026-01-31,US,电话,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",4.4,话术解释+退货退款,HT-US-10060,尺寸误解
+TK-0026,HT-H03,2026-02-02,US,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,10.9,话术解释,HT-US-10020,尺寸误解
+TK-0068,HT-H03,2026-02-03,FR,WhatsApp,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",4.9,换货,HT-FR-10151,噪音
+TK-0080,HT-H03,2026-02-03,DE,邮件,水箱底部渗水,Water leaks from the bottom of the tank overnight.,4.6,换货,HT-DE-10072,漏水
+TK-0069,HT-H03,2026-02-04,US,电话,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",3.1,升级产品部,HT-US-10158,噪音
+TK-0073,HT-H03,2026-02-05,DE,WhatsApp,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",9.3,升级产品部,HT-DE-10023,噪音
+TK-0074,HT-H03,2026-02-05,FR,电话,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",10.9,换货,HT-FR-10030,噪音
+TK-0096,HT-H03,2026-02-08,UK,电话,App 无法配网,The app keeps timing out during pairing.,9.3,话术解释,HT-UK-10021,其他
+TK-0009,HT-H03,2026-02-09,UK,WhatsApp,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",8.7,退货退款,HT-UK-10064,尺寸误解
+TK-0044,HT-H03,2026-02-09,US,WhatsApp,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,1.3,话术解释,HT-US-10146,尺寸误解
+TK-0090,HT-H03,2026-02-10,US,WhatsApp,App 无法配网,The app keeps timing out during pairing.,8.1,话术解释,HT-US-10142,其他
+TK-0070,HT-H03,2026-02-12,US,邮件,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",2.5,换货,HT-US-10002,噪音
+TK-0028,HT-H03,2026-02-13,DE,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",3.8,话术解释+退货退款,HT-DE-10034,尺寸误解
+TK-0083,HT-H03,2026-02-13,DE,邮件,补水后底座积水,After refilling there is water under the base within an hour.,9.2,升级产品部,HT-DE-10093,漏水
+TK-0030,HT-H03,2026-02-15,FR,电话,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",10.6,退货退款,HT-FR-10048,尺寸误解
+TK-0036,HT-H03,2026-02-17,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",3.7,退货退款,HT-US-10090,尺寸误解
+TK-0008,HT-H03,2026-02-18,UK,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,3.7,话术解释,HT-UK-10057,尺寸误解
+TK-0022,HT-H03,2026-02-20,US,站内信,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",11.4,话术解释+退货退款,HT-US-10155,尺寸误解
+TK-0043,HT-H03,2026-02-20,FR,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",3.1,话术解释+退货退款,HT-FR-10139,尺寸误解
+TK-0019,HT-H03,2026-02-21,DE,WhatsApp,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",11.4,话术解释+退货退款,HT-DE-10134,尺寸误解
+TK-0058,HT-H03,2026-02-21,US,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",1.3,话术解释+退货退款,HT-US-10081,尺寸误解
+TK-0065,HT-H03,2026-02-22,US,邮件,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",8.0,升级产品部,HT-US-10130,噪音
+TK-0081,HT-H03,2026-02-22,US,WhatsApp,补水后底座积水,After refilling there is water under the base within an hour.,11.2,升级产品部,HT-US-10079,漏水
+TK-0007,HT-H03,2026-02-23,US,站内信,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",10.3,话术解释+退货退款,HT-US-10050,尺寸误解
+TK-0027,HT-H03,2026-02-23,UK,站内信,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",4.2,退货退款,HT-UK-10027,尺寸误解
+TK-0041,HT-H03,2026-02-23,UK,邮件,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,1.5,话术解释,HT-UK-10125,尺寸误解
+TK-0047,HT-H03,2026-02-23,UK,站内信,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,2.1,话术解释,HT-UK-10004,尺寸误解
+TK-0016,HT-H03,2026-02-24,US,邮件,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",5.4,话术解释+退货退款,HT-US-10113,尺寸误解
+TK-0064,HT-H03,2026-02-24,US,电话,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",9.4,换货,HT-US-10123,噪音
+TK-0071,HT-H03,2026-02-24,US,站内信,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",3.8,升级产品部,HT-US-10009,噪音
+TK-0078,HT-H03,2026-02-27,UK,邮件,水箱底部渗水,Water leaks from the bottom of the tank overnight.,8.8,换货,HT-UK-10058,漏水
+TK-0054,HT-H03,2026-03-01,FR,WhatsApp,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",3.9,退货退款,HT-FR-10053,尺寸误解
+TK-0077,HT-H03,2026-03-01,UK,邮件,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",9.7,升级产品部,HT-UK-10051,噪音
+TK-0079,HT-H03,2026-03-01,DE,站内信,补水后底座积水,After refilling there is water under the base within an hour.,6.4,升级产品部,HT-DE-10065,漏水
+TK-0093,HT-H03,2026-03-02,UK,站内信,App 无法配网,The app keeps timing out during pairing.,5.8,话术解释,HT-UK-10163,其他
+TK-0095,HT-H03,2026-03-02,US,WhatsApp,缺少德文说明书,The German manual was missing in the box.,3.8,补发配件,HT-US-10014,其他
+TK-0048,HT-H03,2026-03-03,US,邮件,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",11.3,退货退款,HT-US-10011,尺寸误解
+TK-0037,HT-H03,2026-03-08,UK,站内信,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",7.3,话术解释+退货退款,HT-UK-10097,尺寸误解
+TK-0062,HT-H03,2026-03-09,UK,邮件,使用三周后风机噪音变大,"The fan noise increased a lot after three weeks, can I get a replacement?",6.9,换货,HT-UK-10109,噪音
+TK-0057,HT-H03,2026-03-10,US,站内信,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",2.9,退货退款,HT-US-10074,尺寸误解
+TK-0088,HT-H03,2026-03-11,US,站内信,滤芯在哪里买,Where can I buy the replacement filter for this model?,3.3,话术解释,HT-US-10128,其他
+TK-0024,HT-H03,2026-03-12,DE,WhatsApp,尺寸和预期差太多想退,"It is not broken, it is just far smaller than the photos suggested.",4.1,退货退款,HT-DE-10006,尺寸误解
+TK-0061,HT-H03,2026-03-12,FR,站内信,夜间噪音无法接受,"Measured 45 dB beside the bed, the listing claims whisper quiet.",1.8,升级产品部,HT-FR-10102,噪音
+TK-0020,HT-H03,2026-03-14,US,电话,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,3.4,话术解释,HT-US-10141,尺寸误解
+TK-0004,HT-H03,2026-03-15,UK,WhatsApp,收到的尺寸和图片不一样,"Is this the full size unit? Mine only covers my nightstand, the picture looked much bigger.",10.2,话术解释+退货退款,HT-UK-10029,尺寸误解
+TK-0059,HT-H03,2026-03-15,UK,WhatsApp,下单前想确认整机宽度,The listing says 168mm diameter. What is the total width including the base?,9.1,话术解释,HT-UK-10088,尺寸误解
+TK-0087,HT-H03,2026-03-15,US,邮件,App 无法配网,The app keeps timing out during pairing.,10.7,话术解释,HT-US-10121,其他

@@ -1,0 +1,9 @@
+﻿naming_template,example
+"{活动代码}_{渠道}_{素材类型}_{日期YYYYMMDD}_{尺寸or时长}_v{版本}.{ext}","SUMMER2607_WECHAT_POSTER_20260729_1080x1920_v2.jpg"
+"{活动代码}_{渠道}_{素材类型}_{日期YYYYMMDD}_{尺寸or时长}_v{版本}.{ext}","MIDYEAR_DOUYIN_VIDEO_20260729_15s_v1.mp4"
+"{活动代码}_{渠道}_{素材类型}_{日期YYYYMMDD}_{尺寸or时长}_v{版本}.{ext}","JULYNEW_XHS_ARTICLE_20260729_v3.md"
+directory_scheme,"oa://marketing_assets/{年}/{月}/{活动代码}/{渠道}/{素材类型}/"
+directory_example,"oa://marketing_assets/2026/07/SUMMER2607/WECHAT/POSTER/"
+auto_create_rule,"目录不存在 → 自动创建 + 写 .metadata.json"
+auto_create_rule,"容量 > 5GB → 告警 + 提示归档到冷存储"
+auto_create_rule,"每月末自动生成 monthly_index.md"

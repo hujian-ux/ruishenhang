@@ -13,6 +13,8 @@ M15 之前：`_AGENTS` 只是 routers/agents.py 里的内存 dict —— 重启�
 """
 from __future__ import annotations
 
+import os
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -132,6 +134,69 @@ def ensure_public_skills() -> int:
 def is_public(agent: Dict[str, Any]) -> bool:
     """公共库条目：不是业务技能包，不进 115 口径，也不挂职业标签。"""
     return bool(agent.get("public")) or agent.get("category") == "public"
+
+
+def has_business_agents() -> bool:
+    """是否存在业务技能包（非公共库、非内置助手）。用于判断是否需要首次自动灌库。"""
+    return any(
+        (not a.get("builtin")) and (not is_public(a))
+        for a in _AGENTS.values()
+    )
+
+
+def bootstrap_solutions(root: str = "") -> int:
+    """首次启动自修复：把仓库内置的 115 包源直接注册为 published（幂等）。
+
+    解决「客户本地装/重启后业务包为空 → 岗位选择器无选项」的交付硬伤：
+    - 仅当业务包为空时由 lifespan 调用，已存在（同 source_path）则跳过，可重复安全运行；
+    - 平台自带资产 tenant_id 留空（PLATFORM_TENANT），全租户可见；
+    - 直接 published（vendor 随产品交付的种子包，非用户提交，无需走审批）。
+
+    返回新建数量。
+    """
+    if has_business_agents():
+        return 0
+    try:
+        from scripts.import_solutions import SOLUTIONS_ROOT, scan  # 延迟导入，避免循环依赖
+        from app.routers.agents import _new_agent_id
+    except Exception:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+        from import_solutions import SOLUTIONS_ROOT, scan  # type: ignore
+        from app.routers.agents import _new_agent_id  # type: ignore
+    root = root or SOLUTIONS_ROOT
+    if not root or not os.path.isdir(root):
+        return 0
+    defs = scan(root)
+    if not defs:
+        return 0
+    created = 0
+    for d in defs:
+        agent_id = _new_agent_id(d["name"])  # 与 HTTP 导入同源（含中文名 uuid 兜底），保证幂等一致
+        exist = _AGENTS.get(agent_id)
+        if exist and exist.get("source_path") == d["source"]:
+            continue  # 幂等：同来源已存在
+        save({
+            "agent_id": agent_id,
+            "name": d["name"],
+            "adapter_type": d["adapter_type"],
+            "knowledge_scope": "global",
+            "model_id": None,
+            "registered_by": "bootstrap",
+            "dept_id": "d_platform",
+            "tenant_id": PLATFORM_TENANT,
+            "status": "published",
+            "description": d["description"],
+            "system_prompt": d["system_prompt"],
+            "category": d["kind"],
+            "category_cn": d["board_cn"],
+            "sub_function": d["sub_function"],
+            "tags": d["tags"],
+            "source_path": d["source"],
+            "inputs_contract": d["inputs_contract"],
+            "outputs_contract": d["outputs_contract"],
+        })
+        created += 1
+    return created
 
 
 # 技能包字段（会被原样保留并在列表接口回显）

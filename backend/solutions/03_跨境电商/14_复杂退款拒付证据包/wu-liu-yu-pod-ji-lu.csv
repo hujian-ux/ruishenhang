@@ -1,0 +1,14 @@
+﻿记录编号,运单号,节点时间_本地,节点类型,节点位置,字段名,字段取值,可否作为拒付证据
+PD-01,ML7742891055,2026-02-28 15:12,Picked up,"Newark, NJ Hub",scan_type,Origin scan,是（发货事实）
+PD-02,ML7742891055,2026-03-01 01:44,In transit,"Philadelphia, PA Hub",scan_type,Linehaul scan,辅助
+PD-03,ML7742891055,2026-03-03 10:27,Arrived at facility,"Dover, DE Station",scan_type,Destination arrival,辅助
+PD-04,ML7742891055,2026-03-05 08:31,Out for delivery,"Dover, DE Station",driver_id,D-2291,辅助
+PD-05,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",pod_photo_1,POD_ML7742891055_1.jpg（门口 + 包裹 + 门牌）,是（核心）
+PD-06,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",pod_photo_2,POD_ML7742891055_2.jpg（门口全景：门色/邮箱/台阶）,是（核心）
+PD-07,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",pod_gps,"39.158341, -75.524372",是（核心）
+PD-08,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",pod_signature_name,R. Alvarez,是（需说明与收件人关系）
+PD-09,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",pod_device,DRV-Scan-2291（含设备时间戳）,辅助
+PD-10,ML7742891055,2026-03-05 14:22,Delivered,"Dover, DE 19901",house_number_legibility,部分遮挡：门牌第 3 位被快递袋遮住，读作 21_,缺口（需 GPS 补强）
+PD-11,ML7742891055,2026-03-09 16:02,Carrier claim reply,MetroLast Mile 客服,geo_deviation,POD GPS 与订单地址地理编码偏差 8 米,是（排除地址错误）
+PD-12,ML7742891055,2026-03-09 16:02,Carrier claim reply,MetroLast Mile 客服,claim_conclusion,投递有效，无重投/退回记录,是
+PD-13,ML7742891055,2026-03-09 16:05,Carrier claim reply,MetroLast Mile 客服,left_at_door_policy,该地址历史投递均为 signature-not-required，允许门口投放,辅助（呼应客户自述）

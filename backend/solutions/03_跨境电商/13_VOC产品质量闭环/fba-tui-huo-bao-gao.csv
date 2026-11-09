@@ -1,0 +1,164 @@
+﻿return_id,order_id,sku,return_date,marketplace,quantity,platform_reason_code,customer_comment,warehouse_disposition,warehouse_note,unit_loss_usd,theme_tag
+RET-0021,HT-US-10021,HT-H03,2025-12-17,US,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,21.1,尺寸误解
+RET-0042,HT-DE-10042,HT-H03,2025-12-17,DE,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,21.1,尺寸误解
+RET-0124,HT-US-10124,HT-H03,2025-12-17,US,1,DEFECTIVE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,19.6,噪音
+RET-0148,HT-US-10148,HT-H03,2025-12-17,US,1,PERFORMANCE_ISSUE,seal leaking,Customer Damaged,注水后 40min 底部渗水,21.3,漏水
+RET-0049,HT-DE-10049,HT-H03,2025-12-18,DE,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,21.1,尺寸误解
+RET-0133,HT-US-10133,HT-H03,2025-12-18,US,1,DEFECTIVE,seal leaking,Defective,注水后 40min 底部渗水,20.4,漏水
+RET-0028,HT-US-10028,HT-H03,2025-12-19,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,21.1,尺寸误解
+RET-0077,HT-FR-10077,HT-H03,2025-12-19,FR,1,DEFECTIVE,smaller than pictures,Customer Damaged,外观无破损，通电正常；客户备注 too small,21.1,尺寸误解
+RET-0023,HT-US-10023,HT-H03,2025-12-20,US,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,16.6,尺寸误解
+RET-0026,HT-US-10026,HT-H03,2025-12-20,US,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,19.3,尺寸误解
+RET-0050,HT-US-10050,HT-H03,2025-12-21,US,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,15.7,尺寸误解
+RET-0106,HT-US-10106,HT-H03,2025-12-21,US,1,DEFECTIVE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,22.3,噪音
+RET-0019,HT-US-10019,HT-H03,2025-12-22,US,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,19.3,尺寸误解
+RET-0078,HT-US-10078,HT-H03,2025-12-22,US,1,NOT_AS_DESCRIBED,too small / wrong size,Customer Damaged,功能测试通过，无渗漏；备注 not as expected,15.7,尺寸误解
+RET-0031,HT-US-10031,HT-H03,2025-12-23,US,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,17.5,尺寸误解
+RET-0149,HT-US-10149,HT-H03,2025-12-23,US,1,DEFECTIVE,leaking from tank,Customer Damaged,水箱保压 30min 渗水 6ml，密封圈压缩量不足,26.7,漏水
+RET-0101,HT-FR-10101,HT-H03,2025-12-24,FR,1,PERFORMANCE_ISSUE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,17.8,噪音
+RET-0108,HT-UK-10108,HT-H03,2025-12-27,UK,1,DEFECTIVE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,17.8,噪音
+RET-0067,HT-DE-10067,HT-H03,2025-12-28,DE,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,18.4,尺寸误解
+RET-0123,HT-DE-10123,HT-H03,2025-12-28,DE,1,PERFORMANCE_ISSUE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,18.7,噪音
+RET-0138,HT-US-10138,HT-H03,2025-12-28,US,1,PERFORMANCE_ISSUE,water on the desk,Defective,底座积水，密封圈压痕不均,18.6,漏水
+RET-0159,HT-DE-10159,HT-H03,2025-12-28,DE,1,UNWANTED_ITEM,cosmetic damage on lid,Sellable,外观有划痕，功能正常,16.6,其他
+RET-0012,HT-DE-10012,HT-H03,2025-12-29,DE,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,外观完好，雾量正常；备注 size not as expected,19.3,尺寸误解
+RET-0046,HT-US-10046,HT-H03,2025-12-29,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,18.4,尺寸误解
+RET-0113,HT-UK-10113,HT-H03,2025-12-29,UK,1,PERFORMANCE_ISSUE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,22.3,噪音
+RET-0071,HT-US-10071,HT-H03,2025-12-30,US,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,15.7,尺寸误解
+RET-0065,HT-UK-10065,HT-H03,2025-12-31,UK,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,16.6,尺寸误解
+RET-0093,HT-UK-10093,HT-H03,2025-12-31,UK,1,DEFECTIVE,too small for the room,Sellable,外观无破损，通电正常；客户备注 too small,16.6,尺寸误解
+RET-0016,HT-US-10016,HT-H03,2026-01-02,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,16.6,尺寸误解
+RET-0081,HT-US-10081,HT-H03,2026-01-02,US,1,DEFECTIVE,too small for the room,Customer Damaged,外观无破损，通电正常；客户备注 too small,18.4,尺寸误解
+RET-0119,HT-US-10119,HT-H03,2026-01-02,US,1,PERFORMANCE_ISSUE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,21.4,噪音
+RET-0122,HT-US-10122,HT-H03,2026-01-02,US,1,DEFECTIVE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,17.8,噪音
+RET-0064,HT-US-10064,HT-H03,2026-01-03,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,15.7,尺寸误解
+RET-0102,HT-FR-10102,HT-H03,2026-01-04,FR,1,DEFECTIVE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,18.7,噪音
+RET-0053,HT-US-10053,HT-H03,2026-01-05,US,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,18.4,尺寸误解
+RET-0147,HT-UK-10147,HT-H03,2026-01-05,UK,1,DEFECTIVE,water on the desk,Defective,底座积水，密封圈压痕不均,20.4,漏水
+RET-0158,HT-FR-10158,HT-H03,2026-01-06,FR,1,DEFECTIVE,app will not pair,Sellable,包装内缺少德文说明书,15.7,其他
+RET-0017,HT-UK-10017,HT-H03,2026-01-07,UK,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,17.5,尺寸误解
+RET-0160,HT-US-10160,HT-H03,2026-01-07,US,1,DAMAGED_BY_CARRIER,changed my mind,Sellable,整机完好，未拆封,17.5,其他
+RET-0066,HT-FR-10066,HT-H03,2026-01-08,FR,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,17.5,尺寸误解
+RET-0104,HT-UK-10104,HT-H03,2026-01-08,UK,1,DEFECTIVE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,20.5,噪音
+RET-0032,HT-US-10032,HT-H03,2026-01-09,US,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,18.4,尺寸误解
+RET-0051,HT-US-10051,HT-H03,2026-01-09,US,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,16.6,尺寸误解
+RET-0054,HT-US-10054,HT-H03,2026-01-09,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,19.3,尺寸误解
+RET-0087,HT-UK-10087,HT-H03,2026-01-09,UK,1,DEFECTIVE,too small for the room,Customer Damaged,整机完好，配件齐全；备注 too small,17.5,尺寸误解
+RET-0129,HT-US-10129,HT-H03,2026-01-09,US,1,PERFORMANCE_ISSUE,noise level not as advertised,Sellable,高档位有异响，需返厂拆检,17.8,噪音
+RET-0020,HT-US-10020,HT-H03,2026-01-10,US,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,20.2,尺寸误解
+RET-0125,HT-UK-10125,HT-H03,2026-01-10,UK,1,PERFORMANCE_ISSUE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,20.5,噪音
+RET-0146,HT-DE-10146,HT-H03,2026-01-10,DE,1,PERFORMANCE_ISSUE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,19.5,漏水
+RET-0094,HT-FR-10094,HT-H03,2026-01-11,FR,1,NOT_AS_DESCRIBED,not as expected - size,Sellable,功能测试通过，无渗漏；备注 not as expected,17.5,尺寸误解
+RET-0068,HT-US-10068,HT-H03,2026-01-12,US,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,19.3,尺寸误解
+RET-0117,HT-FR-10117,HT-H03,2026-01-13,FR,1,PERFORMANCE_ISSUE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,19.6,噪音
+RET-0155,HT-UK-10155,HT-H03,2026-01-13,UK,1,DEFECTIVE,cosmetic damage on lid,Defective,包装内缺少德文说明书,19.3,其他
+RET-0157,HT-FR-10157,HT-H03,2026-01-13,FR,1,DAMAGED_BY_CARRIER,missing manual,Sellable,整机完好，未拆封,14.8,其他
+RET-0030,HT-DE-10030,HT-H03,2026-01-14,DE,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,16.6,尺寸误解
+RET-0080,HT-US-10080,HT-H03,2026-01-15,US,1,NOT_AS_DESCRIBED,not as expected,Customer Damaged,外观完好，雾量正常；备注 size not as expected,17.5,尺寸误解
+RET-0118,HT-US-10118,HT-H03,2026-01-15,US,1,DEFECTIVE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,20.5,噪音
+RET-0039,HT-US-10039,HT-H03,2026-01-16,US,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,18.4,尺寸误解
+RET-0091,HT-US-10091,HT-H03,2026-01-17,US,1,DEFECTIVE,too small,Customer Damaged,整机完好，配件齐全；备注 too small,21.1,尺寸误解
+RET-0136,HT-US-10136,HT-H03,2026-01-17,US,1,PERFORMANCE_ISSUE,seal leaking,Defective,注水后 40min 底部渗水,23.1,漏水
+RET-0130,HT-FR-10130,HT-H03,2026-01-19,FR,1,DEFECTIVE,too noisy at night,Sellable,通电后风机异响，dB(A)@1m 实测 44.6,24.1,噪音
+RET-0004,HT-UK-10004,HT-H03,2026-01-20,UK,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,18.4,尺寸误解
+RET-0010,HT-FR-10010,HT-H03,2026-01-20,FR,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,17.5,尺寸误解
+RET-0099,HT-US-10099,HT-H03,2026-01-20,US,1,DEFECTIVE,too small for the room,Sellable,整机完好，配件齐全；备注 too small,18.4,尺寸误解
+RET-0150,HT-US-10150,HT-H03,2026-01-20,US,1,UNWANTED_ITEM,app will not pair,Defective,外观有划痕，功能正常,14.8,其他
+RET-0073,HT-UK-10073,HT-H03,2026-01-21,UK,1,DEFECTIVE,too small,Customer Damaged,外观无破损，通电正常；客户备注 too small,17.5,尺寸误解
+RET-0014,HT-FR-10014,HT-H03,2026-01-22,FR,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,21.1,尺寸误解
+RET-0056,HT-UK-10056,HT-H03,2026-01-22,UK,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,21.1,尺寸误解
+RET-0018,HT-US-10018,HT-H03,2026-01-23,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,18.4,尺寸误解
+RET-0022,HT-US-10022,HT-H03,2026-01-23,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,15.7,尺寸误解
+RET-0007,HT-US-10007,HT-H03,2026-01-24,US,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,21.1,尺寸误解
+RET-0041,HT-US-10041,HT-H03,2026-01-24,US,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,20.2,尺寸误解
+RET-0110,HT-FR-10110,HT-H03,2026-01-24,FR,1,DEFECTIVE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,19.6,噪音
+RET-0152,HT-US-10152,HT-H03,2026-01-24,US,1,DEFECTIVE,changed my mind,Defective,包装内缺少德文说明书,16.6,其他
+RET-0114,HT-FR-10114,HT-H03,2026-01-25,FR,1,DEFECTIVE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,16.9,噪音
+RET-0070,HT-US-10070,HT-H03,2026-01-26,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,21.1,尺寸误解
+RET-0035,HT-US-10035,HT-H03,2026-01-27,US,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,21.1,尺寸误解
+RET-0084,HT-UK-10084,HT-H03,2026-01-27,UK,1,NOT_AS_DESCRIBED,too small / wrong size,Customer Damaged,外观完好，雾量正常；备注 size not as expected,21.1,尺寸误解
+RET-0086,HT-DE-10086,HT-H03,2026-01-28,DE,1,NOT_AS_DESCRIBED,not as expected,Customer Damaged,功能测试通过，无渗漏；备注 not as expected,16.6,尺寸误解
+RET-0132,HT-US-10132,HT-H03,2026-01-28,US,1,PERFORMANCE_ISSUE,water on the desk,Defective,底座积水，密封圈压痕不均,19.5,漏水
+RET-0154,HT-FR-10154,HT-H03,2026-01-28,FR,1,DAMAGED_BY_CARRIER,app will not pair,Defective,整机完好，未拆封,18.4,其他
+RET-0034,HT-US-10034,HT-H03,2026-01-29,US,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,20.2,尺寸误解
+RET-0072,HT-US-10072,HT-H03,2026-01-29,US,1,NOT_AS_DESCRIBED,too small / wrong size,Customer Damaged,外观完好，雾量正常；备注 size not as expected,16.6,尺寸误解
+RET-0137,HT-US-10137,HT-H03,2026-01-30,US,1,DEFECTIVE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,24.0,漏水
+RET-0011,HT-US-10011,HT-H03,2026-01-31,US,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,18.4,尺寸误解
+RET-0033,HT-US-10033,HT-H03,2026-01-31,US,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,19.3,尺寸误解
+RET-0040,HT-DE-10040,HT-H03,2026-02-01,DE,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,19.3,尺寸误解
+RET-0089,HT-US-10089,HT-H03,2026-02-01,US,1,DEFECTIVE,smaller than pictures,Customer Damaged,外观无破损，通电正常；客户备注 too small,19.3,尺寸误解
+RET-0098,HT-US-10098,HT-H03,2026-02-01,US,1,NOT_AS_DESCRIBED,not as expected,Sellable,功能测试通过，无渗漏；备注 not as expected,21.1,尺寸误解
+RET-0100,HT-DE-10100,HT-H03,2026-02-01,DE,1,DEFECTIVE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,16.9,噪音
+RET-0135,HT-US-10135,HT-H03,2026-02-01,US,1,DEFECTIVE,water on the desk,Defective,底座积水，密封圈压痕不均,22.2,漏水
+RET-0003,HT-UK-10003,HT-H03,2026-02-02,UK,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,17.5,尺寸误解
+RET-0062,HT-DE-10062,HT-H03,2026-02-02,DE,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,20.2,尺寸误解
+RET-0079,HT-UK-10079,HT-H03,2026-02-02,UK,1,DEFECTIVE,too small,Customer Damaged,整机完好，配件齐全；备注 too small,16.6,尺寸误解
+RET-0001,HT-US-10001,HT-H03,2026-02-03,US,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,15.7,尺寸误解
+RET-0008,HT-US-10008,HT-H03,2026-02-03,US,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,15.7,尺寸误解
+RET-0063,HT-US-10063,HT-H03,2026-02-04,US,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,21.1,尺寸误解
+RET-0156,HT-FR-10156,HT-H03,2026-02-05,FR,1,UNWANTED_ITEM,changed my mind,Sellable,外观有划痕，功能正常,20.2,其他
+RET-0090,HT-US-10090,HT-H03,2026-02-07,US,1,NOT_AS_DESCRIBED,too small / wrong size,Customer Damaged,功能测试通过，无渗漏；备注 not as expected,20.2,尺寸误解
+RET-0024,HT-US-10024,HT-H03,2026-02-08,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,外观完好，雾量正常；备注 size not as expected,17.5,尺寸误解
+RET-0005,HT-US-10005,HT-H03,2026-02-09,US,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,19.3,尺寸误解
+RET-0006,HT-US-10006,HT-H03,2026-02-09,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,功能测试通过，无渗漏；备注 not as expected,20.2,尺寸误解
+RET-0134,HT-UK-10134,HT-H03,2026-02-09,UK,1,PERFORMANCE_ISSUE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,21.3,漏水
+RET-0047,HT-DE-10047,HT-H03,2026-02-10,DE,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,19.3,尺寸误解
+RET-0111,HT-UK-10111,HT-H03,2026-02-10,UK,1,PERFORMANCE_ISSUE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,20.5,噪音
+RET-0038,HT-DE-10038,HT-H03,2026-02-11,DE,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,17.5,尺寸误解
+RET-0060,HT-UK-10060,HT-H03,2026-02-11,UK,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,外观完好，雾量正常；备注 size not as expected,18.4,尺寸误解
+RET-0061,HT-FR-10061,HT-H03,2026-02-11,FR,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,19.3,尺寸误解
+RET-0141,HT-UK-10141,HT-H03,2026-02-11,UK,1,DEFECTIVE,water on the desk,Defective,底座积水，密封圈压痕不均,21.3,漏水
+RET-0075,HT-UK-10075,HT-H03,2026-02-13,UK,1,DEFECTIVE,too small for the room,Customer Damaged,整机完好，配件齐全；备注 too small,19.3,尺寸误解
+RET-0025,HT-US-10025,HT-H03,2026-02-15,US,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,18.4,尺寸误解
+RET-0107,HT-US-10107,HT-H03,2026-02-15,US,1,PERFORMANCE_ISSUE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,16.9,噪音
+RET-0069,HT-UK-10069,HT-H03,2026-02-16,UK,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,20.2,尺寸误解
+RET-0036,HT-US-10036,HT-H03,2026-02-17,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,外观完好，雾量正常；备注 size not as expected,15.7,尺寸误解
+RET-0048,HT-US-10048,HT-H03,2026-02-17,US,1,NOT_AS_DESCRIBED,too small / wrong size,Defective,外观完好，雾量正常；备注 size not as expected,20.2,尺寸误解
+RET-0029,HT-FR-10029,HT-H03,2026-02-18,FR,1,DEFECTIVE,smaller than pictures,Defective,外观无破损，通电正常；客户备注 too small,15.7,尺寸误解
+RET-0115,HT-US-10115,HT-H03,2026-02-18,US,1,PERFORMANCE_ISSUE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,17.8,噪音
+RET-0013,HT-UK-10013,HT-H03,2026-02-19,UK,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,20.2,尺寸误解
+RET-0059,HT-UK-10059,HT-H03,2026-02-19,UK,1,DEFECTIVE,smaller than pictures,Defective,整机完好，配件齐全；备注 too small,17.5,尺寸误解
+RET-0140,HT-US-10140,HT-H03,2026-02-19,US,1,PERFORMANCE_ISSUE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,20.4,漏水
+RET-0052,HT-FR-10052,HT-H03,2026-02-21,FR,1,NOT_AS_DESCRIBED,not as expected - size,Defective,外观完好，雾量正常；备注 size not as expected,17.5,尺寸误解
+RET-0092,HT-UK-10092,HT-H03,2026-02-21,UK,1,NOT_AS_DESCRIBED,not as expected,Customer Damaged,外观完好，雾量正常；备注 size not as expected,15.7,尺寸误解
+RET-0153,HT-US-10153,HT-H03,2026-02-21,US,1,UNWANTED_ITEM,missing manual,Defective,外观有划痕，功能正常,17.5,其他
+RET-0009,HT-US-10009,HT-H03,2026-02-22,US,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,16.6,尺寸误解
+RET-0145,HT-FR-10145,HT-H03,2026-02-22,FR,1,DEFECTIVE,seal leaking,Defective,注水后 40min 底部渗水,18.6,漏水
+RET-0015,HT-US-10015,HT-H03,2026-02-23,US,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,15.7,尺寸误解
+RET-0037,HT-US-10037,HT-H03,2026-02-23,US,1,DEFECTIVE,too small,Defective,外观无破损，通电正常；客户备注 too small,16.6,尺寸误解
+RET-0045,HT-DE-10045,HT-H03,2026-02-23,DE,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,17.5,尺寸误解
+RET-0121,HT-US-10121,HT-H03,2026-02-23,US,1,PERFORMANCE_ISSUE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,16.9,噪音
+RET-0139,HT-UK-10139,HT-H03,2026-02-23,UK,1,DEFECTIVE,seal leaking,Defective,注水后 40min 底部渗水,19.5,漏水
+RET-0143,HT-US-10143,HT-H03,2026-02-23,US,1,DEFECTIVE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,23.1,漏水
+RET-0085,HT-DE-10085,HT-H03,2026-02-24,DE,1,DEFECTIVE,too small,Customer Damaged,外观无破损，通电正常；客户备注 too small,15.7,尺寸误解
+RET-0088,HT-US-10088,HT-H03,2026-02-25,US,1,NOT_AS_DESCRIBED,not as expected - size,Customer Damaged,外观完好，雾量正常；备注 size not as expected,18.4,尺寸误解
+RET-0044,HT-US-10044,HT-H03,2026-02-26,US,1,NOT_AS_DESCRIBED,not as expected,Defective,外观完好，雾量正常；备注 size not as expected,16.6,尺寸误解
+RET-0083,HT-FR-10083,HT-H03,2026-02-26,FR,1,DEFECTIVE,smaller than pictures,Customer Damaged,整机完好，配件齐全；备注 too small,20.2,尺寸误解
+RET-0116,HT-US-10116,HT-H03,2026-02-26,US,1,DEFECTIVE,fan buzzing,Defective,风机运行有明显嗡鸣，判定功能不良,18.7,噪音
+RET-0144,HT-US-10144,HT-H03,2026-02-26,US,1,PERFORMANCE_ISSUE,water on the desk,Defective,底座积水，密封圈压痕不均,24.0,漏水
+RET-0161,HT-DE-10161,HT-H03,2026-02-26,DE,1,DEFECTIVE,missing manual,Customer Damaged,包装内缺少德文说明书,18.4,其他
+RET-0162,HT-FR-10162,HT-H03,2026-02-26,FR,1,UNWANTED_ITEM,app will not pair,Customer Damaged,外观有划痕，功能正常,19.3,其他
+RET-0043,HT-FR-10043,HT-H03,2026-02-27,FR,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,15.7,尺寸误解
+RET-0095,HT-DE-10095,HT-H03,2026-02-27,DE,1,DEFECTIVE,smaller than pictures,Sellable,整机完好，配件齐全；备注 too small,18.4,尺寸误解
+RET-0128,HT-DE-10128,HT-H03,2026-02-27,DE,1,DEFECTIVE,fan buzzing,Sellable,风机运行有明显嗡鸣，判定功能不良,16.9,噪音
+RET-0142,HT-UK-10142,HT-H03,2026-02-27,UK,1,PERFORMANCE_ISSUE,seal leaking,Defective,注水后 40min 底部渗水,22.2,漏水
+RET-0057,HT-US-10057,HT-H03,2026-02-28,US,1,DEFECTIVE,too small for the room,Defective,外观无破损，通电正常；客户备注 too small,15.7,尺寸误解
+RET-0076,HT-UK-10076,HT-H03,2026-03-03,UK,1,NOT_AS_DESCRIBED,not as expected - size,Customer Damaged,外观完好，雾量正常；备注 size not as expected,20.2,尺寸误解
+RET-0055,HT-US-10055,HT-H03,2026-03-04,US,1,DEFECTIVE,too small,Defective,整机完好，配件齐全；备注 too small,20.2,尺寸误解
+RET-0127,HT-US-10127,HT-H03,2026-03-04,US,1,PERFORMANCE_ISSUE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,22.3,噪音
+RET-0109,HT-US-10109,HT-H03,2026-03-06,US,1,PERFORMANCE_ISSUE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,18.7,噪音
+RET-0163,HT-FR-10163,HT-H03,2026-03-06,FR,1,DAMAGED_BY_CARRIER,cosmetic damage on lid,Customer Damaged,整机完好，未拆封,20.2,其他
+RET-0103,HT-UK-10103,HT-H03,2026-03-07,UK,1,PERFORMANCE_ISSUE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,19.6,噪音
+RET-0027,HT-UK-10027,HT-H03,2026-03-08,UK,1,DEFECTIVE,too small for the room,Defective,整机完好，配件齐全；备注 too small,20.2,尺寸误解
+RET-0120,HT-DE-10120,HT-H03,2026-03-08,DE,1,DEFECTIVE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,22.3,噪音
+RET-0105,HT-US-10105,HT-H03,2026-03-10,US,1,PERFORMANCE_ISSUE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,21.4,噪音
+RET-0131,HT-US-10131,HT-H03,2026-03-10,US,1,DEFECTIVE,leaking from tank,Defective,水箱保压 30min 渗水 6ml，密封圈压缩量不足,18.6,漏水
+RET-0082,HT-FR-10082,HT-H03,2026-03-11,FR,1,NOT_AS_DESCRIBED,not as expected - size,Customer Damaged,功能测试通过，无渗漏；备注 not as expected,19.3,尺寸误解
+RET-0096,HT-DE-10096,HT-H03,2026-03-11,DE,1,NOT_AS_DESCRIBED,too small / wrong size,Sellable,外观完好，雾量正常；备注 size not as expected,19.3,尺寸误解
+RET-0002,HT-US-10002,HT-H03,2026-03-12,US,1,NOT_AS_DESCRIBED,not as expected,Defective,功能测试通过，无渗漏；备注 not as expected,16.6,尺寸误解
+RET-0112,HT-UK-10112,HT-H03,2026-03-12,UK,1,DEFECTIVE,too noisy at night,Defective,通电后风机异响，dB(A)@1m 实测 44.6,21.4,噪音
+RET-0058,HT-UK-10058,HT-H03,2026-03-13,UK,1,NOT_AS_DESCRIBED,not as expected - size,Defective,功能测试通过，无渗漏；备注 not as expected,16.6,尺寸误解
+RET-0074,HT-US-10074,HT-H03,2026-03-13,US,1,NOT_AS_DESCRIBED,not as expected,Customer Damaged,功能测试通过，无渗漏；备注 not as expected,18.4,尺寸误解
+RET-0126,HT-DE-10126,HT-H03,2026-03-14,DE,1,DEFECTIVE,noise level not as advertised,Defective,高档位有异响，需返厂拆检,21.4,噪音
+RET-0151,HT-US-10151,HT-H03,2026-03-14,US,1,DAMAGED_BY_CARRIER,cosmetic damage on lid,Defective,整机完好，未拆封,15.7,其他
+RET-0097,HT-UK-10097,HT-H03,2026-03-15,UK,1,DEFECTIVE,too small,Sellable,外观无破损，通电正常；客户备注 too small,20.2,尺寸误解

@@ -20,6 +20,8 @@ RUN pip install --no-cache-dir -e . && pip install --no-cache-dir langgraph
 # 再拷代码（代码变动不触发上面那层重装）
 COPY app ./app
 COPY scripts ./scripts
+# 仓库内置 115 包源：首次启动自动灌库 + few-shot 配对依赖；客户无需外部目录
+COPY solutions ./solutions
 
 # 非 root 运行
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app

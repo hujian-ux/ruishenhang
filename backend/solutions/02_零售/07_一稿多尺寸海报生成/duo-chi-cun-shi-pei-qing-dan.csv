@@ -1,0 +1,16 @@
+﻿序号,模块,渠道,画布尺寸,比例,核心重构动作,具体做法,主色占比,LOGO位置,文生图Prompt
+1,尺寸重构方案,朋友圈方图,1080×1080,1:1,保持原构图,中轴平衡，文字压右侧留白；LOGO 左上（距顶 60px 距左 60px），右上放拿铁金圆形日期章 ⌀120px,22%,左上角,"A top-down flat-lay of a single pour-over coffee cup on a warm oak wood table, soft morning sunlight casting long shadows, oat-beige background #F5E6D3, scattered roasted coffee beans and a folded paper filter, minimalist Japanese wabi-sabi style, cinematic warm tone, subtle paper texture overlay, deep coffee brown #5C3A21 and latte gold #D4A574 accents, negative space on the right for typography, 8k --ar 1:1 --style raw"
+2,尺寸重构方案,小红书封面,750×1000,3:4,上下拉伸+主体上移,产品上移到画面 55% 处，下方新增深棕色块承载 CTA；主标题超大号'5折'拿铁金烫金居中,22%,右下角,"A close-up 45-degree shot of a white porcelain coffee cup with delicate latte art, steam rising softly, oat-beige background gradient, warm golden morning light from the left, hand-crafted artisanal mood, film grain texture, muted warm palette focused on brown and cream tones, editorial magazine cover style, shallow depth of field, top area kept clean for headline placement --ar 3:4 --style raw"
+3,尺寸重构方案,抖音竖屏,1080×1920,9:16,纵向补图,顶部/底部各补 460px，主体从'俯视'改'手冲注水'竖构图（AI 局部重生成）；CTA 对齐抖音组件区,22%,顶部居中,"Vertical cinematic shot of a gooseneck kettle pouring a thin water stream into a V60 dripper, water column perfectly vertical, dark moody background transitioning from oat-beige top to deep coffee brown #5C3A21 bottom, dramatic side lighting, coffee vapor rising, hyper-detailed water droplets, slow-motion feel, luxury craft coffee aesthetic --ar 9:16 --style raw"
+4,尺寸重构方案,公众号头图,1080×810,4:3,横向拆分,主图裁为右侧 60%，左侧新增米色文字区放竖排书法主标题+副标题+CTA；右下拿铁金圆章,22%,顶部左,"A wide horizontal scene of an artisan pour-over coffee setup on a walnut wood bar counter, one ceramic cup on the right, a copper gooseneck kettle mid-pour, scattered coffee beans and a linen cloth, warm rembrandt lighting from upper right, empty oat-beige wall on the left half for text overlay, storytelling atmosphere, premium coffee shop editorial --ar 4:3 --style raw"
+5,尺寸重构方案,网页Banner,1920×540,超宽横(32:9),横向复制+延展,主体复制为 3-4 只等距排列，背景 AI 外扩（outpainting）延展左右，形成横向纵深动线,22%,左侧大,"Ultra-wide panoramic shot of four pour-over coffee cups aligned horizontally on a long oak table, each with slightly different latte art, golden backlight creating soft bokeh depth, oat-beige to deep brown gradient background, symmetrical composition with generous negative space on both sides, luxury minimalism, warm cinematic color grading, high-end brand campaign visual --ar 32:9 --style raw"
+6,品牌VI校验,主色 #5C3A21 使用占比,-,-,-,占画面 22%（规范 15-30%）,22%,-,通过
+7,品牌VI校验,辅助色 #F5E6D3 作为主底,-,-,-,占画面 55%,55%,-,通过
+8,品牌VI校验,强调色 #D4A574 用于 CTA/数字,-,-,-,仅关键信息，占 8%,8%,-,通过
+9,品牌VI校验,LOGO 尺寸（方图）,-,-,-,高 80px，为画布 7.4%（规范 6-10%）,-,画布 7.4%,通过
+10,品牌VI校验,LOGO 安全边距,-,-,-,距顶 60px（规范 ≥40px）,-,距顶 60px,通过
+11,品牌VI校验,主字体 PingFang SC 使用,-,-,-,副标题与 CTA · 中黑/中粗混排,-,-,通过
+12,品牌VI校验,手写体使用范围,-,-,-,仅主标题+情感文案 · 不超过 12 字,-,-,通过
+13,品牌VI校验,字号层级对比,-,-,-,主/副/正文 = 4.5:2:1,-,-,通过
+14,品牌VI校验,装饰元素（印章/滤纸/咖啡豆）,-,-,-,每图 1-2 个，未过度堆砌,-,-,通过
+15,品牌VI校验,出血与安全区,-,-,-,成品文件建议关键信息外预留 30px 安全区,-,-,待检

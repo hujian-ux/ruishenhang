@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>劲能 · 北京朝阳店开业 | 预约体验课 · 组队送次卡</title>
+<style>
+:root{
+  --primary:#c8ff00; --primary-dark:#a3d100; --bg-dark:#0a0a0a;
+  --text-primary:#fff; --text-muted:rgba(255,255,255,.6);
+  --border:rgba(255,255,255,.1); --radius-sm:8px; --radius-md:12px; --radius-lg:20px;
+  --space-1:8px; --space-2:16px; --space-3:24px; --space-4:40px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg-dark);color:var(--text-primary);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.container{padding:var(--space-2);max-width:100%}
+@media(min-width:768px){.container{max-width:720px;margin:0 auto}}
+@media(min-width:1024px){.container{max-width:960px}.hero{min-height:100vh}}
+nav{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px var(--space-2);background:rgba(10,10,10,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+nav .brand{font-weight:800;letter-spacing:.08em}
+nav .brand b{color:var(--primary)}
+nav .nav-cta{background:var(--primary);color:#0a0a0a;padding:8px 16px;border-radius:999px;font-weight:700;font-size:14px}
+.hero{min-height:80vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:var(--space-4) var(--space-2);background:radial-gradient(circle at 50% 0%,rgba(200,255,0,.18),transparent 60%)}
+.hero .tag{display:inline-block;background:rgba(200,255,0,.14);color:var(--primary);padding:6px 14px;border-radius:999px;font-size:13px;letter-spacing:.16em;margin-bottom:var(--space-2)}
+.hero h1{font-size:clamp(34px,9vw,68px);font-weight:900;line-height:1.15;margin-bottom:var(--space-2)}
+.hero h1 em{color:var(--primary);font-style:normal}
+.hero p{color:var(--text-muted);max-width:520px;margin-bottom:var(--space-3);font-size:16px}
+.hero .cta{background:var(--primary);color:#0a0a0a;padding:16px 40px;border-radius:999px;font-weight:800;font-size:18px;box-shadow:0 10px 30px rgba(200,255,0,.25)}
+section{padding:var(--space-4) var(--space-2)}
+.section-title{font-size:clamp(24px,6vw,34px);font-weight:900;margin-bottom:var(--space-1)}
+.section-sub{color:var(--text-muted);margin-bottom:var(--space-3);font-size:15px}
+.card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3)}
+label{display:block;font-size:13px;color:var(--text-muted);margin:14px 0 6px}
+input,select{width:100%;padding:14px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:var(--radius-sm);color:#fff;font-size:15px}
+input[data-valid="true"]{border-color:var(--primary)}
+input[data-valid="false"]{border-color:#ff5a5a}
+button{font-family:inherit;cursor:pointer}
+.btn-primary{width:100%;margin-top:18px;background:var(--primary);color:#0a0a0a;border:none;padding:16px;border-radius:var(--radius-sm);font-weight:800;font-size:16px}
+.btn-primary:disabled{background:rgba(200,255,0,.25);color:rgba(10,10,10,.5);cursor:not-allowed}
+.hint{font-size:12px;margin-top:8px;color:var(--text-muted)}
+.hint.ok{color:var(--primary)}
+.team-grid{display:flex;gap:8px;margin:14px 0}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#c8ff00,#6fae00);display:flex;align-items:center;justify-content:center;font-weight:800;color:#0a0a0a;font-size:14px;border:2px solid #0a0a0a}
+.avatar.more{background:rgba(255,255,255,.1);color:var(--text-muted);border:1px dashed var(--border)}
+.progress{height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin:12px 0}
+.progress > i{display:block;height:100%;width:40%;background:var(--primary);border-radius:999px}
+.btn-ghost{width:100%;margin-top:12px;background:transparent;border:1px solid var(--primary);color:var(--primary);padding:13px;border-radius:var(--radius-sm);font-weight:700}
+.store-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);font-size:15px}
+.store-row:last-child{border-bottom:none}
+.store-row a{color:var(--primary);font-weight:700}
+.facility{display:inline-block;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;padding:6px 12px;margin:4px;font-size:13px;color:var(--text-muted)}
+.share-fab{position:fixed;right:18px;bottom:18px;z-index:60;background:var(--primary);color:#0a0a0a;width:56px;height:56px;border-radius:50%;border:none;font-size:22px;box-shadow:0 8px 24px rgba(200,255,0,.3)}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#fff;color:#0a0a0a;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;opacity:0;transition:.25s;z-index:70;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{padding:var(--space-4) var(--space-2);text-align:center;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<nav><div class="brand">劲能<b>·JINENG</b></div><a class="nav-cta" href="#book">预约体验课</a></nav>
+
+<header class="hero" id="top">
+  <span class="tag">北京朝阳店 · 新店开业</span>
+  <h1>开业狂欢<br><em>组队送次卡</em></h1>
+  <p>即日起预约免费体验课，拉好友组队双方各得 3 次体验课，一键导航到店开启你的训练。</p>
+  <a class="cta" href="#book">立即预约体验课 →</a>
+</header>
+
+<section id="book">
+  <h2 class="section-title">预约体验课</h2>
+  <p class="section-sub">填写手机号选择时段，系统将实时校验并定位距您最近的门店。</p>
+  <div class="card">
+    <label for="phone">手机号</label>
+    <input id="phone" type="tel" inputmode="numeric" placeholder="请输入 11 位手机号" maxlength="11">
+    <div class="hint" id="phoneHint">未验证</div>
+    <label for="slot">期望时段</label>
+    <select id="slot">
+      <option value="">请选择时段</option>
+      <option value="morning">工作日上午 09:00-11:00</option>
+      <option value="afternoon">工作日下午 14:00-17:00</option>
+      <option value="evening">工作日晚间 19:00-21:00</option>
+      <option value="weekend">周末全天</option>
+    </select>
+    <div class="hint" id="distHint">门店距离：定位中…</div>
+    <button class="btn-primary" id="book-submit" disabled>提交预约</button>
+  </div>
+</section>
+
+<section id="team">
+  <h2 class="section-title">拉好友组队 · 送次卡</h2>
+  <p class="section-sub">分享你的专属链接，好友通过链接报名即视为组队成功，双方各得 3 次体验课。</p>
+  <div class="card">
+    <div id="inviterCard" class="hint" style="display:none"></div>
+    <div class="team-grid">
+      <div class="avatar">你</div>
+      <div class="avatar">友</div>
+      <div class="avatar">友</div>
+      <div class="avatar more">+2</div>
+    </div>
+    <div class="progress"><i id="teambar"></i></div>
+    <div class="hint" id="teamText">组队进度 2 / 5（已集齐 2 人，还差 3 人解锁奖励）</div>
+    <button class="btn-ghost" id="share-btn">分享我的组队链接</button>
+  </div>
+</section>
+
+<section id="map">
+  <h2 class="section-title">地图导航 · 到店</h2>
+  <p class="section-sub">点击下方按钮，自动唤起你手机里的地图 App 导航到店。</p>
+  <div class="card">
+    <div class="store-row"><span>📍 劲能健身 · 北京朝阳店</span></div>
+    <div class="store-row"><span>地址</span><span>北京市朝阳区建国路 88 号 SOHO 现代城 B1</span></div>
+    <div class="store-row"><span>营业时间</span><span>07:00 - 23:00</span></div>
+    <button class="btn-primary" id="map-btn" style="margin-top:16px">一键导航到店</button>
+  </div>
+</section>
+
+<section id="store">
+  <h2 class="section-title">门店信息</h2>
+  <p class="section-sub">设施与服务，点击电话可直拨门店。</p>
+  <div class="card">
+    <span class="facility">自由力量区</span><span class="facility">有氧操房</span>
+    <span class="facility">泳池</span><span class="facility">私教工作室</span>
+    <span class="facility">淋浴桑拿</span><span class="facility"> parking</span>
+    <div class="store-row" style="margin-top:14px"><span>门店电话</span><a href="tel:01088886666">010-8888-6666</a></div>
+  </div>
+</section>
+
+<button class="share-fab" id="share-fab" aria-label="分享">↗</button>
+<div class="toast" id="toast">链接已复制</div>
+<footer>劲能健身 · 北京朝阳店新店开业活动 ｜ 本页面为场景教学示例（脱敏数据）</footer>
+
+<script>
+/* ---- 埋点上报（sendBeacon，beforeunload 不丢包）---- */
+var sessionId = 'S' + Date.now().toString(36);
+var userId = 'u_demo_' + Math.random().toString(36).slice(2,8);
+var startTime = Date.now(); var maxScroll = 0;
+function sha256(str){ // 简化版（教学用）：真实环境用 crypto.subtle
+  return 'h_' + Array.from(str).reduce(function(a,c){a=(a*31+ c.charCodeAt(0))>>>0;return a;},7).toString(16);
+}
+function trackEvent(event, payload){
+  try{
+    var data = JSON.stringify({event:event, payload:Object.assign({ts:Date.now(),sid:sessionId,uid:userId}, payload||{})});
+    if(navigator.sendBeacon){ navigator.sendBeacon('/api/track', data); }
+    else { console.log('[track]', event, data); }
+  }catch(e){}
+}
+window.addEventListener('load', function(){ trackEvent('page_view', {inviter:new URLSearchParams(location.search).get('inviter')||null}); });
+window.addEventListener('scroll', function(){ var d=Math.round((scrollY+innerHeight)/(document.body.scrollHeight)*100); if(d>maxScroll)maxScroll=d; });
+window.addEventListener('beforeunload', function(){ trackEvent('page_leave', {duration:Date.now()-startTime, max_scroll:maxScroll}); });
+
+/* ---- 门店常量（Haversine 计算距离）---- */
+var STORE = {name:'劲能健身·北京朝阳店', address:'北京市朝阳区建国路88号SOHO现代城B1', lat:39.9087, lng:116.4574};
+function haversine(lat1,lng1,lat2,lng2){
+  var R=6371,toR=Math.PI/180;
+  var dLat=(lat2-lat1)*toR,dLng=(lng2-lng1)*toR;
+  var a=Math.sin(dLat/2)**2+Math.cos(lat1*toR)*Math.cos(lat2*toR)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/* ---- 预约表单：手机号实时校验 + 定位 ---- */
+var phoneInput=document.querySelector('#phone'), phoneHint=document.querySelector('#phoneHint'),
+    submitBtn=document.querySelector('#book-submit'), phoneRegex=/^1[3-9]\d{9}$/;
+phoneInput.setAttribute('inputmode','numeric');
+phoneInput.addEventListener('input', function(e){
+  var v=e.target.value.replace(/\D/g,'').slice(0,11); e.target.value=v;
+  var ok=phoneRegex.test(v);
+  e.target.setAttribute('data-valid', ok);
+  phoneHint.textContent = ok ? '✓ 手机号格式正确' : (v.length?'格式有误':'未验证');
+  phoneHint.className = 'hint' + (ok?' ok':'');
+  submitBtn.disabled = !ok;
+  trackEvent('book_form_focus',{field:'phone'});
+});
+navigator.geolocation && navigator.geolocation.getCurrentPosition(function(pos){
+  var d=haversine(pos.coords.latitude,pos.coords.longitude,STORE.lat,STORE.lng);
+  document.querySelector('#distHint').textContent='距您约 '+d.toFixed(1)+' km';
+}, function(){ document.querySelector('#distHint').textContent='门店距离：授权位置后显示'; });
+submitBtn.addEventListener('click', function(){
+  trackEvent('book_submit',{phone_hash:sha256(phoneInput.value), slot:document.querySelector('#slot').value, store_id:'CY'});
+  submitBtn.disabled=true; setTimeout(function(){submitBtn.textContent='预约成功 ✓';},600);
+  trackEvent('book_success',{booking_id:'BK'+Date.now(), slot:document.querySelector('#slot').value});
+  showToast('预约提交成功');
+});
+
+/* ---- 拉好友组队：URL 感知邀请上下文 + Web Share 降级 ---- */
+var params=new URLSearchParams(location.search), inviter=params.get('inviter');
+if(inviter){
+  trackEvent('teamup_visited_from_invite',{inviter:inviter, landing_time:Date.now()});
+  var ic=document.querySelector('#inviterCard'); ic.style.display='block';
+  ic.innerHTML='🎉 你是通过 <b>'+inviter+'</b> 的邀请链接进入的，报名即帮 TA 组队成功！';
+}
+document.querySelector('#share-btn').addEventListener('click', shareTeam);
+document.querySelector('#share-fab').addEventListener('click', shareTeam);
+function shareTeam(){
+  var shareData={title:'劲能朝阳店开业·组队送次卡', text:'和我一起去，双方各得 3 次体验课！', url:location.origin+location.pathname+'?inviter='+userId};
+  if(navigator.share){ navigator.share(shareData).catch(function(){}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(shareData.url).then(function(){showToast('链接已复制，去分享给好友吧');}); }
+  else { showToast('链接：'+shareData.url); }
+  trackEvent('teamup_share_click',{share_method:navigator.share?'system':'clipboard'});
+}
+
+/* ---- 三方地图导航：微信/高德/百度 URI Scheme + 网页降级 ---- */
+document.querySelector('#map-btn').addEventListener('click', function(){
+  var ua=navigator.userAgent.toLowerCase();
+  if(ua.indexOf('micromessenger')>-1 && window.wx){
+    trackEvent('map_open',{source:'wechat_sdk'});
+    try{ window.wx.openLocation({latitude:STORE.lat,longitude:STORE.lng,name:STORE.name,address:STORE.address,scale:15}); }catch(e){}
+    return;
+  }
+  var choice=confirm('选择地图应用：\n确定 = 高德，取消 = 百度');
+  var url=choice
+    ? 'iosamap://viewMap?sourceApplication=jineng&poiname='+encodeURIComponent(STORE.name)+'&lat='+STORE.lat+'&lon='+STORE.lng+'&dev=0'
+    : 'baidumap://map/marker?location='+STORE.lat+','+STORE.lng+'&title='+encodeURIComponent(STORE.name)+'&content='+encodeURIComponent(STORE.address);
+  trackEvent('map_open',{source:choice?'gaode':'baidu'});
+  location.href=url;
+  setTimeout(function(){ if(!document.hidden){ window.open('https://uri.amap.com/marker?position='+STORE.lng+','+STORE.lat+'&name='+encodeURIComponent(STORE.name)); } },3000);
+});
+
+/* ---- Toast ---- */
+function showToast(msg){ var t=document.querySelector('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},1600); }
+</script>
+</body>
+</html>

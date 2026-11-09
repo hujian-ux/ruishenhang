@@ -1,0 +1,13 @@
+﻿产品系列,旧ERP_SKU,旧规则_颜色是否独立SKU,新主数据父SKU,新规则_要求,冲突说明,冲突等级
+HT-K09 系列,HT-K09-BK,是(独立SKU),HT-K09,父子体 Color 变体,旧表把 Black 建成独立 SKU，新主数据要求挂到 HT-K09 父体,高
+HT-K09 系列,HT-K09-WT,是(独立SKU),HT-K09,父子体 Color 变体,旧表把 White 建成独立 SKU，新主数据要求挂到 HT-K09 父体,高
+HT-K09 系列,HT-K09-BL,是(独立SKU),HT-K09,父子体 Color 变体,旧表把 Blue 建成独立 SKU，新主数据要求挂到 HT-K09 父体,高
+HT-L10 系列,HT-L10-BK,是(独立SKU),HT-L10,父子体 Color 变体,旧表把 Black 建成独立 SKU，新主数据要求挂到 HT-L10 父体,高
+HT-L10 系列,HT-L10-WT,是(独立SKU),HT-L10,父子体 Color 变体,旧表把 White 建成独立 SKU，新主数据要求挂到 HT-L10 父体,高
+HT-L10 系列,HT-L10-RD,是(独立SKU),HT-L10,父子体 Color 变体,旧表把 Red 建成独立 SKU，新主数据要求挂到 HT-L10 父体,高
+HT-K02 系列,HT-K02-BK,是(独立SKU),HT-K02,父子体 Color 变体,旧表独立 SKU 曾导致错类目，历史 7 天损失约 1900 USD 销售额,严重
+HT-K02 系列,HT-K02-WT,是(独立SKU),HT-K02,父子体 Color 变体,旧表独立 SKU 曾导致错类目，搜索流量分配全错,严重
+HT-A30 系列,HT-A30-GR,是(独立SKU),HT-A30,父子体 Color 变体,旧表 Green 独立 SKU，新规则需归组到 HT-A30,中
+HT-A30 系列,HT-A30-BL,是(独立SKU),HT-A30,父子体 Color 变体,旧表 Blue 独立 SKU，新规则需归组到 HT-A30,中
+HT-B15 系列,HT-B15-S,是(独立SKU),HT-B15,父子体 Size 变体,旧表按尺寸独立 SKU，新主数据要求 Size 变体归组,中
+HT-B15 系列,HT-B15-M,是(独立SKU),HT-B15,父子体 Size 变体,旧表按尺寸独立 SKU，新主数据要求 Size 变体归组,中
