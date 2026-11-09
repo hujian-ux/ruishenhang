@@ -32,3 +32,23 @@ if os.environ.get("TEST_WITH_PG") != "1":
 os.environ.setdefault("EMBED_CACHE", "0")
 os.environ.setdefault("SEED_DEMO_CORPUS", "1")
 os.environ.setdefault("USAGE_QUOTA_TOKENS", "2000000")
+
+# ── 模型通道隔离（M51）──────────────────────────────────────────────────────
+# 开发机上很可能有 backend/.env.local（真厂商 key，由运营台在线配置落盘）。
+# 不隔离的后果：断言"无真模型应诚实降级"的用例会真的联网调用一次，
+# 于是 llm_real 从 False 变 True，本机跑挂、CI 过——这类"看环境脸色"的用例最难查。
+# 这里两层兜底（都在 import app.core.config 之前生效）：
+#   1. EAP_SKIP_ENV_LOCAL=1 让 config 忽略 .env.local（仓库级 .env 仍读）；
+#   2. 显式把通道压回"未配置"基线，防止机器上的同名环境变量（如 SILICONFLOW_API_KEY）漏进来。
+# 需要真模型的验证不靠单测顺带做，走 backend/scripts/ 的验收脚本。
+os.environ["EAP_SKIP_ENV_LOCAL"] = "1"
+for _k in ("LLM_API_KEY", "LLM_MODEL_CHAIN", "LLM_BASE_URL", "LITELLM_MASTER_KEY",
+           "SILICONFLOW_API_KEY", "ZHIPU_API_KEY", "DASHSCOPE_API_KEY",
+           "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "MOONSHOT_API_KEY"):
+    os.environ[_k] = ""
+os.environ["LLM_PROVIDER"] = "litellm"
+os.environ["LLM_VENDOR"] = "zhipu"
+os.environ["LLM_DEFAULT_MODEL"] = "glm-4.6"
+os.environ["ROUTING_ENABLED"] = "1"
+os.environ["ROUTING_SMALL_MODEL"] = "glm-4.6-air"
+os.environ["ROUTING_LARGE_MODEL"] = "glm-4.6"

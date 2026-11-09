@@ -69,6 +69,9 @@ def _call_llm(prompt: str, system_prompt: str | None = None,
         # M17：真模型失败的原因要一路透到响应，不能被 stub 文本掩盖
         "error": out.get("error") or "",
         "throttled": out.get("throttled", False),
+        # M51：额度耗尽自动换模的证据（哪个模型答的、前几个怎么挂的）
+        "rotated": out.get("rotated", False),
+        "attempts": out.get("attempts") or [],
         "prompt_text": prompt,          # 无 usage 时供估算兜底
         "completion_text": out["text"],
     }

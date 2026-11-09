@@ -46,9 +46,16 @@ def _config_view() -> dict:
         "presets": [
             {"id": k, "label": v.get("label", k), "base_url": v.get("base_url", ""),
              "models": v.get("models") or [], "small_model": v.get("small_model", ""),
+             "free_chain": v.get("free_chain") or [],
              "key_env": v.get("key_env", "")}
             for k, v in model_gateway.PROVIDER_PRESETS.items()
         ],
+        # M51：轮换链配置 + 运行态（谁在用、谁在冷却、冷却多久）
+        "chain": {
+            **model_gateway.chain_state(),
+            "quota_cooldown_s": settings.LLM_CHAIN_QUOTA_COOLDOWN_S,
+            "rate_cooldown_s": settings.LLM_CHAIN_RATE_COOLDOWN_S,
+        },
         "routing": {
             "enabled": bool(settings.ROUTING_ENABLED),
             "small": settings.ROUTING_SMALL_MODEL,
@@ -130,15 +137,38 @@ async def put_model_config(payload: dict, caller: CallerContext = Depends(get_ca
         if v is not None and str(v).strip() != "":
             updates["LLM_TEMPERATURE" if k == "temperature" else "LLM_MAX_TOKENS"] = v
 
+    # M51：备用模型链。接受数组或逗号串；传空数组 = 显式清空（只想用主模型）。
+    if "chain" in body:
+        raw = body.get("chain")
+        if isinstance(raw, str):
+            items = [x.strip() for x in raw.replace(";", ",").replace("\n", ",").split(",")]
+        elif isinstance(raw, list):
+            items = [str(x).strip() for x in raw]
+        else:
+            raise HTTPException(status_code=422, detail="chain 须为字符串数组或用逗号分隔的字符串")
+        chain = [x for x in items if x]
+        skipped = [x for x in chain if not model_gateway.is_chat_model(x)]
+        chain = [x for x in chain if model_gateway.is_chat_model(x)]
+        # 主模型不必重复出现在链里（轮换时本来就会先试它）
+        chain = [x for x in dict.fromkeys(chain) if x != model]
+        updates["LLM_MODEL_CHAIN"] = ",".join(chain)
+    else:
+        skipped = []
+
     runtime_config.apply(updates)
     runtime_config.persist(updates)
     # 注册表里没有就先登记，否则「模型注册表」和成本报表里查不到这个模型
     model_gateway.ensure_registered(model, updates.get("LLM_VENDOR", "litellm"))
+    for m in model_gateway.chain_models():
+        model_gateway.ensure_registered(m, updates.get("LLM_VENDOR", "litellm"))
+    # 换 key/换厂商等于换了额度池：清冷却记忆，否则新 key 会被旧 key 的 402 挡着
+    model_gateway.reset_chain_state()
     # 清掉 30s 探活缓存，让状态灯立刻反映新配置
     model_gateway.llm_available(force=True)
 
     return {"code": 0, "data": {"config": _config_view(),
                                "gateway": _gateway_status(),
+                               "chain_skipped": skipped,
                                "changed_by": caller.userId}}
 
 
@@ -155,16 +185,35 @@ async def gateway_health(caller: CallerContext = Depends(get_caller)):
     return {"code": 0, "data": {**_gateway_status(), "probe": "live"}}
 
 
+@router.post("/chain/reset")
+async def reset_chain(caller: CallerContext = Depends(get_caller)):
+    """清空轮换链的冷却与"上次成功"记忆（仅平台管理员）。
+
+    额度是按天重置的，冷却期到了自动解除；但运维想立刻重试时不该等，
+    点一下这个就等于「我确认可以再试一轮」。
+    """
+    if caller.role != "platform_admin":
+        raise HTTPException(status_code=403, detail="forbidden: 仅平台管理员可重置轮换链")
+    model_gateway.reset_chain_state()
+    return {"code": 0, "data": model_gateway.chain_state()}
+
+
 @router.get("/probe")
 async def probe_model(model_id: str = Query("", description="留空则测默认模型"),
+                      all_models: bool = Query(False, alias="all",
+                                               description="true=逐个体检整条轮换链"),
                       caller: CallerContext = Depends(get_caller)):
     """真生成探活：花一次极短调用换确定结论（仅平台管理员）。
 
     和 /gateway 的区别：/gateway 只看"通道配好了没"，这里判断"模型真能答"。
     验收失败时先打这个接口，401/429/模型名不存在会原样回显，省去翻日志。
+    M51：默认按轮换链顺延（命中能答的就停）；all=1 则把链上每个模型都测一遍，
+    用来确认免费额度池今天还剩几个能用。
     """
     if caller.role != "platform_admin":
         raise HTTPException(status_code=403, detail="forbidden: 仅平台管理员可做真生成探活")
+    if all_models:
+        return {"code": 0, "data": model_gateway.probe_all()}
     return {"code": 0, "data": model_gateway.probe(model_id)}
 
 

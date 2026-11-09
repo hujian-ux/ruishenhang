@@ -420,6 +420,10 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
             "real": bool(u.get("real")),
             "provider": model_gateway.settings.LLM_PROVIDER,
             "error": u.get("error") or "",
+            # M51：实际作答的模型 + 是否由轮换链换来的（额度耗尽时用得上）
+            "model": u.get("model_id") or model_id,
+            "rotated": bool(u.get("rotated")),
+            "attempts": u.get("attempts") or [],
         },
         "output_formats": [a["meta"].get("format") for a in artifact_views],
         "quota": usage_store.quota_status(caller),

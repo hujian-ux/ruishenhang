@@ -5,9 +5,16 @@ import pathlib
 def _load_env_files():
     """启动期把 .env / .env.local 注入 os.environ。
     .env.local 优先级最高（覆盖 .env 与已存在的变量），用于平台运营台在线配置入口
-    落盘后重启仍生效。本函数仅影响 os.environ；Settings 在下方类定义时读取快照。"""
+    落盘后重启仍生效。本函数仅影响 os.environ；Settings 在下方类定义时读取快照。
+
+    EAP_SKIP_ENV_LOCAL=1 时跳过 .env.local（仍读仓库级 .env）：
+    测试必须这样做——否则开发机配了真实厂商 key，用例里"无模型应诚实降级"的断言
+    会真的去联网调一次，表现为"同一份代码本机挂、CI 过"。"""
+    skip_local = os.environ.get("EAP_SKIP_ENV_LOCAL") == "1"
     base = pathlib.Path(__file__).resolve().parents[2]  # backend/（app/core/config.py → 上溯 3 级）
     for name in (".env", ".env.local"):
+        if name == ".env.local" and skip_local:
+            continue
         p = base / name
         if not p.exists():
             continue
@@ -91,6 +98,13 @@ class Settings:
     LLM_API_KEY = _env("LLM_API_KEY", "")        # 留空则按 VENDOR 读对应环境变量
     # M6：对话默认路由的 model_id；探活通过走真生成，否则 stub
     LLM_DEFAULT_MODEL = _env("LLM_DEFAULT_MODEL", "glm-4.6")
+    # M51：备用模型链（逗号分隔，按顺序轮换）。主模型额度用尽/限流/下线时
+    # 自动顺延到下一个，全部不可用才回退 stub。免费模型池（硅基流动）靠它续命。
+    LLM_MODEL_CHAIN = _env("LLM_MODEL_CHAIN", "")
+    # 轮换冷却：命中配额/余额（额度型）与限流（瞬时型）分别冷却多久才重试。
+    # 额度型按天重置，冷却太短会每个请求都白打一次；限流型几十秒就恢复。
+    LLM_CHAIN_QUOTA_COOLDOWN_S = float(_env("LLM_CHAIN_QUOTA_COOLDOWN_S", "1800"))
+    LLM_CHAIN_RATE_COOLDOWN_S = float(_env("LLM_CHAIN_RATE_COOLDOWN_S", "60"))
     # 生成参数：技能包要吐多张表，输出上限给小了会被截断成半张表
     LLM_MAX_TOKENS = int(_env("LLM_MAX_TOKENS", "8192"))
     # 财务归因类任务要可复现，温度压到 0.2（同输入两次跑结论应当一致）

@@ -220,12 +220,17 @@ export const api = {
   saveModelConfig: (body: {
     provider: "direct" | "litellm"; vendor?: string; base_url?: string;
     api_key?: string; model: string;
+    chain?: string[];
     routing?: { enabled?: boolean; small?: string; large?: string };
     temperature?: number; max_tokens?: number;
   }) => req<any>("PUT", "/models/config", body),
   // 真生成探活：花一次极短调用换确定结论（401/402/404 会原样回显）
   probeModel: (modelId = "") =>
     req<any>("GET", `/models/probe${modelId ? `?model_id=${encodeURIComponent(modelId)}` : ""}`),
+  // 池子体检：链上每个模型都打一次（免费额度按模型算，要看还剩几个能顶）
+  probeModelChain: () => req<any>("GET", "/models/probe?all=1"),
+  // M51：清空轮换链冷却（额度按天重置，运维想立刻重试时不用干等）
+  resetModelChain: () => req<any>("POST", "/models/chain/reset"),
 
   // ── P1-173 身份与集成：OIDC 状态 + IM 运行时接入 ──
   // 注意：/auth/oidc/health 返回裸 JSON（无 code/data 包裹），调用方用 r.data || r 兜底

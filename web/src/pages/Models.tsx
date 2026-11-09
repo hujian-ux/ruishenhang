@@ -10,7 +10,17 @@ import { api } from "../api/client";
 
 type Preset = {
   id: string; label: string; base_url: string; models: string[];
-  small_model: string; key_env: string;
+  small_model: string; free_chain: string[]; key_env: string;
+};
+
+// M51：模型轮换链运行态。免费额度池靠它续命，配置页要能看见"谁在冷却、为什么"
+type ChainRow = {
+  model: string; cooling: boolean; cool_remaining_s: number;
+  kind: string; last_error: string; ok_at: number;
+};
+type ChainState = {
+  chain: string[]; last_good: string; models: ChainRow[]; max_rotate: number;
+  quota_cooldown_s: number; rate_cooldown_s: number;
 };
 
 type Cfg = {
@@ -19,6 +29,7 @@ type Cfg = {
   temperature: number; max_tokens: number;
   presets: Preset[];
   routing: { enabled: boolean; small: string; large: string };
+  chain: ChainState;
   registered: string[];
   env_file: string;
 };
@@ -26,6 +37,8 @@ type Cfg = {
 type Probe = {
   ok: boolean; model_id: string; status_code: number; reply: string;
   error: string; hint: string; latency_ms: number; base_url?: string;
+  rotated?: boolean; requested?: string;
+  attempts?: { model: string; status: number; ok?: boolean; kind?: string; error?: string }[];
 };
 
 const FIELD: CSSProperties = {
@@ -49,8 +62,12 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
   const [small, setSmall] = useState("");
   const [large, setLarge] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // 轮换链：一行一个（也接受逗号分隔），顺序即优先级
+  const [chainText, setChainText] = useState("");
 
   const [probe, setProbe] = useState<Probe | null>(null);
+  // 池子体检结果（逐个测一遍）
+  const [chainCheck, setChainCheck] = useState<{ ok: boolean; alive: string[]; dead: string[]; tested: number } | null>(null);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -83,6 +100,7 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
       setRoutingOn(!!conf.routing?.enabled);
       setSmall(conf.routing?.small || "");
       setLarge(conf.routing?.large || "");
+      setChainText((conf.chain?.chain || []).join("\n"));
     });
   }, []);
 
@@ -105,12 +123,17 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
     if (!small && p.small_model) setSmall(p.small_model);
   };
 
+  // 一行一个 / 逗号分隔都能吃；空 = 只用主模型（不轮换）
+  const chainList = () =>
+    chainText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+
   const body = () => ({
     provider,
     vendor: provider === "direct" ? vendor : undefined,
     base_url: baseUrl.trim() || undefined,
     api_key: apiKey.trim() || undefined,   // 留空 = 不改动已有密钥
     model: model.trim(),
+    chain: chainList(),
     routing: { enabled: routingOn, small: small.trim() || undefined, large: large.trim() || undefined },
   });
 
@@ -123,6 +146,7 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
       const r = await api.saveModelConfig(body());
       setCfg(r.data.config);
       setGw(r.data.gateway);
+      setChainText((r.data.config?.chain?.chain || []).join("\n"));
       setApiKey("");   // 保存后不再留在输入框
       setMsg("已保存并落盘，重启后仍生效。");
       await load();
@@ -277,6 +301,115 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </div>
 
+        {/* ── M51 备用模型链：额度用尽自动轮换 ─────────────────── */}
+        <div style={{ marginTop: 14, padding: "12px 14px", background: "#fcfcfa",
+                      border: "1px solid var(--line)", borderRadius: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13 }}>备用模型链（额度用尽自动换下一个）</b>
+            <span className="hint" style={{ fontSize: 11.5 }}>
+              按顺序轮换 · 最多试 {cfg?.chain?.max_rotate || 5} 个 ·
+              额度型冷却 {Math.round((cfg?.chain?.quota_cooldown_s || 1800) / 60)} 分钟、
+              限流型 {Math.round((cfg?.chain?.rate_cooldown_s || 60))} 秒
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.15fr) minmax(0,.85fr)",
+                        gap: 12, marginTop: 8 }}>
+            <div>
+              <label style={LABEL}>轮换顺序（一行一个，或用逗号分隔）</label>
+              <textarea value={chainText} onChange={(e) => setChainText(e.target.value)}
+                        disabled={!isAdmin} rows={5}
+                        placeholder={"Qwen/Qwen2.5-7B-Instruct\nQwen/Qwen3-8B\nTHUDM/GLM-4-9B-0414"}
+                        style={{ ...FIELD, resize: "vertical", lineHeight: 1.7,
+                                 fontFamily: "ui-monospace,Consolas,monospace", fontSize: 12 }} />
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                {(preset?.free_chain || []).length > 0 && (
+                  <span onClick={() => isAdmin && setChainText((preset?.free_chain || []).join("\n"))}
+                        style={{ fontSize: 11, padding: "3px 9px", borderRadius: 6,
+                                 border: "1px solid var(--line)", background: "#fff",
+                                 cursor: isAdmin ? "pointer" : "default", color: "var(--ink-2)" }}>
+                    一键填入「{preset?.label}」免费模型池
+                  </span>
+                )}
+                <span onClick={() => isAdmin && setChainText("")}
+                      style={{ fontSize: 11, padding: "3px 9px", borderRadius: 6,
+                               border: "1px solid var(--line)", background: "#fff",
+                               cursor: isAdmin ? "pointer" : "default", color: "var(--ink-2)" }}>
+                  清空（只用主模型）
+                </span>
+              </div>
+              <div className="hint" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.7 }}>
+                向量/重排/OCR/语音类模型会被自动跳过（它们不是对话模型，放进来只会 400）。
+                主模型不必重复填，轮换时本来就会先试它。
+              </div>
+            </div>
+
+            <div>
+              <label style={LABEL}>轮换链运行态</label>
+              <div style={{ border: "1px solid var(--line)", borderRadius: 8, background: "#fff",
+                            maxHeight: 236, overflow: "auto", boxSizing: "border-box" }}>
+                {(cfg?.chain?.models || []).length === 0 && (
+                  <div className="hint" style={{ padding: "10px 12px", fontSize: 11.5 }}>
+                    还没有配置备用模型——额度用尽后只能回退 stub。
+                  </div>
+                )}
+                {(cfg?.chain?.models || []).map((r) => {
+                  const bad = r.cooling;
+                  return (
+                    <div key={r.model} style={{ display: "flex", alignItems: "center", gap: 6,
+                                                padding: "7px 10px", borderBottom: "1px solid #f2f2ee",
+                                                boxSizing: "border-box", minWidth: 0, fontSize: 11.5 }}>
+                      <span style={{ flex: "1 1 auto", minWidth: 0, wordBreak: "break-all",
+                                     fontWeight: cfg?.chain?.last_good === r.model ? 600 : 400 }}>
+                        {r.model}
+                      </span>
+                      <span className="tag" style={{ fontSize: 10, whiteSpace: "nowrap", flex: "0 0 auto",
+                        background: bad ? "#b8791f" : (r.kind === "ok" ? "#2e7d32" : "#8d99ae"),
+                        color: "#fff" }}
+                            title={r.last_error || ""}>
+                        {bad ? `${r.kind === "quota" ? "额度冷却" : "冷却"} ${Math.ceil(r.cool_remaining_s / 60)}′`
+                             : (r.kind === "ok" ? "可用" : "待测")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hint" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.7 }}>
+                冷却是按天的额度到期或限流压力暂避，过期自动恢复；
+                <span style={{ color: "var(--ink-2)", cursor: "pointer", textDecoration: "underline" }}
+                      onClick={async () => {
+                        if (!isAdmin || !!busy) return;
+                        try { await api.resetModelChain(); await load(); setMsg("轮换链冷却已清空，下次调用重新从头试。"); }
+                        catch (e: any) { setErr(e.message); }
+                      }}>
+                  立即重置冷却
+                </span>
+                <span style={{ margin: "0 6px", color: "var(--line)" }}>|</span>
+                <span style={{ color: "var(--ink-2)", cursor: "pointer", textDecoration: "underline" }}
+                      onClick={async () => {
+                        if (!isAdmin || !!busy) return;
+                        setBusy("chain"); setErr(""); setChainCheck(null);
+                        try { const r = await api.probeModelChain(); setChainCheck(r.data); await load(); }
+                        catch (e: any) { setErr(e.message); }
+                        finally { setBusy(""); }
+                      }}>
+                  {busy === "chain" ? "体检中…" : "逐个测一遍"}
+                </span>
+              </div>
+              {chainCheck && (
+                <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.7 }}>
+                  <span style={{ color: chainCheck.ok ? "#2e7d32" : "#c62828", fontWeight: 600 }}>
+                    {chainCheck.alive?.length || 0}/{chainCheck.tested} 可用
+                  </span>
+                  <span className="hint">
+                    {chainCheck.dead?.length ? ` · 歇了：${chainCheck.dead.join("、")}` : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div style={{ marginTop: 12 }}>
           <span onClick={() => setShowAdvanced((v) => !v)}
                 style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>
@@ -357,7 +490,9 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
               <div style={{ fontSize: 13 }}>
                 模型回了：<b>「{probe.reply || "（空）"}」</b>
                 <span className="hint" style={{ fontSize: 11.5, marginLeft: 8 }}>
-                  现在去对话页发一句话，就真的由它回答了
+                  {probe.rotated
+                    ? `已自动从 ${probe.requested} 轮换到 ${probe.model_id}`
+                    : "现在去对话页发一句话，就真的由它回答了"}
                 </span>
               </div>
             ) : (
@@ -366,6 +501,20 @@ export function ModelsPage({ isAdmin }: { isAdmin: boolean }) {
                 <div className="hint" style={{ fontSize: 11.5, marginTop: 4, wordBreak: "break-all" }}>
                   {probe.error}
                 </div>
+              </div>
+            )}
+            {/* 轮换过程：一次测试就把整条链谁死了、为什么死摊开 */}
+            {(probe.attempts || []).length > 1 && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e6e6e0", paddingTop: 8 }}>
+                <div className="hint" style={{ fontSize: 11, marginBottom: 4 }}>轮换过程</div>
+                {(probe.attempts || []).map((a, i) => (
+                  <div key={i} style={{ fontSize: 11.5, lineHeight: 1.7, wordBreak: "break-all" }}>
+                    <span style={{ color: a.ok ? "#2e7d32" : "#c62828" }}>{a.ok ? "✓" : "✕"}</span>{" "}
+                    {a.model}
+                    <span className="hint">{a.status ? ` · HTTP ${a.status}` : ""}
+                      {a.error ? ` · ${a.error.slice(0, 90)}` : ""}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>

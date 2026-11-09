@@ -4110,6 +4110,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /models/chain/reset:
+    post:
+      tags:
+      - models
+      summary: Reset Chain
+      description: '清空轮换链的冷却与"上次成功"记忆（仅平台管理员）。
+
+
+        额度是按天重置的，冷却期到了自动解除；但运维想立刻重试时不该等，
+
+        点一下这个就等于「我确认可以再试一轮」。'
+      operationId: reset_chain_api_v1_models_chain_reset_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /models/config:
     get:
       tags:
@@ -4216,7 +4249,11 @@ paths:
 
         和 /gateway 的区别：/gateway 只看"通道配好了没"，这里判断"模型真能答"。
 
-        验收失败时先打这个接口，401/429/模型名不存在会原样回显，省去翻日志。'
+        验收失败时先打这个接口，401/429/模型名不存在会原样回显，省去翻日志。
+
+        M51：默认按轮换链顺延（命中能答的就停）；all=1 则把链上每个模型都测一遍，
+
+        用来确认免费额度池今天还剩几个能用。'
       operationId: probe_model_api_v1_models_probe_get
       parameters:
       - name: model_id
@@ -4228,6 +4265,15 @@ paths:
           default: ''
           title: Model Id
         description: 留空则测默认模型
+      - name: all
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: true=逐个体检整条轮换链
+          default: false
+          title: All
+        description: true=逐个体检整条轮换链
       - name: x-caller-context
         in: header
         required: false

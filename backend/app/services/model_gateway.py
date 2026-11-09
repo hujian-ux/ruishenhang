@@ -150,11 +150,19 @@ PROVIDER_PRESETS = {
                  "small_model": "moonshot-v1-8k"},
     # 硅基流动：一家聚合国内外主流开源模型（含 zai-org/GLM-*、deepseek-ai/*、Qwen/*），
     # 一个 key 跑多模型，适合做「同一技能包换模型比效果」的横向评测。
+    # free_chain：官方免费额度池（每模型独立 RPM/TPM），按此顺序轮换最省钱。
     "siliconflow": {"base_url": "https://api.siliconflow.cn/v1",
                     "key_env": "SILICONFLOW_API_KEY", "label": "硅基流动（聚合）",
-                    "models": ["zai-org/GLM-4.6", "deepseek-ai/DeepSeek-V3",
-                               "Qwen/Qwen2.5-72B-Instruct"],
-                    "small_model": "Qwen/Qwen2.5-7B-Instruct"},
+                    "models": ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen3-8B",
+                               "THUDM/GLM-4-9B-0414", "Qwen/Qwen3.5-4B",
+                               "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                               "THUDM/GLM-Z1-9B-0414",
+                               "zai-org/GLM-4.6", "deepseek-ai/DeepSeek-V3"],
+                    "small_model": "Qwen/Qwen2.5-7B-Instruct",
+                    "free_chain": ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen3-8B",
+                                   "THUDM/GLM-4-9B-0414", "Qwen/Qwen3.5-4B",
+                                   "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                                   "THUDM/GLM-Z1-9B-0414"]},
     # 私有化 / 自建 OpenAI 兼容服务（vLLM、Ollama、一体机）：base_url 由用户填
     "custom": {"base_url": "", "key_env": "LLM_API_KEY", "label": "自建 / 私有化",
                "models": [], "small_model": ""},
@@ -377,6 +385,172 @@ async def chat(model_id: str, messages: list[dict]) -> str:
         return f"[stub:{model_id}] 回复内容（真模型未连接时为骨架回退）"
 
 
+# ── M51：模型轮换链 ──────────────────────────────────────────────────────────
+# 场景：客户拿免费额度跑（硅基流动免费模型池、每模型独立 RPM/TPM 与日额度），
+# 某个模型额度用尽后不能整条链停摆。策略是**按顺序顺延**：主模型不可用就换下一个，
+# 全部不可用才回退 stub。状态放内存（重启即重置），冷却时间分两类：
+#   额度型（402/403 余额或配额）= 半小时，等日额度重置；
+#   限流型（429、上游饱和）= 一分钟，等瞬时压力过去。
+# 关键取舍：**401 不轮换**——同一把 key 换模型照样 401，白打 N 次只是延迟报错。
+_MAX_ROTATE = 5
+_CHAIN_QUOTA_COOLDOWN = 1800.0   # 由 settings 覆盖，见 _cooldown_of
+_CHAIN_STATE: dict = {}          # model_id -> {cool_until, kind, last_error, fails, ok_at}
+_LAST_GOOD = ""                  # 最近一次真答话的模型：下轮优先用它，省一次 402 往返
+_SIG = ""                        # 配置指纹：换了厂商/默认模型就作废旧记忆
+_CHAIN_LOCK = threading.Lock()
+
+# 非对话模型混进链路只会换来 400：向量/重排/OCR/语音/图像一律跳过
+_NON_CHAT_HINTS = ("embed", "rerank", "ocr", "asr", "speech", "voice", "kolors",
+                   "image", "tts", "bge-", "whisper")
+
+
+def is_chat_model(mid: str) -> bool:
+    low = (mid or "").lower()
+    return bool(low) and not any(h in low for h in _NON_CHAT_HINTS)
+
+
+def _sig() -> str:
+    mode = access_mode()
+    return f"{mode['provider']}|{mode['vendor']}|{mode['base_url']}|{settings.LLM_DEFAULT_MODEL}"
+
+
+def reset_chain_state() -> None:
+    """配置变了（换 key/换厂商/换主模型）就清空冷却与记忆：新 key 的额度是新的。"""
+    global _LAST_GOOD, _SIG
+    with _CHAIN_LOCK:
+        _CHAIN_STATE.clear()
+        _LAST_GOOD = ""
+        _SIG = _sig()
+
+
+def chain_models() -> list:
+    """解析 LLM_MODEL_CHAIN（逗号/分号/换行分隔），过滤非对话模型。"""
+    raw = str(getattr(settings, "LLM_MODEL_CHAIN", "") or "")
+    out: list = []
+    for x in raw.replace(";", ",").replace("\n", ",").split(","):
+        m = x.strip()
+        if m and m not in out and is_chat_model(m):
+            out.append(m)
+    return out
+
+
+def classify_status(status_code: int, body: str = "") -> str:
+    """把一次失败归成可决策类型：quota/ratelimit/notfound/timeout/auth/fatal。
+
+    「能不能轮换下一个模型」全靠这个判断：
+    - quota / ratelimit / notfound → 换模型有意义
+    - auth（401）→ 一把 key 全废，换了也白换
+    - fatal（400 参数错、5xx 厂商故障）→ 不轮换，把原因原样抛给调用方
+    """
+    if status_code == 401:
+        return "auth"
+    if status_code == 402:
+        return "quota"
+    if status_code == 403:
+        low = (body or "").lower()
+        # 免费模型常见的 403 是「上游负载饱和」，属瞬时压力，不是额度没了
+        if any(k in low for k in ("饱和", "busy", "overload", "rate limit", "too many")):
+            return "ratelimit"
+        return "quota"
+    if status_code == 429:
+        return "ratelimit"
+    if status_code == 404:
+        return "notfound"
+    if status_code == 400:
+        low = (body or "").lower()
+        # 模型名不在清单里，硅基流动这类聚合网关返回 400 而不是 404
+        if any(k in low for k in ("model", "not exist", "not found", "不存在", "invalid model")):
+            return "notfound"
+    return "fatal"
+
+
+def _cooldown_of(kind: str) -> float:
+    if kind == "quota":
+        return float(getattr(settings, "LLM_CHAIN_QUOTA_COOLDOWN_S", _CHAIN_QUOTA_COOLDOWN) or 1800)
+    if kind == "ratelimit":
+        return float(getattr(settings, "LLM_CHAIN_RATE_COOLDOWN_S", 60) or 60)
+    if kind == "notfound":
+        return 86400.0     # 模型下线/改名：一天内别再试，等人工修配置
+    if kind == "timeout":
+        return 120.0
+    return 0.0
+
+
+def _mark_fail(mid: str, kind: str, err: str) -> None:
+    cd = _cooldown_of(kind)
+    with _CHAIN_LOCK:
+        st = _CHAIN_STATE.setdefault(mid, {"fails": 0, "ok_at": 0.0})
+        st.update({"fails": st.get("fails", 0) + 1, "kind": kind,
+                   "last_error": (err or "")[:200],
+                   "cool_until": time.time() + cd if cd else 0.0})
+
+
+def _mark_ok(mid: str, recall: bool = True) -> None:
+    """记一次成功。recall=True 时把它记成"下次优先用"的模型。
+
+    体检（probe_all）传 recall=False：它是诊断行为，不是真实调用，
+    不该因为并发里最后返回的那个模型就把默认模型悄悄换掉。
+    """
+    global _LAST_GOOD
+    with _CHAIN_LOCK:
+        if recall:
+            _LAST_GOOD = mid
+        st = _CHAIN_STATE.setdefault(mid, {"fails": 0})
+        st.update({"kind": "", "last_error": "", "cool_until": 0.0,
+                   "ok_at": time.time(), "fails": 0})
+
+
+def _cooling(mid: str, now: float) -> bool:
+    st = _CHAIN_STATE.get(mid) or {}
+    return float(st.get("cool_until") or 0) > now
+
+
+def rotation_order(primary: str = "") -> list:
+    """本次调用要依次尝试的模型：主模型 → 链上其余 → 上次成功的兜底。
+
+    规则细节（都踩过）：
+    - 主模型在冷却中，才把"上次成功的"提到最前（省一次注定 402 的往返）；
+      主模型没冷却就按配置顺序先试它 —— 否则一旦轮换过去就永远回不到主模型了。
+    - 冷却中的模型排到后面；如果全在冷却，仍拿冷却最快结束的那个试一次
+      （额度可能是按天重置的，不试就永远起不来）。
+    """
+    primary_m = primary or settings.LLM_DEFAULT_MODEL
+    cands: list = []
+    for m in (primary_m, *chain_models(), _LAST_GOOD):
+        if m and m not in cands and is_chat_model(m):
+            cands.append(m)
+    now = time.time()
+    alive = [m for m in cands if not _cooling(m, now)]
+    if _LAST_GOOD and _LAST_GOOD in alive and _cooling(primary_m, now):
+        alive.remove(_LAST_GOOD)
+        alive.insert(0, _LAST_GOOD)
+    if not alive and cands:
+        alive = sorted(cands, key=lambda m: (_CHAIN_STATE.get(m) or {}).get("cool_until", 0))[:1]
+    return alive[:_MAX_ROTATE]
+
+
+def chain_state() -> dict:
+    """轮换链运行态（配置页展示用）：谁在用、谁在冷却、为什么冷却。"""
+    now = time.time()
+    sig_ok = _SIG == _sig()
+    rows = []
+    for m in ([_LAST_GOOD] if _LAST_GOOD and sig_ok else []) + chain_models():
+        if m in [r["model"] for r in rows]:
+            continue
+        st = _CHAIN_STATE.get(m) or {}
+        cool = float(st.get("cool_until") or 0)
+        rows.append({
+            "model": m,
+            "cooling": cool > now,
+            "cool_remaining_s": int(max(0, cool - now)),
+            "kind": st.get("kind") or ("ok" if st.get("ok_at") else "untried"),
+            "last_error": st.get("last_error") or "",
+            "ok_at": st.get("ok_at") or 0,
+        })
+    return {"chain": chain_models(), "last_good": _LAST_GOOD if sig_ok else "",
+            "models": rows, "max_rotate": _MAX_ROTATE}
+
+
 # ── M6：同步调用 + 探活缓存（agent_runtime 编排节点用） ──
 _last_probe = 0.0
 _probe_ok = False
@@ -456,33 +630,68 @@ def chat_sync_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
                 "model_id": effective_model, "routed_tier": routed_tier,
                 "routed_model": routed_model, "usage": {}, "error": err,
                 "latency_ms": int((time.time() - t0) * 1000)}
-    try:
-        r = httpx.post(_endpoint(), json=_payload(effective_model, messages, **kw),
-                       headers=_headers(), timeout=to)
-        if r.status_code >= 400:
-            # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同；
-            # 能翻成结论的（401/402/403…）附一句人话，避免只看到 HTTP 402 卡住。
-            hint = diagnose(r.status_code, r.text)
-            raise RuntimeError(hint or f"HTTP {r.status_code}: {r.text[:300]}")
-        body = r.json()
-        text, usage = _extract(body)
-        if not text.strip():
-            raise RuntimeError("响应正文为空（可能被 max_tokens 截断或触发内容策略）")
-        observability.observe_llm_usage(usage["prompt_tokens"], usage["completion_tokens"], True)
-        return {"text": text, "real": True,
-                "model_id": body.get("model") or effective_model,
-                "routed_tier": routed_tier, "routed_model": routed_model,
-                "usage": usage, "error": "",
-                "latency_ms": int((time.time() - t0) * 1000)}
-    except Exception as exc:
-        msg = f"{type(exc).__name__}: {exc}"
-        if settings.LLM_STRICT:
-            raise LLMUnavailable(msg) from exc
-        observability.observe_llm_usage(0, 0, False)  # 真模型失败回退 stub：计一次调用，无 token
-        return {"text": _stub_answer(effective_model, messages), "real": False,
-                "model_id": effective_model, "routed_tier": routed_tier,
-                "routed_model": routed_model, "usage": {}, "error": msg,
-                "latency_ms": int((time.time() - t0) * 1000)}
+
+    # M51：按轮换链依次尝试。主模型额度用尽/限流/下线 → 顺延下一个，
+    # 全部失败才回退 stub。attempts 回传，页面能看到"实际是哪个模型答的"。
+    candidates = rotation_order(effective_model) or [effective_model]
+    attempts: list = []
+    last_err = ""
+    last_status = 0
+    for idx, mid in enumerate(candidates):
+        try:
+            r = httpx.post(_endpoint(), json=_payload(mid, messages, **kw),
+                           headers=_headers(), timeout=to)
+            if r.status_code >= 400:
+                kind = classify_status(r.status_code, r.text)
+                # 把厂商错误原文带出去：401/429/无权限/模型名不对，排查方向完全不同；
+                # 能翻成结论的（401/402/403…）附一句人话，避免只看到 HTTP 402 卡住。
+                hint = diagnose(r.status_code, r.text)
+                last_err = hint or f"HTTP {r.status_code}: {r.text[:300]}"
+                last_status = r.status_code
+                attempts.append({"model": mid, "status": r.status_code,
+                                 "kind": kind, "error": last_err[:200]})
+                _mark_fail(mid, kind, last_err)
+                # 401 换模型也没用（同一把 key）；fatal 是请求本身的问题，重试无意义
+                if kind in ("auth", "fatal"):
+                    break
+                continue
+            body = r.json()
+            text, usage = _extract(body)
+            if not text.strip():
+                raise RuntimeError("响应正文为空（可能被 max_tokens 截断或触发内容策略）")
+            _mark_ok(mid)
+            observability.observe_llm_usage(usage["prompt_tokens"], usage["completion_tokens"], True)
+            return {"text": text, "real": True,
+                    "model_id": body.get("model") or mid,
+                    "routed_tier": routed_tier, "routed_model": routed_model,
+                    "usage": usage, "error": "",
+                    "rotated": mid != effective_model, "attempts": attempts,
+                    "latency_ms": int((time.time() - t0) * 1000)}
+        except Exception as exc:
+            last_err = f"{type(exc).__name__}: {exc}"
+            # 连不上主机说明网络/地址错，换模型是同一个地址，再试只是把超时乘 N
+            network = isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout))
+            timeout = isinstance(exc, httpx.TimeoutException)
+            kind = "network" if network else ("timeout" if timeout else "fatal")
+            attempts.append({"model": mid, "status": 0, "kind": kind,
+                             "error": last_err[:200]})
+            _mark_fail(mid, kind, last_err)
+            # 网络不通是地址问题（换模型同一个地址）、解析/正文空是内容问题，
+            # 这两类换模型都不会变好；只有超时可能是某个模型太慢，值得顺延。
+            if network or not timeout:
+                break
+            continue
+
+    # 全军覆没：不是"跑了"，是"跑失败"，error 必须带出去
+    if settings.LLM_STRICT:
+        raise LLMUnavailable(last_err or "所有候选模型均不可用")
+    observability.observe_llm_usage(0, 0, False)
+    return {"text": _stub_answer(effective_model, messages), "real": False,
+            "model_id": effective_model, "routed_tier": routed_tier,
+            "routed_model": routed_model, "usage": {},
+            "error": last_err or "所有候选模型均不可用",
+            "rotated": False, "attempts": attempts, "last_status": last_status,
+            "latency_ms": int((time.time() - t0) * 1000)}
 
 
 def routed_chat_sync_ex(messages: list[dict], user_input: str = "", agent: dict | None = None,
@@ -493,34 +702,108 @@ def routed_chat_sync_ex(messages: list[dict], user_input: str = "", agent: dict 
                         temperature=temperature, user_input=user_input, agent=agent)
 
 
-def probe(model_id: str = "", timeout: float = 30.0) -> dict:
-    """真实生成探活：花 1 次极短调用换取确定结论（给运维与验收脚本用）。
-
-    与 llm_available 的区别：那个只判断"通道是否配置好"，这个判断"模型是否真能答"。
-    """
-    mid = model_id or settings.LLM_DEFAULT_MODEL
-    t0 = time.time()
-    info = access_mode()
+def _probe_one(mid: str, timeout: float) -> dict:
+    """体检单个模型（probe_all 的并发单元）。"""
+    row = {"model": mid}
     try:
         r = httpx.post(_endpoint(),
                        json=_payload(mid, [{"role": "user", "content": "只回复两个字：通了"}],
                                      max_tokens=16, temperature=0),
                        headers=_headers(), timeout=timeout)
         ok = r.status_code == 200
-        text = ""
+        row.update({"ok": ok, "status": r.status_code,
+                    "hint": "" if ok else diagnose(r.status_code, r.text),
+                    "error": "" if ok else r.text[:200]})
         if ok:
-            try:
-                text = _extract(r.json())[0][:20]
-            except Exception:
-                text = ""
-        return {"ok": ok, "model_id": mid, "status_code": r.status_code,
-                "reply": text, "error": "" if ok else r.text[:300],
-                "hint": "" if ok else diagnose(r.status_code, r.text),
-                "latency_ms": int((time.time() - t0) * 1000), **info}
+            _mark_ok(mid, recall=False)   # 体检不改"下次优先用谁"
+        else:
+            _mark_fail(mid, classify_status(r.status_code, r.text), r.text[:200])
     except Exception as exc:
-        return {"ok": False, "model_id": mid, "status_code": 0, "reply": "",
-                "error": f"{type(exc).__name__}: {exc}", "hint": "网络不可达：检查网络/代理",
-                "latency_ms": int((time.time() - t0) * 1000), **info}
+        msg = f"{type(exc).__name__}: {exc}"
+        row.update({"ok": False, "status": 0, "error": msg[:200],
+                    "hint": "网络不可达：检查网络/代理"})
+        _mark_fail(mid, "network" if isinstance(exc, httpx.ConnectError) else "timeout", msg)
+    return row
+
+
+def probe_all(timeout: float = 30.0) -> dict:
+    """逐个体检整条链（含冷却中的）：谁还有额度、谁今天用完了。
+
+    和 probe 的区别：probe 命中第一个能答的就停（"用户能不能用"）；
+    这个是"池子体检"——免费额度是按模型算的，得知道还剩几个能顶。
+    每个模型只花 16 token，成本可忽略；结果同时刷新冷却状态。
+    并发打（最多 6 个）：串行时 6 个模型要等近半分钟，按钮体验太差。
+    """
+    t0 = time.time()
+    info = access_mode()
+    targets: list = []
+    for m in [settings.LLM_DEFAULT_MODEL, *chain_models()]:
+        if m and m not in targets and is_chat_model(m):
+            targets.append(m)
+    targets = targets[:8]
+    results: list = []
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(6, max(1, len(targets)))) as pool:
+            results = list(pool.map(lambda m: _probe_one(m, timeout), targets))
+    except Exception:
+        # 并发池出问题不该让体检整体失败：退回串行
+        results = [_probe_one(m, timeout) for m in targets]
+    alive = [r["model"] for r in results if r.get("ok")]
+    return {"ok": bool(alive), "alive": alive,
+            "dead": [r["model"] for r in results if not r.get("ok")],
+            "results": results, "tested": len(results),
+            "latency_ms": int((time.time() - t0) * 1000), **info}
+
+
+def probe(model_id: str = "", timeout: float = 30.0) -> dict:
+    """真实生成探活：花 1 次极短调用换取确定结论（给运维与验收脚本用）。
+
+    与 llm_available 的区别：那个只判断"通道是否配置好"，这个判断"模型是否真能答"。
+    M51：按轮换链逐个试，返回第一个能答的模型 + 完整 attempts，
+    这样"保存并测试"一次就能看出池子里谁还活着。
+    """
+    requested = model_id or settings.LLM_DEFAULT_MODEL
+    t0 = time.time()
+    info = access_mode()
+    candidates = rotation_order(requested) or [requested]
+    attempts: list = []
+    last = {"ok": False, "status_code": 0, "reply": "", "error": "", "hint": ""}
+    for mid in candidates:
+        try:
+            r = httpx.post(_endpoint(),
+                           json=_payload(mid, [{"role": "user", "content": "只回复两个字：通了"}],
+                                         max_tokens=16, temperature=0),
+                           headers=_headers(), timeout=timeout)
+            ok = r.status_code == 200
+            text = ""
+            if ok:
+                try:
+                    text = _extract(r.json())[0][:20]
+                except Exception:
+                    text = ""
+            hint = "" if ok else diagnose(r.status_code, r.text)
+            attempts.append({"model": mid, "status": r.status_code, "ok": ok,
+                             "error": "" if ok else r.text[:200]})
+            if ok:
+                _mark_ok(mid)
+                return {"ok": True, "model_id": mid, "requested": requested,
+                        "status_code": 200, "reply": text, "error": "", "hint": "",
+                        "rotated": mid != requested, "attempts": attempts,
+                        "latency_ms": int((time.time() - t0) * 1000), **info}
+            _mark_fail(mid, classify_status(r.status_code, r.text), r.text[:200])
+            last = {"ok": False, "status_code": r.status_code, "reply": "",
+                    "error": r.text[:300], "hint": hint}
+        except Exception as exc:
+            msg = f"{type(exc).__name__}: {exc}"
+            attempts.append({"model": mid, "status": 0, "ok": False, "error": msg[:200]})
+            _mark_fail(mid, "network" if isinstance(exc, httpx.ConnectError) else "timeout", msg)
+            last = {"ok": False, "status_code": 0, "reply": "", "error": msg,
+                    "hint": "网络不可达：检查网络/代理"}
+    return {"ok": False, "model_id": requested, "requested": requested,
+            "attempts": attempts, "rotated": False,
+            **{k: v for k, v in last.items() if k != "ok"},
+            "latency_ms": int((time.time() - t0) * 1000), **info}
 
 
 def _stub_answer(model_id: str, messages: list[dict]) -> str:
