@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import { getSession } from "../auth/session";
 import { RoleChip, RoleGrid, type Role as RoleBase } from "../components/RolePicker";
 import { useRole } from "../role";
 
@@ -14,16 +13,35 @@ type Agent = {
   core?: boolean;
   sub_function?: string;
   default_format?: string;
+  role_primary?: string;
+  role_name?: string;
+  category_cn?: string;
   // M24：技能契约（什么时候用 / 要给什么 / 会拿到什么）。公共库有，业务包可能没有。
   when_to_use?: string;
   inputs_contract?: string;
   outputs_contract?: string;
 };
 
+// 行业下的岗位节点（后端 categories[].roles）
+type RoleNode = {
+  id: string;
+  name: string;
+  initial: string;
+  color?: string;
+  note?: string;
+  count: number;
+  core_count: number;
+  agents: Agent[];
+};
+
 type Cat = {
   category: string;
   category_cn: string;
+  name?: string;
+  note?: string;
+  universal?: boolean;
   count: number;
+  roles?: RoleNode[];
   groups: { sub_function: string; count: number; agents: Agent[] }[];
 };
 
@@ -61,17 +79,20 @@ const PUB_GROUP_NOTE: Record<string, string> = {
 
 function SkillCard({ a, onUse, highlight, kind }: {
   a: Agent; onUse?: (a: Agent) => void; highlight?: boolean;
-  // func = 显示职能（财务/销售），岗位视图用；industry = 显示行业（制造业/办公角色），行业视图用
+  // func = 岗位视图（不显示行业标签）；industry = 行业视图（显示岗位名）
   kind?: "func" | "industry";
 }) {
   const clickable = a.status === "published";
   const isPub = !!(a as any).public || (a as any).category_cn === "公共库";
-  // 岗位视图下不要再显示「办公角色 / 财务」——岗位已经在页面顶部选中了，重复且会让人以为还有别的维度。
-  // 公共库同理，改显示它属于哪一组（写作/演示/表格…），比再写一遍"公共库"有用。
-  // 岗位视图里挂行业标签（制造业/跨境电商）是噪音：我在财务岗，为什么要知道这个包原属制造业？
-  const tags = (isPub || kind === "func")
+  // 已经按行业/岗位筛过一遍了，卡片上再写一遍"制造业"是噪音：
+  // 公共库显示它属于哪一组（写作/演示/表格…），行业视图显示岗位名，岗位视图不显示。
+  const tags = isPub
     ? [a.sub_function || ""].filter(Boolean)
-    : (a as any).category_cn ? [(a as any).category_cn] : (a.tags || []);
+    : kind === "industry"
+      ? [a.role_name || a.role_primary || ""].filter(Boolean)
+      : kind === "func"
+        ? []
+        : [a.category_cn || ""].filter(Boolean);
   return (
     <div
       onClick={() => clickable && onUse?.(a)}
@@ -146,29 +167,74 @@ function Section({ title, note, right }: { title: string; note?: string; right?:
   );
 }
 
+// 行业选择卡：先选行业，再看这个行业下面有哪些岗位
+function IndustryCard({ c, onPick }: { c: Cat; onPick: () => void }) {
+  const roles = (c.roles || []).filter((r) => r.count > 0);
+  return (
+    <div
+      onClick={onPick}
+      data-testid={`industry-${c.category_cn}`}
+      style={{
+        border: "1px solid var(--line)", borderRadius: 14, padding: "16px 18px",
+        background: "#fff", cursor: "pointer", transition: ".16s", minWidth: 0,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#cfcfc8";
+        e.currentTarget.style.boxShadow = "0 1px 2px rgba(27,27,25,.04),0 8px 24px rgba(27,27,25,.05)";
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--line)";
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "none";
+      }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <b style={{ fontSize: 15, fontWeight: 600 }}>{c.name || c.category_cn}</b>
+        <span className="hint" style={{ fontSize: 12 }}>{c.count} 个技能</span>
+        <span style={{ flex: 1 }} />
+        {c.universal && (
+          <span style={{ fontSize: 10.5, color: "var(--blue)", background: "var(--blue-l)",
+                         borderRadius: 5, padding: "1px 6px" }}>任何行业可用</span>
+        )}
+      </div>
+      {c.note && (
+        <div className="hint" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>{c.note}</div>
+      )}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 9 }}>
+        {roles.map((r) => (
+          <span key={r.id} style={{ fontSize: 11, color: "var(--ink-2)", background: "#f6f6f2",
+                                    borderRadius: 6, padding: "2px 8px" }}>
+            {r.name} {r.count}
+          </span>
+        ))}
+        {roles.length === 0 && (
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>暂无岗位分组</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
   const [cats, setCats] = useState<Cat[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [pub, setPub] = useState<Agent[]>([]);
   const [total, setTotal] = useState(0);
   // ?mode=industry 直落行业视图（给培训/演示一条链接就能到指定视图）
-  const [mode, setMode] = useState<"role" | "public" | "industry">(
+  const [mode, setMode] = useState<"industry" | "role" | "public">(
     () => {
       const m = new URLSearchParams(window.location.search).get("mode");
-      return m === "industry" || m === "public" ? m : "role";
+      return m === "public" || m === "role" ? m : "industry";
     },
   );
   const [roleId, setRoleId] = useRole();
   const [picking, setPicking] = useState(false);
-  const [activeCat, setActiveCat] = useState("全部");
-  const [activeSub, setActiveSub] = useState("全部");
+  // 行业视图两级：先选行业（catName），再选岗位（roleKey）。都空 = 还没开始选。
+  const [catName, setCatName] = useState("");
+  const [roleKey, setRoleKey] = useState("");
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
-
-  // 行业视角是给老板/售前看全公司资产的，普通员工默认没有这个视图：
-  // 岗位是边界，不是筛选器——员工不该顺手点开别人的 115 个包。
-  const isAdmin = (getSession()?.user?.role || "") === "platform_admin";
 
   useEffect(() => {
     api.getAgentCatalog()
@@ -190,7 +256,7 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
   // 搜索要能命中「什么时候用」：用户搜的是自己的话（"请个假""签合同前"），
   // 不是技能名。M24 之前只搜 name/description，用户得先猜我们怎么命名。
   const match = (a: Agent) =>
-    !q || `${a.name}${a.description || ""}${a.sub_function || ""}${a.when_to_use || ""}`
+    !q || `${a.name}${a.description || ""}${a.sub_function || ""}${a.role_name || ""}${a.when_to_use || ""}`
       .toLowerCase().includes(q.trim().toLowerCase());
 
   const roleCore = useMemo(() => (cur?.agents || []).filter((a) => a.core && match(a)),
@@ -204,7 +270,7 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pub, q]);
 
-  // 岗位页底部的公共库分组：按 写作/演示/表格/沟通与会议/阅读/方法与沉淀 归堆
+  // 公共库分组：按 写作/演示/表格/沟通与会议/阅读/方法与沉淀 归堆
   const pubGroups = useMemo(() => {
     const g: Record<string, Agent[]> = {};
     for (const a of pub) (g[a.sub_function || "其他"] ||= []).push(a);
@@ -220,32 +286,32 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
     return [...head, ...tail].slice(0, 6);
   }, [pub]);
 
-  const subs = useMemo(() => {
-    const c = cats.find((x) => x.category_cn === activeCat);
-    return c ? c.groups.map((g) => g.sub_function).filter(Boolean) : [];
-  }, [cats, activeCat]);
+  // ── 行业视图 ────────────────────────────────────────────────
+  const curCat = useMemo(() => cats.find((c) => c.category_cn === catName), [cats, catName]);
+  const curRoles = useMemo(
+    () => (curCat?.roles || []).filter((r) => r.count > 0), [curCat]);
 
-  const industryList = useMemo(() => {
-    const out: Agent[] = [];
-    for (const c of cats) {
-      if (activeCat !== "全部" && c.category_cn !== activeCat) continue;
-      for (const g of c.groups) {
-        if (activeSub !== "全部" && g.sub_function !== activeSub) continue;
-        for (const a of g.agents) {
-          if (!match(a)) continue;
-          out.push({ ...a, tags: [c.category_cn, g.sub_function].filter(Boolean) });
-        }
-      }
-    }
-    return out;
+  // 行业视图下的卡片：选了岗位就只看该岗，没选就按岗位分组全摊（带「岗位」小标题）
+  const industryGroups = useMemo(() => {
+    if (!curCat) return [];
+    const list = roleKey
+      ? (curCat.roles || []).filter((r) => r.id === roleKey)
+      : (curCat.roles || []);
+    return list
+      .map((r) => ({ role: r, agents: r.agents.filter(match) }))
+      .filter((g) => g.agents.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cats, activeCat, activeSub, q]);
+  }, [curCat, roleKey, q]);
+
+  const industryShown = industryGroups.reduce((n, g) => n + g.agents.length, 0);
 
   const tabs: [typeof mode, string][] = [
+    ["industry", "按行业"],
     ["role", "我的岗位"],
     ["public", "公共库"],
-    ...(isAdmin ? [["industry", "按行业"] as [typeof mode, string]] : []),
   ];
+
+  const backToIndustries = () => { setCatName(""); setRoleKey(""); };
 
   return (
     <>
@@ -253,11 +319,11 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-.4px" }}>
           技能库
           <span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)", marginLeft: 8 }}>
-            {cur ? `${cur.name}岗 ${cur.count} 个` : "还没选岗位"} · 公共库 {pub.length} 个
+            {cats.length} 个行业 · {total} 个业务技能包 · 公共库 {pub.length} 个
           </span>
         </h1>
         <div className="hint">
-          每张卡片都是一套完整的执行手册。你只看得到本岗位和公共库——别的岗位不在这里，避免挑花眼。
+          先选行业，再看这个行业下面有哪些岗位的技能。公共库不分行业，任何行业都能用。
         </div>
       </div>
 
@@ -298,6 +364,127 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
             公共库不受影响，下面是平台自带的通用能力。
           </div>
         </div>
+      )}
+
+      {/* ── 按行业（默认视图）：行业 → 岗位 → 技能包 ─────────────────── */}
+      {mode === "industry" && (
+        <>
+          {!curCat ? (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 10 }}>
+                {cats.map((c) => (
+                  <IndustryCard key={c.category_cn} c={c}
+                                onPick={() => { setCatName(c.category_cn); setRoleKey(""); }} />
+                ))}
+                {/* 公共库挂成最后一张行业卡：它不属于任何行业，但每张行业卡下面都能进 */}
+                <div
+                  onClick={() => setMode("public")}
+                  style={{ border: "1px dashed #d8d8d0", borderRadius: 14, padding: "16px 18px",
+                           background: "#fcfcfa", cursor: "pointer", transition: ".16s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#bfbfb6"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#d8d8d0"; }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <b style={{ fontSize: 15, fontWeight: 600 }}>公共库</b>
+                    <span className="hint" style={{ fontSize: 12 }}>{pub.length} 个办公基础技能</span>
+                  </div>
+                  <div className="hint" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>
+                    所有行业都能用：写材料、做汇报、弄表格、沟通开会、看文件、沉淀方法。
+                  </div>
+                </div>
+              </div>
+              {!loading && cats.length === 0 && (
+                <div className="hint" style={{ marginTop: 14 }}>
+                  还没有行业目录——通常是技能包还没导入，公共库不受影响。
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* 面包屑：行业不是死路，一行就能退回去换行业 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <span onClick={backToIndustries}
+                      style={{ fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+                  ← 全部行业
+                </span>
+                <span style={{ color: "var(--line)" }}>/</span>
+                <b style={{ fontSize: 14, fontWeight: 550 }}>{curCat.name || curCat.category_cn}</b>
+                <span className="hint" style={{ fontSize: 12 }}>{curCat.count} 个技能</span>
+                {curCat.universal && (
+                  <span style={{ fontSize: 10.5, color: "var(--blue)", background: "var(--blue-l)",
+                                 borderRadius: 5, padding: "1px 6px" }}>任何行业可用</span>
+                )}
+              </div>
+
+              {/* 第二层：这个行业下的岗位。数量直接摊在标签上，用户不用一个个点开试。 */}
+              {curRoles.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div className={"seg" + (roleKey === "" ? " on" : "")}
+                       style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 12.5 }}
+                       onClick={() => setRoleKey("")}>
+                    全部岗位<span style={{ opacity: .6, marginLeft: 4 }}>{curCat.count}</span>
+                  </div>
+                  {curRoles.map((r) => (
+                    <div key={r.id} className={"seg" + (roleKey === r.id ? " on" : "")}
+                         data-testid={`role-${r.id}`}
+                         title={r.note}
+                         style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 12.5,
+                                  display: "inline-flex", alignItems: "center", gap: 5 }}
+                         onClick={() => setRoleKey(r.id)}>
+                      <span style={{ width: 16, height: 16, borderRadius: 5, fontSize: 10,
+                                     display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                     background: roleKey === r.id ? "rgba(255,255,255,.25)" : (r.color || "var(--ink)"),
+                                     color: "#fff" }}>{r.initial}</span>
+                      {r.name}
+                      <span style={{ opacity: .6 }}>{r.count}</span>
+                      {roleId === r.id && (
+                        <span style={{ fontSize: 9.5, opacity: .8 }}>我的岗位</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {industryGroups.map(({ role, agents }) => (
+                <div key={role.id}>
+                  {!roleKey && (
+                    <Section title={`${role.name} · ${agents.length} 个`} note={role.note} />
+                  )}
+                  <div style={GRID}>
+                    {agents.map((a) => (
+                      // 已经按岗位筛过了，卡片上再挂"品质工程"是重复信息：
+                      // 只有"全部岗位"平铺时才需要靠岗位标签区分。
+                      <SkillCard key={a.agent_id} a={a} onUse={onUse} kind={roleKey ? "func" : "industry"} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* 行业没有包 / 搜索没命中：给出下一步，而不是一片空白 */}
+              {!loading && industryShown === 0 && (
+                <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "28px 24px",
+                              background: "#fcfcfa", textAlign: "center" }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 550, marginBottom: 6 }}>
+                    {q ? "这个行业下没有搜到匹配的技能包" : "这个行业还没有专属技能包"}
+                  </div>
+                  <div className="hint" style={{ maxWidth: 460, margin: "0 auto 12px", lineHeight: 1.75 }}>
+                    {q ? "换个说法试试，或者清空搜索看全部。"
+                       : "先用公共库顶上：写材料、做汇报、弄表格这些活不分行业，@公共库 里都有。"}
+                  </div>
+                  <span className="w-all" style={{ display: "inline-block" }} onClick={() => setMode("public")}>
+                    去公共库看看 →
+                  </span>
+                </div>
+              )}
+
+              {/* 行业页底部也给公共库入口：挑行业的过程中随时能切到通用能力 */}
+              <Section title={`公共库 · ${pub.length} 个`} note="不分行业，任何行业都能用"
+                       right="在「公共库」页看全部" />
+              <div style={GRID}>
+                {pubQuick.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {/* ── 我的岗位 ───────────────────────────────────────────────── */}
@@ -373,7 +560,7 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
         <>
           <div className="hint" style={{ marginBottom: 4 }}>
             平台自带的办公基础能力：写材料、做汇报、弄表格、沟通开会、看文件、沉淀方法。
-            不需要选岗位，也不会占用业务技能包名额。搜自己的话就行（如"签合同前""请个假"）；
+            不分行业、不用选岗位，也不会占用业务技能包名额。搜自己的话就行（如"签合同前""请个假"）；
             鼠标停在卡片上可看「什么时候用 / 要给什么 / 会拿到什么」。
           </div>
           {Object.entries(pubGroups).map(([g, list]) => {
@@ -391,43 +578,8 @@ export function SkillsPage({ onUse }: { onUse?: (a: Agent) => void }) {
           })}
           {!loading && pubList.length === 0 && (
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--muted)", fontSize: 13 }}>
-              公共库还没预置——重启服务会自动补齐
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── 按行业（仅管理员） ──────────────────────────────────────── */}
-      {mode === "industry" && isAdmin && (
-        <>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-            {["全部", ...cats.map((c) => c.category_cn)].map((c) => (
-              <div key={c} className={"seg" + (activeCat === c ? " on" : "")}
-                   style={{ flex: "0 0 auto", padding: "7px 13px" }}
-                   onClick={() => { setActiveCat(c); setActiveSub("全部"); }}>
-                {c}{c !== "全部" && <span style={{ opacity: .6, marginLeft: 4 }}>
-                  {cats.find((x) => x.category_cn === c)?.count ?? 0}</span>}
-              </div>
-            ))}
-          </div>
-
-          {subs.length > 0 && (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-              {["全部", ...subs].map((s) => (
-                <div key={s} className={"seg" + (activeSub === s ? " on" : "")}
-                     style={{ flex: "0 0 auto", padding: "5px 11px", fontSize: 12 }}
-                     onClick={() => setActiveSub(s)}>{s}</div>
-              ))}
-            </div>
-          )}
-
-          <div style={GRID}>
-            {industryList.map((a) => <SkillCard key={a.agent_id} a={a} onUse={onUse} />)}
-          </div>
-
-          {!loading && industryList.length === 0 && (
-            <div style={{ textAlign: "center", padding: "50px 0", color: "var(--muted)", fontSize: 13 }}>
-              没有匹配的技能包
+              {q ? "公共库里没有搜到匹配的技能，换个说法试试"
+                 : "公共库还没预置——重启服务会自动补齐"}
             </div>
           )}
         </>

@@ -330,8 +330,59 @@ def filter_role(rows: List[Dict[str, Any]], role: str) -> List[Dict[str, Any]]:
             if is_public(a) or a.get("builtin") or a.get("role_primary") == role]
 
 
+# ---------------------------------------------------------------- 行业元数据
+# 行业展示名 + 一句话说明。key 用 category_cn（技能包自带的行业名），
+# 未登记的行业走兜底文案，不报错也不隐藏——客户加了新行业立刻能看见。
+INDUSTRY_NOTE: Dict[str, str] = {
+    "制造业": "图纸报价、排产交期、来料品质、BOM 基线",
+    "零售": "门店运营、会员分层、爆品选品、社群触达",
+    "跨境电商": "选品验证、多平台上架、PPC 利润、FBA 申诉",
+    "办公角色": "不分行业：HR、行政、财务、销售的日常活",
+}
+# 展示名：category_cn 是数据真值（筛选/接口都用它），这里只换前端看到的字。
+INDUSTRY_LABEL: Dict[str, str] = {
+    "办公角色": "通用办公",
+}
+# 「通用」行业：不绑定具体行业的岗位包（现在就是 62 个办公角色包）。
+# 前端把它排在行业列表最后，并标注「任何行业都能用」。
+UNIVERSAL_INDUSTRIES = {"办公角色"}
+
+
+def _role_nodes(agents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """把一批包按岗位（role_primary）聚成岗位节点，顺序跟 role_map.ROLES 一致。
+
+    行业视角下的第二层就是岗位——"制造业 → 品质工程 5 个"，而不是把 21 个包平铺。
+    没有 role_primary 的包（历史数据/手工建的）不丢，落到 unassigned 计数里。
+    """
+    order = {r["id"]: i for i, r in enumerate(role_map.ROLES)}
+    meta = {r["id"]: r for r in role_map.ROLES}
+    bucket: Dict[str, List[Dict[str, Any]]] = {}
+    unassigned = 0
+    for a in agents:
+        rid = a.get("role_primary") or ""
+        if not rid or rid not in meta:
+            unassigned += 1
+            continue
+        bucket.setdefault(rid, []).append(a)
+    out = []
+    for rid in sorted(bucket, key=lambda k: order.get(k, 99)):
+        g = bucket[rid]
+        core_list = role_map.ROLE_CORE.get(rid, [])
+        out.append({
+            "id": rid,
+            "name": meta[rid]["name"],
+            "initial": meta[rid]["initial"],
+            "color": meta[rid]["color"],
+            "note": meta[rid].get("desc", ""),
+            "count": len(g),
+            "core_count": sum(1 for a in g if a.get("name") in core_list),
+            "agents": g,
+        })
+    return out
+
+
 def catalog(caller, role: str = "") -> Dict[str, Any]:
-    """双视角目录：按 行业（categories） + 按 职业（roles） + 公共库（public）。
+    """三层目录：行业（categories） → 岗位（categories[].roles） → 技能包；外加公共库。
 
     M19 起前端默认走职业视角（员工按岗位找工具），行业视角保留给老板/售前。
     注意：kind（industry/office）粒度太粗，制造业/零售/跨境电商共用 industry，
@@ -339,7 +390,10 @@ def catalog(caller, role: str = "") -> Dict[str, Any]:
     无 category_cn 时回退 kind。
 
     M22：公共库单独成块，**不进 categories 也不进 total**——否则 115 口径会被
-    9 个办公基础技能污染，客户对不上数。传 role 时只回本岗 + 公共库。
+    办公基础技能污染，客户对不上数。传 role 时只回本岗 + 公共库。
+
+    M49：行业节点下补 roles（岗位分层）。「先选行业、再看这个行业有哪些岗位」是
+    客户的真实心智；groups 保留旧字段给老消费方，不删。
     """
     rows = filter_role(list_all(caller), role)
     tree: Dict[str, Dict[str, Any]] = {}
@@ -351,7 +405,9 @@ def catalog(caller, role: str = "") -> Dict[str, Any]:
         key = cat_cn
         node = tree.setdefault(key, {
             "category": a.get("category") or "", "category_cn": cat_cn, "groups": {},
+            "agents": [],
         })
+        node["agents"].append(a)
         sub = a.get("sub_function") or ""
         node["groups"].setdefault(sub, []).append({
             "agent_id": a["agent_id"], "name": a.get("name"),
@@ -363,15 +419,37 @@ def catalog(caller, role: str = "") -> Dict[str, Any]:
     cats = []
     for k in sorted(tree):
         v = tree[k]
+        role_nodes = []
+        for rn in _role_nodes(v["agents"]):
+            role_nodes.append({
+                "id": rn["id"], "name": rn["name"], "initial": rn["initial"],
+                "color": rn["color"], "note": rn["note"],
+                "count": rn["count"], "core_count": rn["core_count"],
+                "agents": [{
+                    "agent_id": a["agent_id"], "name": a.get("name"),
+                    "status": a.get("status"), "adapter_type": a.get("adapter_type"),
+                    "description": (a.get("description") or "")[:120],
+                    "tags": a.get("tags") or [],
+                    "role_primary": rn["id"],
+                    "role_name": rn["name"],
+                    "core": a.get("name") in role_map.ROLE_CORE.get(rn["id"], []),
+                } for a in rn["agents"]],
+            })
         cats.append({
             "category": v["category"],
             "category_cn": v["category_cn"],
+            "name": INDUSTRY_LABEL.get(v["category_cn"], v["category_cn"]),
+            "note": INDUSTRY_NOTE.get(v["category_cn"], ""),
+            "universal": v["category_cn"] in UNIVERSAL_INDUSTRIES,
             "count": sum(len(g) for g in v["groups"].values()),
+            "roles": role_nodes,
             "groups": [
                 {"sub_function": s or "", "count": len(g), "agents": g}
                 for s, g in sorted(v["groups"].items())
             ],
         })
+    # 行业排序：具体行业在前、通用在后；同组按名称稳定排序
+    cats.sort(key=lambda c: (1 if c["universal"] else 0, c["category_cn"]))
     public = [ brief(a) for a in sorted(
         (a for a in rows if is_public(a)), key=lambda a: a.get("sort", 99)) ]
     roles = role_map.catalog(rows)

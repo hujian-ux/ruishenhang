@@ -176,3 +176,47 @@ def test_visible_accepts_legacy_scope_field():
     })
     ids = [a["agent_id"] for a in client.get("/api/v1/agents", headers=EMP).json()["data"]["agents"]]
     assert "ag_legacy_scope" in ids
+
+
+# ---------------------------------------------------------------- M49：行业 → 岗位两层
+def test_industry_node_has_role_layer():
+    """行业是第一层，岗位是行业下面的第二层。
+
+    客户心智是「先选行业，再看这个行业有哪些岗位」，而不是一上来把 21 个制造业包
+    平铺。这里锁住：每个行业节点都带 roles，且 roles 计数之和 == 行业包数
+    （不允许有包既不在任何岗位里、又还被算进总数）。
+    """
+    _seed_all()
+    data = client.get("/api/v1/agents/catalog", headers=ADMIN).json()["data"]
+    for c in data["categories"]:
+        assert c["roles"], f"{c['category_cn']} 缺岗位分层"
+        assert sum(r["count"] for r in c["roles"]) == c["count"]
+        for r in c["roles"]:
+            assert r["count"] == len(r["agents"])
+            assert r["name"] and r["initial"]
+            # 岗位节点里的包必须回填岗位名，前端卡片直接显示，不用再查表
+            assert all(a["role_name"] == r["name"] for a in r["agents"])
+
+
+def test_industry_roles_are_real_roles():
+    """制造业下确实是品质/计划/采购这些岗，不是把行业名当岗位。"""
+    _seed_all()
+    data = client.get("/api/v1/agents/catalog", headers=ADMIN).json()["data"]
+    mfg = next(c for c in data["categories"] if c["category_cn"] == "制造业")
+    names = [r["name"] for r in mfg["roles"]]
+    assert "品质工程" in names and "生产计划" in names
+    assert mfg["count"] == 21
+
+
+def test_universal_industry_is_marked_and_sorted_last():
+    """「通用」（办公角色 62 个）不绑行业：打标 universal 并排在具体行业之后。"""
+    _seed_all()
+    data = client.get("/api/v1/agents/catalog", headers=ADMIN).json()["data"]
+    cats = data["categories"]
+    uni = [c for c in cats if c["universal"]]
+    assert [c["category_cn"] for c in uni] == ["办公角色"]
+    assert uni[0]["name"] == "通用办公"
+    assert cats[-1]["universal"] is True, "通用行业必须排最后，具体行业在前"
+    # 公共库仍然不进行业树，也不进 total（115 口径不能变）
+    assert all(c["category_cn"] != "公共库" for c in cats)
+    assert data["total"] == 115
