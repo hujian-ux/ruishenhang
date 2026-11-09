@@ -3931,6 +3931,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /mlops/retrain:
+    post:
+      tags:
+      - mlops
+      summary: Mlops Retrain
+      description: 'P2 真实自动重训入口（platform_admin）：漂移 → 真实训练 → 可选晋升。
+
+
+        安全默认：需 MLOPS_AUTO_RETRAIN=1 才允许真正跑训练；否则返回 409 提示先开启，
+
+        避免误触发训练/晋升。observed_records 为空时只返回漂移建议（不训练）。'
+      operationId: mlops_retrain_api_v1_mlops_retrain_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /mlops/trains:
     post:
       tags:
@@ -4063,6 +4104,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ModelRegisterResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /models/config:
+    get:
+      tags:
+      - models
+      summary: Get Model Config
+      description: 当前模型接入配置（密钥脱敏）。登录即可读，写入需平台管理员。
+      operationId: get_model_config_api_v1_models_config_get
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - models
+      summary: Put Model Config
+      description: '在线配置模型通道（仅平台管理员）：改完即时生效，并落盘 .env.local 重启不丢。
+
+
+        支持两条通道：`direct`（直连厂商 OpenAI 兼容端点）与 `litellm`（自建代理）。
+
+        api_key 留空 = 不修改现有密钥（避免"只想换个模型名"却把 key 清空）。'
+      operationId: put_model_config_api_v1_models_config_put
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -4298,6 +4407,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ops/backfill-office-rules:
+    post:
+      tags:
+      - ops
+      summary: Backfill Office Rules
+      description: 'M15/M25 P1 · 一键补齐办公类业务包的「办公域」硬规则（仅平台管理员）。
+
+
+        在平台红线之外，给办公类（category_cn 含「办公」）业务包追加办公域特有红线
+
+        （财务不编造、合同带版本、报表带单位、PII 脱敏、排期标待确认、合规建议咨询）；
+
+        幂等，已含不动。'
+      operationId: backfill_office_rules_api_v1_ops_backfill_office_rules_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ops/build-fewshot:
     post:
       tags:
@@ -4377,6 +4521,51 @@ paths:
           - type: string
           - type: 'null'
           title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ops/configure:
+    post:
+      tags:
+      - ops
+      summary: Configure External Input
+      description: 'M27 · 平台运营台「外部输入就绪度」在线配置入口（仅 platform_admin，dev/demo 用）。
+
+
+        接收 {key, fields}，按就绪项类型把外部输入写入 os.environ（即时翻绿）并落盘
+
+        backend/.env.local（重启仍生效）。生产环境应使用密钥管理服务，不应经此端点落盘明文密钥。
+
+        支持：llm_key（LLM_API_KEY + 可选 base_url/model）、search_key（官方搜索 key + provider）、
+
+        oidc_idp（OIDC_ENABLED=1 + issuer/audience）、real_corpus（SEED_DEMO_CORPUS 模式切换）。'
+      operationId: configure_external_input_api_v1_ops_configure_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
       responses:
         '200':
           description: Successful Response
@@ -5340,7 +5529,7 @@ components:
             type: string
           type: array
           title: Output Formats
-          description: xlsx|docx|pptx|html|pdf|auto，可多选
+          description: html|xlsx|docx|pptx|pdf|auto，可多选
       type: object
       required:
       - agent_id

@@ -129,21 +129,35 @@ def apply_throttle() -> None:
 
 # ── 厂商预设：直连通道只需要 base_url + key ──
 # 全部是 OpenAI 兼容的 /chat/completions 端点，故一套代码通吃。
+# models/small_model 只用于界面下拉建议（不给死：客户常有私有化模型名），
+# 真调哪个模型永远以 LLM_DEFAULT_MODEL 为准。
 PROVIDER_PRESETS = {
     "zhipu": {"base_url": "https://open.bigmodel.cn/api/paas/v4",
-              "key_env": "ZHIPU_API_KEY", "label": "智谱 GLM"},
+              "key_env": "ZHIPU_API_KEY", "label": "智谱 GLM",
+              "models": ["glm-4.6", "glm-4-plus", "glm-4-flash"], "small_model": "glm-4-flash"},
     "dashscope": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                  "key_env": "DASHSCOPE_API_KEY", "label": "阿里通义千问"},
+                  "key_env": "DASHSCOPE_API_KEY", "label": "阿里通义千问",
+                  "models": ["qwen-max", "qwen-plus", "qwen-turbo"], "small_model": "qwen-turbo"},
     "openai": {"base_url": "https://api.openai.com/v1",
-               "key_env": "OPENAI_API_KEY", "label": "OpenAI"},
+               "key_env": "OPENAI_API_KEY", "label": "OpenAI",
+               "models": ["gpt-4o", "gpt-4o-mini"], "small_model": "gpt-4o-mini"},
     "deepseek": {"base_url": "https://api.deepseek.com/v1",
-                 "key_env": "DEEPSEEK_API_KEY", "label": "DeepSeek"},
+                 "key_env": "DEEPSEEK_API_KEY", "label": "DeepSeek",
+                 "models": ["deepseek-chat", "deepseek-reasoner"], "small_model": "deepseek-chat"},
     "moonshot": {"base_url": "https://api.moonshot.cn/v1",
-                 "key_env": "MOONSHOT_API_KEY", "label": "月之暗面 Kimi"},
+                 "key_env": "MOONSHOT_API_KEY", "label": "月之暗面 Kimi",
+                 "models": ["moonshot-v1-8k", "moonshot-v1-32k", "kimi-latest"],
+                 "small_model": "moonshot-v1-8k"},
     # 硅基流动：一家聚合国内外主流开源模型（含 zai-org/GLM-*、deepseek-ai/*、Qwen/*），
     # 一个 key 跑多模型，适合做「同一技能包换模型比效果」的横向评测。
     "siliconflow": {"base_url": "https://api.siliconflow.cn/v1",
-                    "key_env": "SILICONFLOW_API_KEY", "label": "硅基流动（聚合）"},
+                    "key_env": "SILICONFLOW_API_KEY", "label": "硅基流动（聚合）",
+                    "models": ["zai-org/GLM-4.6", "deepseek-ai/DeepSeek-V3",
+                               "Qwen/Qwen2.5-72B-Instruct"],
+                    "small_model": "Qwen/Qwen2.5-7B-Instruct"},
+    # 私有化 / 自建 OpenAI 兼容服务（vLLM、Ollama、一体机）：base_url 由用户填
+    "custom": {"base_url": "", "key_env": "LLM_API_KEY", "label": "自建 / 私有化",
+               "models": [], "small_model": ""},
 }
 
 
@@ -154,6 +168,13 @@ def _direct_key() -> str:
     import os
     preset = PROVIDER_PRESETS.get(settings.LLM_VENDOR, {})
     return os.environ.get(preset.get("key_env", ""), "")
+
+
+def current_key() -> str:
+    """当前通道实际会用的密钥（仅供脱敏展示/诊断，禁止写进日志）。"""
+    if settings.LLM_PROVIDER == "direct":
+        return _direct_key()
+    return getattr(settings, "LITELLM_MASTER_KEY", "") or ""
 
 
 def _headers() -> dict:
@@ -276,6 +297,42 @@ def register_model(req: dict) -> dict:
     mid = req["model_id"]
     _REGISTRY[mid] = {**req, "status": "active"}
     return {"model_id": mid, "status": "active", "registered_by": "platform_admin"}
+
+
+def ensure_registered(model_id: str, vendor: str = "", *, price: tuple | None = None) -> dict:
+    """确保模型在注册表里（幂等）。在线配模型时用：客户填了一个没见过的模型名，
+    注册表里没有就会在「模型注册表」和成本报表里查不到，看起来像没配上。
+
+    未给价 → 单价 0 并打 `unpriced` 标记，账单上能看出「这个模型还没定价」，
+    而不是静悄悄按 0 元入账。
+    """
+    if not model_id:
+        return {}
+    hit = _REGISTRY.get(model_id)
+    if hit:
+        if vendor and not hit.get("vendor"):
+            hit["vendor"] = vendor
+        return hit
+    p_in, p_out = (price or (0.0, 0.0))
+    row = {
+        "model_id": model_id,
+        "vendor": vendor or "custom",
+        "adapter": "openai_compatible",
+        "capabilities": ["chat", "stream"],
+        "context_window": 0,
+        "status": "active",
+        "price_per_1k_prompt": float(p_in),
+        "price_per_1k_completion": float(p_out),
+        "unpriced": not price,
+        "registered_by": "config",
+    }
+    _REGISTRY[model_id] = row
+    return row
+
+
+def registry_snapshot() -> list[dict]:
+    """注册表只读快照（供配置页展示「配的模型登记了没」）。"""
+    return list(_REGISTRY.values())
 
 
 def _payload(model_id: str, messages: list[dict], **kw) -> dict:

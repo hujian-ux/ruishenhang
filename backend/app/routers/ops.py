@@ -7,12 +7,11 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 import os
-import pathlib
 
 from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
-from app.services import agent_store, fewshot, observability, office_hard_rules
+from app.services import agent_store, fewshot, observability, office_hard_rules, runtime_config
 
 router = APIRouter(prefix="/ops", tags=["ops"])
 
@@ -49,31 +48,16 @@ def readiness(caller: CallerContext = Depends(get_caller)):
 
 
 def _apply_env(updates: dict):
-    """把配置写入 os.environ（即时影响 readiness），并同步到 settings 单例已存在的属性。"""
-    import app.core.config as cfg
-    for k, v in updates.items():
-        os.environ[k] = v
-        if hasattr(cfg.settings, k):
-            setattr(cfg.settings, k, v)
+    """把配置写入 os.environ（即时影响 readiness），并同步到 settings 单例已存在的属性。
+
+    M49 起实现抽到 services.runtime_config，模型配置端点复用同一套写入逻辑。
+    """
+    return runtime_config.apply(updates)
 
 
 def _persist_env(updates: dict):
-    """把配置落盘到 backend/.env.local（gitignore），重启后由 config._load_env_files 读回。
-    仅覆盖/追加本次更新的键；其它既有行（含注释）原样保留。"""
-    base = pathlib.Path(__file__).resolve().parents[2]  # backend/（app/routers/ops.py → 上溯 3 级）
-    p = base / ".env.local"
-    lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
-    keys = set(updates.keys())
-    out = []
-    for line in lines:
-        s = line.strip()
-        if s and not s.startswith("#") and "=" in s:
-            if s.split("=", 1)[0].strip() in keys:
-                continue
-        out.append(line)
-    for k, v in updates.items():
-        out.append(f"{k}={v}")
-    p.write_text("\n".join(out) + "\n", encoding="utf-8")
+    """把配置落盘到 backend/.env.local（gitignore），重启后由 config._load_env_files 读回。"""
+    return runtime_config.persist(updates)
 
 
 @router.post("/configure")
@@ -97,10 +81,19 @@ def configure_external_input(payload: dict, caller: CallerContext = Depends(get_
         if not ak:
             return {"code": 2, "msg": "api_key 必填"}
         updates["LLM_API_KEY"] = ak
+        if (fields.get("provider") or "").strip() in ("direct", "litellm"):
+            updates["LLM_PROVIDER"] = fields["provider"].strip()
+        if (fields.get("vendor") or "").strip():
+            updates["LLM_VENDOR"] = fields["vendor"].strip()
         if (fields.get("base_url") or "").strip():
             updates["LLM_BASE_URL"] = fields["base_url"].strip()
         if (fields.get("model") or "").strip():
-            updates["LLM_MODEL"] = fields["model"].strip()
+            # 键名必须是 LLM_DEFAULT_MODEL：网关读的是它，写 LLM_MODEL 等于没配
+            # （M27 遗留 bug，M49 修）。同时把成本路由两档对齐，否则路由会把请求
+            # 改写回旧的 glm-4.6/glm-4-flash，用别家 key 直接 401。
+            updates["LLM_DEFAULT_MODEL"] = fields["model"].strip()
+            updates["ROUTING_SMALL_MODEL"] = fields["model"].strip()
+            updates["ROUTING_LARGE_MODEL"] = fields["model"].strip()
     elif key == "search_key":
         prov = (fields.get("provider") or "tavily").strip().lower()
         ak = (fields.get("api_key") or "").strip()

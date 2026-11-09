@@ -215,6 +215,18 @@ export const api = {
   toggleModel: (modelId: string, status: "active" | "inactive") =>
     req<any>("PATCH", `/models/${modelId}`, { status }),
 
+  // ── M49 模型在线配置（改完即时生效 + 落盘 .env.local） ──
+  getModelConfig: () => req<any>("GET", "/models/config"),
+  saveModelConfig: (body: {
+    provider: "direct" | "litellm"; vendor?: string; base_url?: string;
+    api_key?: string; model: string;
+    routing?: { enabled?: boolean; small?: string; large?: string };
+    temperature?: number; max_tokens?: number;
+  }) => req<any>("PUT", "/models/config", body),
+  // 真生成探活：花一次极短调用换确定结论（401/402/404 会原样回显）
+  probeModel: (modelId = "") =>
+    req<any>("GET", `/models/probe${modelId ? `?model_id=${encodeURIComponent(modelId)}` : ""}`),
+
   // ── P1-173 身份与集成：OIDC 状态 + IM 运行时接入 ──
   // 注意：/auth/oidc/health 返回裸 JSON（无 code/data 包裹），调用方用 r.data || r 兜底
   getOidcHealth: () => req<any>("GET", "/auth/oidc/health"),
