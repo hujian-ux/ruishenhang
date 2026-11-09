@@ -23,6 +23,8 @@ type Turn = {
   // M26：公网来源与内部引用分开显示，刷新历史会话后仍在
   webSources?: { title: string; url: string; source?: string; published_at?: string }[];
   webSearch?: { mode?: string; degraded?: boolean; provider?: string; error?: string } | null;
+  // M52：这一轮自动挂了哪些包内样例（让用户知道结论是基于什么数据算的）
+  samplesUsed?: string[];
 };
 
 export type ChatSeed = {
@@ -137,6 +139,13 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   // 用户手动改过格式后，选技能包就不再替他改（否则会"我明明选了 PDF，它给我改回 Word"）
   const [fmtTouched, setFmtTouched] = useState(false);
   const [q, setQ] = useState("");
+  // M52：技能包「要给什么」+ 包内自带样例。切技能就拉一次，切回通用助手清空。
+  const [pkg, setPkg] = useState<{
+    checklist: string[]; samples: { filename: string; display_name?: string; kind: string; size: number }[];
+    can_run_with_samples: boolean; input_sample_count?: number; hint: string;
+  } | null>(null);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [useSamples, setUseSamples] = useState(false);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -190,6 +199,19 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   }, [input]);
 
   const agent = useMemo(() => agents.find((a) => a.agent_id === agentId), [agents, agentId]);
+
+  // 技能一换就把它的输入清单/样例取回来。失败静默——这是辅助信息，
+  // 取不到不该挡住用户直接提问。
+  useEffect(() => {
+    setUseSamples(false);
+    setShowChecklist(false);
+    if (!agentId || (agent as any)?.builtin) { setPkg(null); return; }
+    let alive = true;
+    api.getSkillInputs(agentId)
+      .then((r) => { if (alive) setPkg(r.data); })
+      .catch(() => { if (alive) setPkg(null); });
+    return () => { alive = false; };
+  }, [agentId, (agent as any)?.builtin]);
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase();
     if (!k) return agents;
@@ -266,15 +288,17 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
 
   const send = async () => {
     const text = input.trim();
-    if ((!text && !attachments.length) || !agentId || busy) return;
+    // 开了「用样例数据」时不写提示词也能跑：样例本身就是这次要处理的数据
+    const sampleRun = useSamples && !!pkg?.can_run_with_samples;
+    if ((!text && !attachments.length && !sampleRun) || !agentId || busy) return;
     const fileIds = attachments.map((a) => a.file_id);
     const fileNames = attachments.map((a) => a.filename);
     setBusy(true); setErr("");
     setInput("");
-    setTurns((t) => [...t, { role: "user", content: text || "请按技能包处理这份附件", files: fileNames }]);
+    setTurns((t) => [...t, { role: "user", content: text || "请按技能包处理附件", files: fileNames }]);
     try {
       const r = await api.invokeAgent(agentId, text || "请按技能包处理附件",
-                                      sessionId || undefined, fileIds, formats);
+                                      sessionId || undefined, fileIds, formats, sampleRun);
       const d = r.data;
       setSessionId(d.session.session_id);
       setTurns((t) => [...t, {
@@ -283,6 +307,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
         skillApplied: d.agent?.skill_applied,
         llmReal: d.llm?.real, llmError: d.llm?.error,
         webSources: d.web_sources || [], webSearch: d.web_search,
+        samplesUsed: (d.samples_used || []).map((s: any) => s.filename),
       }]);
       setAttachments([]);
       onSession(d.session.session_id, (text || fileNames[0] || "").slice(0, 26));
@@ -471,6 +496,11 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                         本次未走真模型{t.llmError ? `（${t.llmError}）` : ""}，内容仅供参考，不要对外使用。
                       </div>
                     )}
+                    {!!t.samplesUsed?.length && (
+                      <div className="sample-note">
+                        本次使用了技能包自带样例：{t.samplesUsed.join("、")}（演示数据，替换成自己的文件再跑一次）
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -527,12 +557,45 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             </div>
           )}
 
+          {/* M52：技能包作者的输入清单 + 包里自带的原始输入。
+              用户之前只能看到一句自由描述，于是反复被模型反问「请提供输入」。 */}
+          {agent && !agent.builtin && !!pkg && (
+            (pkg.checklist.length > 0 || pkg.can_run_with_samples) && (
+              <div className="p-inputs">
+                {pkg.checklist.length > 0 && <span className="pi-t">要给：</span>}
+                {pkg.checklist.slice(0, showChecklist ? 99 : 3).map((c, i) => (
+                  <span key={`${c}-${i}`} className="pi-i" title={c}>{c}</span>
+                ))}
+                {pkg.checklist.length > 3 && (
+                  <button className="pi-more" onClick={() => setShowChecklist((v) => !v)}>
+                    {showChecklist ? "收起" : `还有 ${pkg.checklist.length - 3} 项`}
+                  </button>
+                )}
+                {pkg.can_run_with_samples ? (
+                  <button className={"pi-sample" + (useSamples ? " on" : "")}
+                          onClick={() => setUseSamples((v) => !v)}
+                          title={`包里带 ${pkg.input_sample_count ?? pkg.samples.filter((s) => s.kind === "input").length} 份原始输入，勾上就不用自己准备数据：\n`
+                            + pkg.samples.filter((s) => s.kind === "input")
+                                .map((s) => `· ${s.display_name || s.filename}`).join("\n")}>
+                    {useSamples ? "✓ 用样例数据" : "用样例数据试跑"}
+                  </button>
+                ) : (
+                  <span className="pi-hint">这个包没带样例，需自己上传文件</span>
+                )}
+              </div>
+            )
+          )}
+
           <textarea
             ref={taRef}
             rows={1}
             value={input}
             placeholder={agent && !agent.builtin
-              ? `说明这次要处理什么，${agent.name}会按流程执行`
+              ? (useSamples && pkg?.can_run_with_samples
+                  ? "样例数据已就位，说明要处理什么即可；留空直接回车也行"
+                  : pkg?.can_run_with_samples
+                    ? `说明这次要处理什么；不想准备数据可勾上方「用样例数据试跑」`
+                    : `说明这次要处理什么，${agent.name}会按流程执行`)
               : empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -562,7 +625,8 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             </button>
 
             <button className="send" onClick={send}
-                    disabled={!agentId || busy || (!input.trim() && !attachments.length)}
+                    disabled={!agentId || busy || (!input.trim() && !attachments.length
+                              && !(useSamples && pkg?.can_run_with_samples))}
                     title="发送（Enter）">
               {busy ? "·" : "↑"}
             </button>

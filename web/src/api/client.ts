@@ -124,13 +124,27 @@ export const api = {
   // M16 文件进出：fileIds 为已上传附件的 file_id（先调 uploadAgentFile）
   // M17 产出格式：outputFormats 可多选（html/xlsx/docx/pptx/pdf），不传=html（平台优先 HTML）
   invokeAgent: (agentId: string, input: string, sessionId?: string,
-                fileIds?: string[], outputFormats?: string[]) =>
+                fileIds?: string[], outputFormats?: string[], useSamples?: boolean) =>
     req<any>("POST", "/agent/invoke", {
       agent_id: agentId, input, stream: false,
       ...(sessionId ? { session_id: sessionId } : {}),
       ...(fileIds && fileIds.length ? { file_ids: fileIds } : {}),
       ...(outputFormats && outputFormats.length ? { output_formats: outputFormats } : {}),
+      // M52：勾上就由服务端去技能包目录取原始输入样例当附件
+      ...(useSamples ? { use_samples: true } : {}),
     }),
+
+  // ── M52 技能包的输入清单与自带样例 ──
+  // checklist 是包作者写在 skill.md 里的「要给什么」；samples 是包目录里的文件，
+  // input 类可一键挂载试跑（can_run_with_samples）。
+  getSkillInputs: (agentId: string) =>
+    req<{ code: number; data: {
+      agent_id: string; name: string; checklist: string[]; source_path: string;
+      pack_found: boolean; input_sample_count: number; can_run_with_samples: boolean;
+      hint: string;
+      samples: { filename: string; display_name: string; kind: "input" | "output" | "meta";
+                 size: number; ext: string; from_readme: boolean }[];
+    } }>("GET", `/agents/${encodeURIComponent(agentId)}/inputs`),
 
   // ── M16 文件进出（P0）：xlsx 上传 → 按技能包执行 → 产出物下载 ──
   uploadAgentFile: (file: File) => {

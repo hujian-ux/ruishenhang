@@ -66,6 +66,9 @@ class AgentInvokeRequest(BaseModel):
     # M16 文件进出：先 POST /agent/files 上传拿 file_id，再在这里引用；
     # 产出物由后端生成并通过 data.artifacts 返回下载地址。
     file_ids: List[str] = Field(default_factory=list)
+    # M52 试跑：技能包目录里带着原始输入样例（客户邮件/材料价格表/历史台账），
+    # 勾上就让服务端自己去包里取，不必用户先准备一套数据。
+    use_samples: bool = Field(False, description="是否自动挂载技能包自带的原始输入样例")
     # M17 产出格式：html|xlsx|docx|pptx|pdf|auto，可多选（同一份答案渲多种格式，
     # 不重复调模型）。不传 = html（平台优先 HTML，对方要其它格式再显式传）。
     output_formats: List[str] = Field(default_factory=list,

@@ -161,6 +161,53 @@ def backfill_office_rules(caller: CallerContext = Depends(get_caller)):
     return {"code": 0, "data": office_hard_rules.backfill_office_hard_rules()}
 
 
+@router.post("/repair-skill-prompts")
+def repair_skill_prompts(caller: CallerContext = Depends(get_caller)):
+    """M52 · 用当前解析器重新生成已注册技能的提示词与输入/产出契约（仅平台管理员）。
+
+    为什么必须有这一步：解析器修好了，但 system_prompt 是导入时写死的快照 ——
+    M52 之前英文 `## Inputs` 认不出来，15 个包的输入契约是空的，模型运行时只看到
+    「作业手册原文」。回灌把包作者的原文按正确段序重排，并把输入清单交还给前端。
+
+    幂等：内容没变的不写库；few-shot 单独存在别的字段里，不会被这次重排冲掉。
+    """
+    if caller.role != "platform_admin":
+        return {"code": 3, "msg": "需要平台管理员权限"}
+    import sys
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if os.path.join(_root, "scripts") not in sys.path:
+        sys.path.insert(0, os.path.join(_root, "scripts"))
+    from import_solutions import parse_skill, SOLUTIONS_ROOT  # 延迟导入，避免启动期耦合
+
+    updated, unchanged, missing = 0, 0, []
+    for a in list(agent_store._AGENTS.values()):
+        if a.get("builtin") or a.get("category") == "public":
+            continue
+        src = (a.get("source_path") or "").replace("\\", "/")
+        if not src:
+            continue
+        path = os.path.join(SOLUTIONS_ROOT, *src.split("/"))
+        if not os.path.isfile(path):
+            missing.append(a.get("name") or a.get("agent_id"))
+            continue
+        d = parse_skill(path)
+        changed = (d["system_prompt"] != (a.get("system_prompt") or "")
+                   or d["inputs_contract"] != (a.get("inputs_contract") or "")
+                   or d["outputs_contract"] != (a.get("outputs_contract") or ""))
+        if not changed:
+            unchanged += 1
+            continue
+        a["system_prompt"] = d["system_prompt"]
+        a["inputs_contract"] = d["inputs_contract"]
+        a["outputs_contract"] = d["outputs_contract"]
+        agent_store.save(a)
+        updated += 1
+    return {"code": 0, "data": {"updated": updated, "unchanged": unchanged,
+                                "missing_source": missing[:20],
+                                "missing_count": len(missing),
+                                "solutions_root": SOLUTIONS_ROOT}}
+
+
 @router.post("/build-fewshot")
 def build_fewshot(caller: CallerContext = Depends(get_caller)):
     """M15/M17 P1 · 把方案库 166 个 xlsx 交付物样例灌成 few-shot（仅平台管理员）。

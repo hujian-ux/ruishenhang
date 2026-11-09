@@ -173,6 +173,22 @@ button{font-family:inherit}
 .picked .p-x{cursor:pointer;color:var(--muted);font-weight:700;padding:0 2px}
 .picked .p-x:hover{color:var(--err)}
 
+/* ── M52 输入清单：技能包自带「要给什么」+ 包内样例，别让用户凭猜准备材料 ── */
+.p-inputs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 8px 0;
+  padding:0 2px;font-size:11.5px;color:var(--muted)}
+.p-inputs .pi-t{flex:none;color:var(--muted);letter-spacing:.2px}
+.pi-i{padding:2px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;
+  color:#4a4a44;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi-more{cursor:pointer;color:var(--blue);background:none;border:none;padding:0 2px;font-size:11.5px}
+.pi-more:hover{text-decoration:underline}
+.pi-sample{cursor:pointer;border:1px solid #cfe0fb;background:var(--blue-l);color:#1b4fa8;
+  border-radius:999px;padding:2px 9px;font-size:11.5px;display:inline-flex;align-items:center;gap:4px}
+.pi-sample:hover{border-color:var(--blue)}
+.pi-sample.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pi-sample:disabled{opacity:.55;cursor:not-allowed}
+.pi-hint{font-size:11px;color:var(--muted)}
+.sample-note{margin-top:7px;font-size:11px;color:var(--muted);border-left:2px solid #cfe0fb;padding-left:8px}
+
 /* ── M19 岗位：让员工先认领岗位，再给工具 ── */
 .role-pick{border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px;background:#fcfcfa;margin-bottom:18px}
 .role-pick h4{margin:0 0 4px;font-size:13px;font-weight:550;color:var(--ink)}

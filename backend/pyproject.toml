@@ -38,6 +38,10 @@ dependencies = [
     # M28 语料投递包：把客户原始 docx/xlsx/pdf 转成 ingest_corpus 能吃的纯文本。
     # 只抽文字层；扫描件 PDF 会明确报「需要 OCR」，不静默当成功。
     "pypdf>=6.0",
+    # M52 技能包样例输入：包目录里的文件有两种命名形态（中文原名 / 拼音）。
+    # readme 的文件清单只写中文，要把它对到拼音文件名上才能分清「原始输入」与
+    # 「交付物」——分错了等于把答案先喂给模型。纯 Python，无编译依赖。
+    "pypinyin>=0.51",
 ]
 
 [project.optional-dependencies]

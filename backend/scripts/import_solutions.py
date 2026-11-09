@@ -27,11 +27,19 @@ import re
 import statistics
 import sys
 
+# 章节识别与包目录定位是「技能包怎么读」的唯一真源，放在 app 层给导入器、运行时
+# （GET /agents/{id}/inputs）和回灌脚本共用。M52 之前这段逻辑只活在脚本里，
+# 英文 `## Inputs` 之类变体识别不了 → 15 个包的输入契约是空的。
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.services.skill_pack import (  # noqa: E402
+    classify_title as _classify_title,
+    solutions_root as _solutions_root,
+    split_sections as _split_sections,
+)
+
 # 默认指向仓库内自带的 115 包源（backend/solutions），使交付物自包含：
 # 客户 clone 后无需外部目录即可导入/自动灌库。可用环境变量 SOLUTIONS_ROOT 覆盖。
-_DEFAULT_ROOT = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "solutions")
-SOLUTIONS_ROOT = os.environ.get("SOLUTIONS_ROOT", _DEFAULT_ROOT)
+SOLUTIONS_ROOT = os.environ.get("SOLUTIONS_ROOT") or _solutions_root()
 SHRINK_THRESHOLD = 600  # 去空白字数低于此值视为模板壳
 
 # M15/M25 P1：业务包全局补平台硬规则。优先用平台单一来源；若脚本独立运行且
@@ -42,33 +50,10 @@ except Exception:  # pragma: no cover - 独立运行兜底
     def _ensure_hard_rules(body: str) -> str:
         return body
 
-# 章节别名 → 归一化键（匹配前会先剥掉「一、」「1.」「（一）」这类序号前缀）
-SECTION_ALIAS = {
-    "适用场景": "scene", "适用时机": "scene", "适用岗位": "scene", "启用时机": "scene",
-    "输入": "inputs", "输入（inputs）": "inputs", "输入契约": "inputs",
-    "输入要求": "inputs", "需要的输入": "inputs",
-    "工作流程（5 步）": "workflow", "工作流程（workflow）": "workflow",
-    "工作流程": "workflow", "流程": "workflow", "执行步骤": "workflow",
-    "处理流程": "workflow", "作业流程": "workflow",
-    "产出": "outputs", "输出（outputs）": "outputs", "输出契约": "outputs",
-    "输出": "outputs", "交付物": "outputs", "交付契约": "outputs",
-    "关键规则": "rules", "硬规则": "rules", "红线": "rules", "约束": "rules",
-    "核心原则": "rules", "强制规则": "rules", "校验规则": "rules",
-    "不承诺": "disclaimer", "边界": "disclaimer", "不适用范围": "disclaimer",
-    "提示词入口": "prompt_entry", "提示词": "prompt_entry",
-}
-
-# 剥序号：一、 二、 / 1. 1、 / （一） / (1)
-_ORDINAL = re.compile(r"^\s*(?:[一二三四五六七八九十]+[、.．]|[（(][一二三四五六七八九十\d]+[）)]|\d+[、.．])\s*")
-
-
-def _norm_title(title: str) -> str:
-    t = _ORDINAL.sub("", title.strip()).strip()
-    return re.sub(r"\s+", "", t)
-
-
-# 别名表统一做同样归一（否则「工作流程（5 步）」与「工作流程（5步）」匹配不上）
-SECTION_ALIAS = {_norm_title(k): v for k, v in SECTION_ALIAS.items()}
+# 章节别名表已迁到 app/services/skill_pack.py：导入器、运行时输入清单、回灌脚本
+# 必须认同一套标题，否则「导入时有输入契约、试跑时看不到清单」这类漂移会反复出现。
+# 这里保留 `split_sections` 名字，让既有调用方（测试/回灌）不用改。
+split_sections = _split_sections
 
 BOARD_LABEL = {
     "01_制造业": ("industry", "制造业"),
@@ -108,43 +93,30 @@ def parse_frontmatter(text: str) -> dict:
     return fm
 
 
-def split_sections(body: str) -> dict:
-    """按 ## 切章节，剥序号后别名归一。同名多段用 \\n 合并。
-    未匹配到别名的章节不丢弃，归入 other（作为原始作业手册全文附在 prompt 末尾）。
-    """
-    out: dict[str, list[str]] = collections.defaultdict(list)
-    cur = None
-    buf: list[str] = []
-    for line in body.split("\n"):
-        if line.startswith("## "):
-            if cur:
-                out[cur].append("\n".join(buf).strip())
-            title = line[3:].strip()
-            cur = SECTION_ALIAS.get(_norm_title(title)) or "other"
-            buf = ["## " + title] if cur == "other" else []
-        elif cur:
-            buf.append(line)
-        elif line.strip():
-            cur = "other"  # 首个 ## 之前的引言段
-            buf = [line]
-    if cur:
-        out[cur].append("\n".join(buf).strip())
-    return {k: "\n".join(v for v in vs if v).strip() for k, vs in out.items()}
-
-
 def build_system_prompt(name: str, desc: str, sec: dict) -> str:
     """重排为标准段序，模型按步执行。"""
     parts = [f"你是「{name}」执行专家。{desc}"]
+    if sec.get("position"):
+        parts.append(f"## 定位\n{sec['position']}")
     if sec.get("scene"):
         parts.append(f"## 适用场景\n{sec['scene']}")
     if sec.get("inputs"):
-        parts.append(f"## 输入契约\n{sec['inputs']}\n未提供的输入必须显式列出缺失项，不得臆造。")
+        # M52：清单来自包作者原文。平台会把用户附上的文件转成上下文，模型不该再
+        # 让对方「重述一遍输入清单」——只许就缺的那几项问，且要指名到具体文件。
+        parts.append(
+            f"## 输入契约\n{sec['inputs']}\n"
+            "处理要求：\n"
+            "1. 先按上面的清单逐项核对本次材料，缺哪项就在开头「缺口」里点名（缺 X → 影响什么）；\n"
+            "2. 不要要求用户复述已经随附的文件内容，也不要整段回抄清单当问题；\n"
+            "3. 缺项不影响主体产出时，先按明确假设出草稿并标注假设口径，不要把整单退回去。")
     if sec.get("workflow"):
         parts.append(f"## 工作流程（严格按序执行，不得跳步）\n{sec['workflow']}")
     if sec.get("outputs"):
         parts.append(f"## 产出契约\n{sec['outputs']}")
     if sec.get("rules"):
         parts.append(f"## 硬规则（违反即视为失败）\n{sec['rules']}")
+    if sec.get("tools"):
+        parts.append(f"## 依赖工具\n{sec['tools']}")
     if sec.get("other"):
         # 未归类的原文段落（含公式/判定漏斗/示例）是实战细节，原样保留供模型参照
         parts.append(f"## 作业手册原文\n{sec['other']}")

@@ -617,6 +617,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{agent_id}/inputs:
+    get:
+      tags:
+      - agent
+      summary: Agent Inputs
+      description: 'M52 · 这个技能「要给什么」+「包里自带什么」。
+
+
+        试跑时用户最常卡在两件事：不知道要准备哪些材料，以及包作者明明放了样例
+
+        却拿不到。这里一次把两件事答了：
+
+        - checklist：从 skill.md 输入章节解析出的条目（不是自由文本，前端可直接摆成清单）；
+
+        - samples：包目录里的文件及分类，input 类可直接一键挂载（invoke 的 use_samples）。'
+      operationId: agent_inputs_api_v1_agents__agent_id__inputs_get
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /approval/pending:
     get:
       tags:
@@ -4734,6 +4777,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ops/repair-skill-prompts:
+    post:
+      tags:
+      - ops
+      summary: Repair Skill Prompts
+      description: 'M52 · 用当前解析器重新生成已注册技能的提示词与输入/产出契约（仅平台管理员）。
+
+
+        为什么必须有这一步：解析器修好了，但 system_prompt 是导入时写死的快照 ——
+
+        M52 之前英文 `## Inputs` 认不出来，15 个包的输入契约是空的，模型运行时只看到
+
+        「作业手册原文」。回灌把包作者的原文按正确段序重排，并把输入清单交还给前端。
+
+
+        幂等：内容没变的不写库；few-shot 单独存在别的字段里，不会被这次重排冲掉。'
+      operationId: repair_skill_prompts_api_v1_ops_repair_skill_prompts_post
+      parameters:
+      - name: x-caller-context
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Caller-Context
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /rag/retrieve:
     post:
       tags:
@@ -5570,6 +5651,11 @@ components:
             type: string
           type: array
           title: File Ids
+        use_samples:
+          type: boolean
+          title: Use Samples
+          description: 是否自动挂载技能包自带的原始输入样例
+          default: false
         output_formats:
           items:
             type: string

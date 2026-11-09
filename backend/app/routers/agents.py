@@ -20,7 +20,7 @@ from app.models.schemas import (
     AgentRegisterResponse,
 )
 from app.selection import framework
-from app.services import agent_store, approval_store, im_gateway, role_map
+from app.services import agent_store, approval_store, im_gateway, role_map, skill_pack
 
 router = APIRouter(prefix="/agents", tags=["agent"])
 
@@ -247,6 +247,42 @@ async def list_roles(
     rest = [a for a in node["agents"] if not a["core"]]
     return {"code": 0, "data": {"role": hit, "count": node["count"],
                                 "core": core, "rest": rest, "public": public}}
+
+
+@router.get("/{agent_id}/inputs")
+async def agent_inputs(agent_id: str, caller: CallerContext = Depends(get_caller)):
+    """M52 · 这个技能「要给什么」+「包里自带什么」。
+
+    试跑时用户最常卡在两件事：不知道要准备哪些材料，以及包作者明明放了样例
+    却拿不到。这里一次把两件事答了：
+    - checklist：从 skill.md 输入章节解析出的条目（不是自由文本，前端可直接摆成清单）；
+    - samples：包目录里的文件及分类，input 类可直接一键挂载（invoke 的 use_samples）。
+    """
+    agent = agent_store.get(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"智能体不存在：{agent_id}")
+    tid = agent.get("tenant_id")
+    if tid and tid != caller.tenantId and caller.role != "platform_admin":
+        raise HTTPException(status_code=404, detail=f"智能体不存在：{agent_id}")
+
+    src = agent.get("source_path") or ""
+    items = skill_pack.checklist(agent)
+    files = skill_pack.samples(src) if src else []
+    inputs = [f for f in files if f["kind"] == "input"]
+    return {"code": 0, "data": {
+        "agent_id": agent_id,
+        "name": agent.get("name"),
+        "checklist": items,
+        "source_path": src,
+        "pack_found": bool(skill_pack.pack_dir(src)) if src else False,
+        "samples": [{"filename": f["filename"], "display_name": f.get("display_name") or f["filename"],
+                     "kind": f["kind"], "size": f["size"],
+                     "ext": f["ext"], "from_readme": f["from_readme"]} for f in files],
+        "input_sample_count": len(inputs),
+        "can_run_with_samples": bool(inputs),
+        "hint": ("" if inputs else
+                 "这个包没带原始输入样例，试跑要自己上传文件；输入清单见 checklist。"),
+    }}
 
 
 @router.get("")

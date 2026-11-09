@@ -18,9 +18,13 @@ from app.models.schemas import AgentInvokeRequest
 from app.routers.agents import _AGENTS
 from app.services import (agent_runtime, artifact, audit, degrade, feedback, file_store,
                           guardrails, model_gateway, model_router, semantic_cache,
-                          session_store, tabular, usage_store)
+                          session_store, skill_pack, tabular, usage_store)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
+
+# M52 试跑样例上限：够还原一次真实作业，又不至于让模型上下文被样例挤爆。
+MAX_SAMPLE_FILES = 6
+MAX_SAMPLE_BYTES = 8 * 1024 * 1024
 
 
 def _evidence_text(result: dict) -> str:
@@ -63,7 +67,9 @@ def _m27_postprocess(req, agent, result, caller, run_id, elapsed_ms, input_guard
     try:
         if cached_entry is None:
             cached_entry = semantic_cache.get(req.input, req.agent_id)
-        if not cached_entry:
+        # 带数据的轮次不进缓存：语义缓存只按问题文本做键，把「用 A 公司台账跑出的
+        # 答案」复用给「B 公司同样问法」是数据泄露级错误。
+        if not cached_entry and not (req.file_ids or getattr(req, "use_samples", False)):
             semantic_cache.put(req.input, result["answer"], req.agent_id,
                                {"run_id": run_id, "real": bool((result.get("usage") or {}).get("real"))})
         out["cache"] = {"hit": bool(cached_entry), "served": bool(served_from_cache),
@@ -186,6 +192,42 @@ def _build_artifacts(caller: CallerContext, agent, req, result, attachments,
     return out
 
 
+def _load_skill_samples(agent: dict, caller: CallerContext):
+    """M52：把技能包自带的「原始输入」样例挂成本次附件。
+
+    为什么放在服务端做：115 个包里 113 个带样例（客户邮件、材料价格表、历史台账），
+    但这些文件只躺在包目录里。用户在页面上没法自己拿到，于是每次试跑都停在
+    「请提供输入清单」。让平台自己去包里取，试跑成本从「准备一套数据」降到一次点击。
+
+    约束：只取 input 类样例、最多 6 份、总量 ≤8MB（样例是给人试跑用的，
+    不是让模型吞整包）；单份读不出来就跳过，不阻断整单。
+    """
+    src = agent.get("source_path") or ""
+    if not src:
+        return [], []
+    loaded, used, total = [], [], 0
+    for s in skill_pack.input_samples(src, limit=MAX_SAMPLE_FILES):
+        if total + int(s.get("size") or 0) > MAX_SAMPLE_BYTES:
+            break
+        data = skill_pack.sample_bytes(s["filename"], src)
+        if not data:
+            continue
+        # 用 readme 里的中文原名入库：模型看到「历史报价.xlsx」才认得出这是输入清单
+        # 里的那一项；拼音名它只会判成「未提供」然后回头问用户要。
+        shown = s.get("display_name") or s["filename"]
+        parsed = tabular.parse(data, shown)
+        rec = file_store.put(
+            data, shown, caller,
+            agent_id=agent.get("agent_id") or "", meta={"sample": True, "skill_sample": True,
+                                                        "source_file": s["filename"],
+                                                        "parse_ok": parsed.get("ok", False)})
+        loaded.append((rec, parsed))
+        used.append({"filename": shown, "source_file": s["filename"], "kind": "sample_input",
+                     "size": len(data), "parse_ok": bool(parsed.get("ok"))})
+        total += len(data)
+    return loaded, used
+
+
 @router.post("/invoke")
 async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(get_caller),
                       trace_id: str = Depends(get_trace_id)):
@@ -220,11 +262,25 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     history = session_store.history_of(sess["session_id"])
     # M16：附件先解析成结构化上下文（表格画像 + 样本），再交给运行时
     attachments = _load_attachments(req.file_ids, caller) if req.file_ids else []
+    # M52：勾了「用样例数据试跑」就把技能包自带的原始输入一起挂上（用户自己能传，
+    # 两路合并，不去重也不覆盖 —— 用户点上传说明他想用自己的数据比对。
+    samples_used: list = []
+    if req.use_samples:
+        sample_att, samples_used = _load_skill_samples(agent, caller)
+        attachments = attachments + sample_att
     file_context = ""
     if attachments:
         # 多附件时均分预算，避免第一份大表把后面的全挤掉
         budget = max(1500, tabular.PROMPT_CHAR_BUDGET // len(attachments))
         file_context = "\n\n".join(tabular.to_prompt_context(p, budget) for _, p in attachments)
+        # 先摆一份「这次到底给了什么」的索引：7B 这类小模型不会自己把后面几段附件串起来，
+        # 少了这行它会把已经附上的历史报价判成「未提供」，然后整单退回问用户要材料。
+        names = [rec.get("filename") or "" for rec, _ in attachments]
+        file_context = (
+            "【本次随附材料】" + "、".join(n for n in names if n) +
+            f"（共 {len(names)} 份，均已解析，明细见下文各段）。"
+            "核对输入缺口时只按这份清单判断：清单里已有的资料不得写成「未提供」。\n\n"
+            + file_context)
 
     run_id = "run_" + uuid.uuid4().hex[:12]
     # M27 第27章：输入侧护栏。默认只记录；GUARDRAILS_STRICT=1 且确实命中注入模式才拦截，
@@ -251,7 +307,7 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
     # 跳过 run_agent（省一次模型调用 + 检索）。默认关，先只观测命中率（零行为变更）。
     served_from_cache = False
     cached = None
-    if settings.SEMANTIC_CACHE_SERVE and settings.SEMANTIC_CACHE_ENABLED:
+    if settings.SEMANTIC_CACHE_SERVE and settings.SEMANTIC_CACHE_ENABLED and not attachments:
         try:
             cached = semantic_cache.get(safe_input, req.agent_id)
             if cached and bool((cached.get("meta") or {}).get("real")):
@@ -394,6 +450,8 @@ async def invoke_agent(req: AgentInvokeRequest, caller: CallerContext = Depends(
         } for frec, parsed in attachments],
         "artifacts": artifact_views,
         "artifact_errors": result.get("artifact_errors") or [],
+        # M52：本次自动挂载了哪些包内样例（空列表 = 没开这个开关或包内没有样例）
+        "samples_used": samples_used,
         "agent": {"agent_id": req.agent_id, "name": agent.get("name"),
                   "adapter_type": agent.get("adapter_type"),
                   "skill_applied": result.get("skill_applied", False)},
