@@ -216,6 +216,8 @@ export const api = {
     req<any>("PATCH", `/models/${modelId}`, { status }),
 
   // ── P1-173 身份与集成：OIDC 状态 + IM 运行时接入 ──
+  // 注意：/auth/oidc/health 返回裸 JSON（无 code/data 包裹），调用方用 r.data || r 兜底
+  getOidcHealth: () => req<any>("GET", "/auth/oidc/health"),
   getAuthSettings: () => req<any>("GET", "/auth/settings"),
   saveImConfig: (body: {
     provider: "wecom" | "dingtalk"; corp_id: string; secret: string;

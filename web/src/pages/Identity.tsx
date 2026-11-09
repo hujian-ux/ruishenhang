@@ -25,6 +25,10 @@ export function IdentityPage({ isAdmin }: { isAdmin: boolean }) {
   const [auth, setAuth] = useState<Any>({});
   const [configs, setConfigs] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  // OIDC 健康检查结果（原先是 window.open 裸开 API，新标签只有一行原始 JSON，
+  // 用户看到的是“空白页”；改为拉取后在卡片①内联渲染结构化结果）
+  const [health, setHealth] = useState<Any | null>(null);
+  const [healthBusy, setHealthBusy] = useState(false);
 
   // IM 表单
   const cfg = loadConfig();
@@ -86,6 +90,15 @@ export function IdentityPage({ isAdmin }: { isAdmin: boolean }) {
     } catch (e: any) { setErr(e.message); }
   };
 
+  const checkHealth = async () => {
+    setHealthBusy(true); setErr("");
+    try {
+      // /auth/oidc/health 返回裸 JSON（无 code/data 包裹），data 兼容两种形态
+      const r = await api.getOidcHealth();
+      setHealth((r as any).data || r);
+    } catch (e: any) { setErr(e.message); } finally { setHealthBusy(false); }
+  };
+
   if (!isAdmin) {
     return <div className="card" style={{ borderColor: "#e57373", color: "#b03a3a" }}>仅平台管理员可访问「身份与集成」。</div>;
   }
@@ -135,8 +148,41 @@ export function IdentityPage({ isAdmin }: { isAdmin: boolean }) {
           </table>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <button className="btn" onClick={() => (window.location.href = "/setup")}>配置身份源</button>
-            <button className="btn ghost" onClick={() => window.open("/api/v1/auth/oidc/health", "_blank")}>查 OIDC 健康</button>
+            <button className="btn ghost" disabled={healthBusy} onClick={checkHealth}>
+              {healthBusy ? "检查中…" : "查 OIDC 健康"}
+            </button>
           </div>
+          {health && (
+            <div style={{
+              ...box, marginTop: 10,
+              borderColor: health.enabled === false ? "#d9cba3"
+                : health.ok ? "#b7dfc3" : "#e57373",
+              background: health.enabled === false ? "#fcfaf3"
+                : health.ok ? "#f4faf6" : "#fdf5f5",
+            }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <b style={{ fontSize: 13 }}>OIDC 健康检查</b>
+                {health.enabled === false ? (
+                  <span className="badge" style={{ background: "#fff4e0", color: "#9a6700" }}>未开启</span>
+                ) : health.ok ? (
+                  <span className="badge" style={{ background: "#e6f4ea", color: "#1b7f4b" }}>健康</span>
+                ) : (
+                  <span className="badge" style={{ background: "#fdecea", color: "#b03a3a" }}>异常</span>
+                )}
+              </div>
+              <div style={{ ...small, marginTop: 6, lineHeight: 1.7 }}>
+                {health.issuer && <div>Issuer：<span style={{ fontFamily: "ui-monospace, Consolas, monospace" }}>{String(health.issuer)}</span></div>}
+                {health.reason && <div>原因：{String(health.reason)}</div>}
+                <div style={{ color: "var(--muted)", marginTop: 2 }}>
+                  {health.enabled === false
+                    ? "去「配置身份源」填 Issuer + Client ID，或由平台管理员在 /ops/configure 配置 oidc_idp 后即可开启。"
+                    : health.ok
+                      ? "发现文档可达、JWKS 拉取成功。"
+                      : "发现文档或 JWKS 不可达，检查 issuer 网络/证书。"}
+                </div>
+              </div>
+            </div>
+          )}
           {!localReady && <div className="warn" style={{ marginTop: 10 }}>前端尚未填写 Client ID：去「配置身份源」填 Issuer + Client ID，登录页才会出现企业身份入口。</div>}
         </div>
 
