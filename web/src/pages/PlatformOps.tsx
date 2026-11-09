@@ -61,7 +61,7 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
       setMetrics(m || ""); setQuality(q.data || {}); setAdoption(ad.data || {});
       setProposals(p.data?.proposals || p.data || []);
       setGaps(g.data?.gaps || g.data || []);
-      setHandoffs(ho.data?.handoffs || ho.data || []);
+      setHandoffs(ho.data?.handoffs || ho.data?.items || []);
       setMyRole(role.data || {}); setPolicy(pol.data || {}); setTiers(ti.data || {});
       setCache(ca.data || {}); setPipeline(pl.data || {});
       setDepts(dp.data?.departments || dp.data || []);
