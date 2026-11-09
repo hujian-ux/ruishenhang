@@ -294,7 +294,7 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
         <div className="topbar">
           <button className="tool only-narrow" onClick={() => setRailOpen((v) => !v)} title="菜单">☰</button>
           <h2>{title}</h2>
-          {view === "chat" && <span className="sub">· 产出可直接下载</span>}
+          {view === "chat" && <span className="sub">· 产出可右侧预览 / 下载</span>}
           <span className="grow" />
           <div className="hint" style={{ display: "flex", alignItems: "center", gap: 6 }}
                title={gateway?.available ? `模型通道就绪（${gateway?.default_model || ""}）`

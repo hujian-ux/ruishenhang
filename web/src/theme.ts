@@ -194,7 +194,8 @@ button{font-family:inherit}
 .role-head .t{font-size:12.5px;color:var(--muted)}
 
 /* ── 对话：消息流 ── */
-.chat-shell{flex:1;min-height:0;display:flex;flex-direction:column}
+.chat-shell{flex:1;min-height:0;display:flex;flex-direction:row}
+.chat-main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .thread-scroll{flex:1;overflow-y:auto;min-height:0}
 .thread{max-width:760px;margin:0 auto;padding:8px 24px 24px}
 .msg{margin-bottom:22px;display:flex;flex-direction:column}
@@ -225,6 +226,32 @@ button{font-family:inherit}
 .artifact .meta b{display:block;font-size:12.5px;font-weight:500;color:var(--ink);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .artifact .meta span{font-size:11px;color:var(--muted)}
+.artifact.on{border-color:#9cc0f6;background:#f3f8ff;box-shadow:0 1px 6px rgba(26,95,208,.12)}
+
+/* ── 右侧看板：产出物内联预览 ── */
+.preview-pane{flex:none;width:460px;min-height:0;display:flex;flex-direction:column;
+  background:#fff;border-left:1px solid var(--line)}
+.preview-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);
+  background:#fbfbf9;font-size:13px;color:var(--ink)}
+.preview-head b{font-weight:600}
+.preview-head .p-ext{font-size:10px;font-weight:700;letter-spacing:.3px;color:#fff;background:#5b8def;
+  padding:1px 6px;border-radius:5px;font-family:var(--mono)}
+.preview-head .grow{flex:1}
+.preview-head .p-dl{font-size:12px;color:var(--blue);background:none;border:1px solid var(--line);
+  border-radius:7px;padding:3px 10px;cursor:pointer}
+.preview-head .p-dl:hover{background:#f3f8ff;border-color:#b6cff5}
+.preview-head .p-x{font-size:18px;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+.preview-head .p-x:hover{color:var(--ink)}
+.preview-body{flex:1;min-height:0;overflow:hidden;background:#f6f6f3}
+.preview-frame{width:100%;height:100%;border:0;background:#fff;display:block}
+.preview-fallback{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:24px;text-align:center;color:var(--muted)}
+.preview-fallback .pf-ico{width:54px;height:54px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:700;color:#fff;flex:none}
+.preview-fallback .pf-ico.xlsx{background:#1e7145}.preview-fallback .pf-ico.docx{background:#2b579a}
+.preview-fallback .pf-ico.pptx{background:#b7472a}.preview-fallback .pf-ico.pdf{background:#c0392b}
+.preview-fallback p{font-size:13px;margin:0;max-width:240px;line-height:1.6}
+.preview-fallback .btn{padding:8px 16px}
 
 /* ── 输入区（composer） ── */
 .composer-wrap{flex:none;padding:10px 24px 18px;background:linear-gradient(to top,#fff 62%,rgba(255,255,255,0))}
@@ -272,6 +299,8 @@ button{font-family:inherit}
 
 .only-narrow{display:none}
 @media (max-width:860px){
+  .preview-pane{position:fixed;right:0;top:0;bottom:0;width:min(460px,92vw);z-index:42;
+    box-shadow:-8px 0 30px rgba(27,27,25,.16)}
   .rail{position:fixed;left:-270px;z-index:60;height:100vh;transition:left .2s}
   .rail.open{left:0;box-shadow:0 0 0 100vmax rgba(0,0,0,.28)}
   .w-cards{grid-template-columns:minmax(0,1fr)}

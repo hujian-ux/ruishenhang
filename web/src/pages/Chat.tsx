@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { api, downloadAgentFile } from "../api/client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, downloadAgentFile, fetchAgentFile } from "../api/client";
 import { RoleChip, RoleGrid, type Role } from "../components/RolePicker";
 import { useRole } from "../role";
 
@@ -103,6 +103,27 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dlBusy, setDlBusy] = useState("");
+  // 右侧看板：点产出物卡片直接内联预览（HTML/PDF），不用先下载
+  const [preview, setPreview] = useState<{ a: any; ext: string; url: string } | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const openPreview = useCallback(async (a: any) => {
+    setDlBusy(a.file_id); setErr("");
+    try {
+      const blob = await fetchAgentFile(a.file_id);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      previewUrlRef.current = url;
+      setPreview({ a, ext: extOf(a.filename), url });
+    } catch (e: any) {
+      setErr(e.message || "预览加载失败");
+    } finally {
+      setDlBusy("");
+    }
+  }, []);
+  const closePreview = useCallback(() => {
+    if (previewUrlRef.current) { URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = null; }
+    setPreview(null);
+  }, []);
   // 打开历史对话时沿用当时选的格式，否则会出现"上次出了 5 种，这次突然只剩 Excel"
   const [formats, setFormats] = useState<string[]>(() => {
     const seen = Array.from(new Set(
@@ -265,6 +286,8 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
       }]);
       setAttachments([]);
       onSession(d.session.session_id, (text || fileNames[0] || "").slice(0, 26));
+      // 新产出自动在右侧看板打开预览，用户不必先下载
+      if (d.artifacts?.length) openPreview(d.artifacts[0]);
     } catch (e: any) {
       setErr(e.message || "执行失败，请重试");
     } finally {
@@ -287,6 +310,7 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
 
   return (
     <div className="chat-shell">
+      <div className="chat-main">
       <div className="thread-scroll" ref={boxRef}
            style={empty ? { display: "flex", flexDirection: "column", justifyContent: "center" } : undefined}>
         {empty ? (
@@ -401,14 +425,17 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                       <div className="artifacts">
                         {t.artifacts.map((a: any) => {
                           const ext = extOf(a.filename);
+                          const onPrev = preview?.a.file_id === a.file_id;
                           return (
-                            <div key={a.file_id} className="artifact" onClick={() => download(a)}
-                                 title={`${a.filename} · ${kb(a.size)}`}>
+                            <div key={a.file_id}
+                                 className={"artifact" + (onPrev ? " on" : "")}
+                                 onClick={() => openPreview(a)}
+                                 title={`${a.filename} · ${kb(a.size)} · 点击右侧预览`}>
                               <div className={"ext " + ext}>{dlBusy === a.file_id ? "…" : ext.toUpperCase()}</div>
                               <div className="meta">
                                 <b>{niceName(a.filename)}</b>
                                 <span>{dlBusy === a.file_id ? "准备中…"
-                                  : `${ext.toUpperCase()} · ${kb(a.size)} · 点击下载`}</span>
+                                  : `${ext.toUpperCase()} · ${kb(a.size)} · 点击预览`}</span>
                               </div>
                             </div>
                           );
@@ -590,9 +617,36 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
           )}
         </div>
         <div className="foot-note">
-          技能包会按自己的流程执行，产出物可直接下载。对话仅你本人可见。
+          技能包会按自己的流程执行，产出物在右侧看板直接预览，也可下载。对话仅你本人可见。
         </div>
       </div>
+      </div>
+
+      {/* 右侧看板：产出物内联预览，不用先下载 */}
+      {preview && (
+        <div className="preview-pane">
+          <div className="preview-head">
+            <b>产出预览</b>
+            <span className="p-ext">{preview.ext.toUpperCase()}</span>
+            <span className="grow" />
+            <button className="p-dl" onClick={() => download(preview.a)} title="下载原文件">下载</button>
+            <span className="p-x" onClick={closePreview} title="关闭预览">×</span>
+          </div>
+          <div className="preview-body">
+            {["html", "pdf"].includes(preview.ext) ? (
+              <iframe className="preview-frame" src={preview.url} title={preview.a.filename} />
+            ) : (
+              <div className="preview-fallback">
+                <div className={"pf-ico " + preview.ext}>{preview.ext.toUpperCase()}</div>
+                <p>该格式暂不支持内联预览，请下载后查看。</p>
+                <button className="btn blue" onClick={() => download(preview.a)}>
+                  下载 {preview.ext.toUpperCase()} 文件
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

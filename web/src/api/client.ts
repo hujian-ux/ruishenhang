@@ -299,6 +299,19 @@ export async function downloadAgentFile(fileId: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// 取文件 Blob（不触发下载）：右侧看板内联预览 HTML/PDF 用。
+export async function fetchAgentFile(fileId: string): Promise<Blob> {
+  const res = await fetch(`${BASE}/agent/files/${fileId}`, {
+    headers: token ? { Authorization: token } : {},
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+  return res.blob();
+}
+
 // 第35章选型规则（本地兜底，与后端 selection/framework.py 同源；后端不可达时使用）
 export function recommendLocal(inputType: string, deterministic: boolean, need: string): any {
   let adapter: string;
