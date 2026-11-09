@@ -13,6 +13,8 @@ dist/
 
 # Env
 .env
+.env.local
+.env.*.local
 
 # 构建/分发产物（非源码，勿入仓库）
 *.zip

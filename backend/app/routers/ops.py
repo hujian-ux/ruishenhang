@@ -7,6 +7,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 import os
+import pathlib
 
 from app.core.config import settings
 from app.deps import get_caller
@@ -44,6 +45,88 @@ def get_alerts(caller: CallerContext = Depends(get_caller)):
 
 @router.get("/readiness")
 def readiness(caller: CallerContext = Depends(get_caller)):
+    return {"code": 0, "data": observability.readiness()}
+
+
+def _apply_env(updates: dict):
+    """把配置写入 os.environ（即时影响 readiness），并同步到 settings 单例已存在的属性。"""
+    import app.core.config as cfg
+    for k, v in updates.items():
+        os.environ[k] = v
+        if hasattr(cfg.settings, k):
+            setattr(cfg.settings, k, v)
+
+
+def _persist_env(updates: dict):
+    """把配置落盘到 backend/.env.local（gitignore），重启后由 config._load_env_files 读回。
+    仅覆盖/追加本次更新的键；其它既有行（含注释）原样保留。"""
+    base = pathlib.Path(__file__).resolve().parents[2]  # backend/（app/routers/ops.py → 上溯 3 级）
+    p = base / ".env.local"
+    lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+    keys = set(updates.keys())
+    out = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            if s.split("=", 1)[0].strip() in keys:
+                continue
+        out.append(line)
+    for k, v in updates.items():
+        out.append(f"{k}={v}")
+    p.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+@router.post("/configure")
+def configure_external_input(payload: dict, caller: CallerContext = Depends(get_caller)):
+    """M27 · 平台运营台「外部输入就绪度」在线配置入口（仅 platform_admin，dev/demo 用）。
+
+    接收 {key, fields}，按就绪项类型把外部输入写入 os.environ（即时翻绿）并落盘
+    backend/.env.local（重启仍生效）。生产环境应使用密钥管理服务，不应经此端点落盘明文密钥。
+    支持：llm_key（LLM_API_KEY + 可选 base_url/model）、search_key（官方搜索 key + provider）、
+    oidc_idp（OIDC_ENABLED=1 + issuer/audience）、real_corpus（SEED_DEMO_CORPUS 模式切换）。
+    """
+    if caller.role != "platform_admin":
+        return {"code": 3, "msg": "需要平台管理员权限"}
+    key = (payload or {}).get("key")
+    fields = (payload or {}).get("fields") or {}
+    if key not in ("llm_key", "search_key", "oidc_idp", "real_corpus"):
+        return {"code": 2, "msg": "未知配置项"}
+    updates: dict = {}
+    if key == "llm_key":
+        ak = (fields.get("api_key") or "").strip()
+        if not ak:
+            return {"code": 2, "msg": "api_key 必填"}
+        updates["LLM_API_KEY"] = ak
+        if (fields.get("base_url") or "").strip():
+            updates["LLM_BASE_URL"] = fields["base_url"].strip()
+        if (fields.get("model") or "").strip():
+            updates["LLM_MODEL"] = fields["model"].strip()
+    elif key == "search_key":
+        prov = (fields.get("provider") or "tavily").strip().lower()
+        ak = (fields.get("api_key") or "").strip()
+        if not ak:
+            return {"code": 2, "msg": "api_key 必填"}
+        prov_map = {"tavily": "TAVILY_API_KEY", "bocha": "BOCHA_API_KEY",
+                    "serper": "SERPER_API_KEY", "bing": "BING_SEARCH_KEY"}
+        if prov not in prov_map:
+            return {"code": 2, "msg": "provider 须为 tavily/bocha/serper/bing"}
+        updates[prov_map[prov]] = ak
+        updates["WEB_SEARCH_PROVIDER"] = prov
+        updates["WEB_SEARCH_ENABLED"] = "1"
+    elif key == "oidc_idp":
+        iss = (fields.get("issuer") or "").strip()
+        aud = (fields.get("audience") or "").strip()
+        if not iss or not aud:
+            return {"code": 2, "msg": "issuer 与 audience 必填"}
+        updates["OIDC_ENABLED"] = "1"
+        updates["OIDC_ISSUER"] = iss
+        updates["OIDC_AUDIENCE"] = aud
+    elif key == "real_corpus":
+        enabled = bool(fields.get("enabled"))
+        # 启用真实语料模式 = 关闭演示语料（SEED_DEMO_CORPUS=0）
+        updates["SEED_DEMO_CORPUS"] = "0" if enabled else "1"
+    _apply_env(updates)
+    _persist_env(updates)
     return {"code": 0, "data": observability.readiness()}
 
 

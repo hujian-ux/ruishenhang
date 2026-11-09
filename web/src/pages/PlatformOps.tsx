@@ -24,6 +24,121 @@ function Json({ data }: { data: any }) {
   return <pre style={{ ...mono, whiteSpace: "pre-wrap", margin: 0, maxHeight: 220, overflow: "auto" }}>{JSON.stringify(data, null, 2)}</pre>;
 }
 
+function pct(v: any) { return v == null ? "—" : `${Math.round(Number(v) * 100)}%`; }
+
+function KVGrid({ rows }: { rows: [string, any][] }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      {rows.map(([k, v], i) => (
+        <div key={i} style={{ ...box, padding: 10 }}>
+          <div style={small}>{k}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--navy)", marginTop: 2 }}>{String(v)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+      <div style={{ ...small, width: 130, flexShrink: 0 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function QualityView({ q }: { q: Any }) {
+  return (
+    <div>
+      {q.insufficient_data && <span className="badge" style={{ background: "#fff4e0", color: "#9a6700" }}>样本不足（{q.window_days}天）</span>}
+      <div style={{ marginTop: 8 }}>
+        <KVGrid rows={[
+          ["样本量", q.sample_size], ["成功率", pct(q.success_rate)],
+          ["幻觉率", pct(q.hallucination_rate)], ["转人工率", pct(q.handoff_rate)],
+          ["低置信率", pct(q.low_confidence_rate)], ["满意度", q.satisfaction],
+          ["p95 延迟", q.latency_p95 != null ? `${Math.round(q.latency_p95)}ms` : "—"],
+          ["p99 延迟", q.latency_p99 != null ? `${Math.round(q.latency_p99)}ms` : "—"],
+        ]} />
+      </div>
+    </div>
+  );
+}
+
+function AdoptionView({ ad }: { ad: Any }) {
+  return (
+    <div>
+      {ad.insufficient_data && <span className="badge" style={{ background: "#fff4e0", color: "#9a6700" }}>样本不足（{ad.window_days}天）</span>}
+      <div style={{ marginTop: 8 }}>
+        <KVGrid rows={[
+          ["DAU", ad.dau], ["WAU", ad.wau],
+          ["任务完成率", pct(ad.task_completion_rate)], ["部门渗透", pct(ad.dept_penetration)],
+          ["采纳率", pct(ad.adoption_rate)], ["ROI", ad.roi],
+        ]} />
+      </div>
+      {ad.note && <div style={{ ...small, marginTop: 6 }}>{ad.note}</div>}
+    </div>
+  );
+}
+
+function PolicyView({ p }: { p: Any }) {
+  const flags: [string, any][] = [
+    ["护栏启用", p.enabled], ["严格模式", p.strict],
+    ["工具鉴权", p.tool_auth], ["输出脱敏", p.output_mask],
+  ];
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {flags.map(([k, v], i) => (
+          <span key={i} className="badge" style={v ? { background: "#e6f4ea", color: "#1b7f4b" } : { background: "#fdecea", color: "#b03a3a" }}>{k}: {v ? "开" : "关"}</span>
+        ))}
+      </div>
+      <div style={{ ...small, marginTop: 8 }}>注入规则 {p.injection_rules} · 脱敏规则 {p.masking_rules} · 最大命中 {p.max_injection_hits}</div>
+      <div style={{ ...small, marginTop: 4 }}>放行工具：{(p.allowed_tools || []).map((t: string) => `<${t}>`).join(" ") || "无"}</div>
+      {p.stats && <div style={{ ...small, marginTop: 4 }}>扫描 输入{p.stats.scan_input}/输出{p.stats.scan_output} · 接地{p.stats.grounding} · 工具{p.stats.tool_check}</div>}
+    </div>
+  );
+}
+
+function TiersView({ t }: { t: Any }) {
+  const items = [t.small, t.large].filter(Boolean);
+  return (
+    <div>
+      <div style={small}>默认 {t.default_model} · 规则路由 {t.enabled ? "开" : "关"}</div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 6 }}>
+        <tbody>{items.map((m: Any, i: number) => (
+          <tr key={i} style={{ borderTop: "1px solid var(--line)" }}>
+            <td style={{ padding: "4px" }}>{m.model}</td><td>{m.tier}</td><td>¥{m.unit_price}/次</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function CacheView({ c }: { c: Any }) {
+  return (
+    <div>
+      <KVGrid rows={[["条目", c.entries], ["命中率", pct(c.hit_rate)], ["语义层", c.semantic_layer], ["相似度", c.similarity]]} />
+      <div style={{ ...small, marginTop: 6 }}>{c.note}</div>
+    </div>
+  );
+}
+
+function PipelineView({ p }: { p: Any }) {
+  const stages: [string, Any][] = [["特征库", p.feature_store], ["训练", p.training], ["模型仓库", p.registry], ["重训钩子", p.retrain]];
+  return (
+    <div>
+      {stages.map(([n, s], i) => s && (
+        <div key={i} style={{ ...small, borderTop: "1px solid var(--line)", padding: "5px 0" }}>
+          {s.done ? "✓" : "✗"} {n} — {s.condition}
+        </div>
+      ))}
+      <div style={{ ...small, marginTop: 6 }}>已训练模型 {p.models_registered} · 数据集 {p.datasets} · 运行 {p.runs} · 全部就绪 {p.done_all ? "是" : "否"}</div>
+    </div>
+  );
+}
+
 export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
   const [err, setErr] = useState("");
   const [readiness, setReadiness] = useState<Any>({});
@@ -46,6 +161,10 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
   const [flowRun, setFlowRun] = useState<Any>({});
   const [deptName, setDeptName] = useState("华东项目组");
   const [draftName, setDraftName] = useState("部门问答助手");
+  const [cfgKey, setCfgKey] = useState("");
+  const [cfgFields, setCfgFields] = useState<Any>({});
+  const [cfgMsg, setCfgMsg] = useState("");
+  const [cfgBusy, setCfgBusy] = useState(false);
 
   const load = async () => {
     try {
@@ -77,6 +196,27 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
     catch (e: any) { setErr(e.message); }
   };
 
+  const openCfg = (k: string) => {
+    setCfgKey(k);
+    setCfgFields(k === "search_key" ? { provider: "tavily" } : k === "real_corpus" ? { enabled: false } : {});
+    setCfgMsg("");
+  };
+
+  const submitCfg = async () => {
+    if (!cfgKey) return;
+    setCfgBusy(true); setCfgMsg("");
+    try {
+      const d = await api.configureExternalInput(cfgKey, cfgFields);
+      if (d.code === 0) {
+        setCfgMsg("OK：已写入并落盘 .env.local，就绪度已刷新（重启仍生效）");
+        await load();
+      } else {
+        setCfgMsg("失败：" + (d.msg || "未知错误"));
+      }
+    } catch (e: any) { setCfgMsg("失败：" + e.message); }
+    setCfgBusy(false);
+  };
+
   const readyItems: Any = readiness.items || readiness.checks || readiness;
   const readyList = Array.isArray(readyItems) ? readyItems : Object.entries(readyItems).map(([k, v]) => ({ key: k, ...(v as Any) }));
   const notReady = readyList.filter((x: Any) => x.configured === false || x.status === "not_ready").length;
@@ -105,16 +245,68 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
           <div style={small}>configured 只表示检测到配置，不代表验收通过；免费网页源不算生产就绪。</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 8 }}>
             <thead><tr style={{ textAlign: "left", color: "var(--muted)" }}>
-              <th style={{ padding: "6px 4px" }}>项</th><th>状态</th><th>说明</th></tr></thead>
+              <th style={{ padding: "6px 4px" }}>项</th><th>状态</th><th>说明</th><th>操作</th></tr></thead>
             <tbody>{readyList.map((x: Any, i: number) => (
               <tr key={i} style={{ borderTop: "1px solid var(--line)" }}>
                 <td style={{ padding: "6px 4px" }}>{x.key || x.name || x.id}</td>
                 <td style={{ color: x.configured === false ? "#b03a3a" : "#1b7f4b" }}>
                   {x.configured === false ? "未就绪" : (x.status || "已配置/待验收")}</td>
                 <td style={{ ...small }}>{x.note || x.verify_command || ""}</td>
+                <td style={{ padding: "6px 4px" }}>
+                  {x.configured === false && x.key && (
+                    <button className="btn" onClick={() => openCfg(x.key)}>配置</button>
+                  )}
+                </td>
               </tr>
             ))}</tbody>
           </table>
+          {cfgKey && (
+            <div style={{ ...box, marginTop: 10, borderColor: "#1b7f4b" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <b>在线配置：{cfgKey}</b>
+                <button className="btn" onClick={() => setCfgKey("")}>关闭</button>
+              </div>
+              {cfgKey === "llm_key" && (
+                <>
+                  <Field label="API Key"><input className="field" type="password" value={cfgFields.api_key || ""} onChange={(e) => setCfgFields({ ...cfgFields, api_key: e.target.value })} style={{ width: 320 }} /></Field>
+                  <Field label="Base URL（可选）"><input className="field" value={cfgFields.base_url || ""} onChange={(e) => setCfgFields({ ...cfgFields, base_url: e.target.value })} style={{ width: 320 }} /></Field>
+                  <Field label="模型（可选）"><input className="field" value={cfgFields.model || ""} onChange={(e) => setCfgFields({ ...cfgFields, model: e.target.value })} style={{ width: 320 }} /></Field>
+                </>
+              )}
+              {cfgKey === "search_key" && (
+                <>
+                  <Field label="Provider">
+                    <select className="field" value={cfgFields.provider || "tavily"} onChange={(e) => setCfgFields({ ...cfgFields, provider: e.target.value })}>
+                      <option value="tavily">tavily</option>
+                      <option value="bocha">bocha</option>
+                      <option value="serper">serper</option>
+                      <option value="bing">bing</option>
+                    </select>
+                  </Field>
+                  <Field label="API Key"><input className="field" type="password" value={cfgFields.api_key || ""} onChange={(e) => setCfgFields({ ...cfgFields, api_key: e.target.value })} style={{ width: 320 }} /></Field>
+                </>
+              )}
+              {cfgKey === "oidc_idp" && (
+                <>
+                  <Field label="Issuer"><input className="field" value={cfgFields.issuer || ""} onChange={(e) => setCfgFields({ ...cfgFields, issuer: e.target.value })} style={{ width: 320 }} /></Field>
+                  <Field label="Audience"><input className="field" value={cfgFields.audience || ""} onChange={(e) => setCfgFields({ ...cfgFields, audience: e.target.value })} style={{ width: 320 }} /></Field>
+                </>
+              )}
+              {cfgKey === "real_corpus" && (
+                <Field label="真实语料模式">
+                  <label style={{ fontSize: 13 }}>
+                    <input type="checkbox" checked={!!cfgFields.enabled} onChange={(e) => setCfgFields({ ...cfgFields, enabled: e.target.checked })} />
+                    {" "}启用真实语料（关闭演示语料）
+                  </label>
+                </Field>
+              )}
+              {cfgMsg && <div style={{ ...small, color: cfgMsg.startsWith("OK") ? "#1b7f4b" : "#b03a3a", marginTop: 8 }}>{cfgMsg}</div>}
+              <button className="btn" style={{ marginTop: 10 }} disabled={cfgBusy} onClick={submitCfg}>
+                {cfgBusy ? "保存中…" : "保存并刷新就绪度"}
+              </button>
+              <div style={{ ...small, marginTop: 6 }}>仅 platform_admin 可操作；明文密钥落盘 backend/.env.local（gitignore），生产应改用密钥管理服务。</div>
+            </div>
+          )}
         </div>
 
         <div className="card">
@@ -124,16 +316,18 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
             <span className="badge">留存 {health.retention_days ?? "—"} 天</span>
             <span className="badge">告警 {alerts.length}</span>
           </div>
-          <div style={small}>Prometheus 指标（/ops/metrics）</div>
-          <pre style={{ ...mono, background: "var(--soft)", padding: 8, borderRadius: 6, maxHeight: 130, overflow: "auto" }}>{metrics.slice(0, 900) || "（无数据）"}</pre>
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ ...small, cursor: "pointer" }}>Prometheus 原始指标（/ops/metrics，供 Grafana 抓取）</summary>
+            <pre style={{ ...mono, background: "var(--soft)", padding: 8, borderRadius: 6, maxHeight: 160, overflow: "auto", marginTop: 6 }}>{metrics.slice(0, 1200) || "（无数据）"}</pre>
+          </details>
           <div style={small}>告警阈值：错误率 1% / p95 3000ms / 模型 429 突增。样本不足时不报。</div>
         </div>
 
         <div className="card">
           <h3>③ 质量与运营度量（第 28/30/41 章）</h3>
           <div className="grid2">
-            <div style={box}><div style={small}>质量指标</div><Json data={quality.insufficient_data ? { insufficient_data: true, ...quality } : quality} /></div>
-            <div style={box}><div style={small}>采纳度 / ROI</div><Json data={adoption.insufficient_data ? { insufficient_data: true, ...adoption } : adoption} /></div>
+            <div style={box}><div style={small}>质量指标</div><QualityView q={quality} /></div>
+            <div style={box}><div style={small}>采纳度 / ROI</div><AdoptionView ad={adoption} /></div>
           </div>
           <div style={{ ...small, marginTop: 8 }}>空数据一律 0 + insufficient_data，不编造 DAU / ROI。</div>
         </div>
@@ -164,7 +358,7 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
           <h3>⑤ 人工工单与安全策略（第 27/42/44 章）</h3>
           <div style={small}>岗位来源：{myRole.source || "—"} · {myRole.role || "未配置"}（enforced={String(!!myRole.enforced)}）</div>
           <div style={{ ...small, marginTop: 4 }}>护栏开关</div>
-          <Json data={policy} />
+          <PolicyView p={policy} />
           <div style={{ ...small, marginTop: 8 }}>工单 {handoffs.length} 条</div>
           {(handoffs || []).slice(0, 4).map((h: Any) => (
             <div key={h.id} style={{ display: "flex", gap: 8, alignItems: "center", borderTop: "1px solid var(--line)", padding: "5px 0", fontSize: 13 }}>
@@ -177,11 +371,11 @@ export function PlatformOpsPage({ isAdmin }: { isAdmin: boolean }) {
         <div className="card">
           <h3>⑥ 成本 / 缓存 / MLOps（第 34/38/40 章）</h3>
           <div className="grid2">
-            <div style={box}><div style={small}>模型分档</div><Json data={tiers} /></div>
-            <div style={box}><div style={small}>语义缓存</div><Json data={cache} /></div>
+            <div style={box}><div style={small}>模型分档</div><TiersView t={tiers} /></div>
+            <div style={box}><div style={small}>语义缓存</div><CacheView c={cache} /></div>
           </div>
           <div style={{ ...small, marginTop: 8 }}>MLOps 流水线状态（骨架不冒充已训练）</div>
-          <Json data={pipeline} />
+          <PipelineView p={pipeline} />
         </div>
       </div>
 

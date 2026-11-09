@@ -1,5 +1,26 @@
 """运行时配置：从环境变量读取，提供默认值，无额外依赖。"""
 import os
+import pathlib
+
+def _load_env_files():
+    """启动期把 .env / .env.local 注入 os.environ。
+    .env.local 优先级最高（覆盖 .env 与已存在的变量），用于平台运营台在线配置入口
+    落盘后重启仍生效。本函数仅影响 os.environ；Settings 在下方类定义时读取快照。"""
+    base = pathlib.Path(__file__).resolve().parents[2]  # backend/（app/core/config.py → 上溯 3 级）
+    for name in (".env", ".env.local"):
+        p = base / name
+        if not p.exists():
+            continue
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip().strip('"').strip("'")
+            if name == ".env.local" or k not in os.environ:
+                os.environ[k] = v
+
+_load_env_files()
 
 def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)

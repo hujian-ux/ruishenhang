@@ -244,6 +244,8 @@ export const api = {
 
   // ── M27：蓝图缺口收口 ──
   getReadiness: () => req<any>("GET", "/ops/readiness"),
+  configureExternalInput: (key: string, fields: Record<string, any>) =>
+    req<any>("POST", "/ops/configure", { key, fields }),
   getOpsHealth: () => req<any>("GET", "/ops/health"),
   getOpsAlerts: () => req<any>("GET", "/ops/alerts"),
   getOpsMetrics: () => fetch(`${BASE}/ops/metrics`, {
