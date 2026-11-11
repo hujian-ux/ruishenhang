@@ -343,6 +343,59 @@ def sample_bytes(rel_or_name: str, source_path: str) -> Optional[bytes]:
 _BULLET = re.compile(r"^\s*(?:[-*+·]|\d+[.、)）]|[（(]\d+[）)])\s*")
 _CJK = re.compile(r"[\u4e00-\u9fff]")
 
+# ---- 输入清单的表格解析 ------------------------------------------------
+# 大多数包用表格列输入（`| 序号 | 文件 | 关键字段 |`）。旧实现「取表格首列当条目」
+# 在有「序号」列时会把清单变成 ['序号','01','02',…]，前端等于没告诉用户要给什么。
+# 这里按表头选列：优先命中文件/材料类字样、且该列不是纯序号的列。
+_COL_HINTS = ("文件", "材料", "数据", "输入项", "名称", "输入", "文档", "清单", "项")
+_ORDINAL_CELL = re.compile(r"^(?:#|序号|\d{1,2}|[一二三四五六七八九十]{1,3})$")
+
+
+def _cells(line: str) -> List[str]:
+    return [re.sub(r"[`*]", "", c).strip() for c in line.strip().strip("|").split("|")]
+
+
+def _is_sep_row(cells: List[str]) -> bool:
+    return bool(cells) and all(set(c) <= set("-: ") for c in cells)
+
+
+def _ordinal_ratio(rows: List[List[str]], i: int) -> float:
+    vals = [r[i] for r in rows if i < len(r) and r[i]]
+    if not vals:
+        return 1.0
+    return sum(1 for v in vals if _ORDINAL_CELL.match(v)) / len(vals)
+
+
+def _pick_col(header: List[str], body: List[List[str]]) -> int:
+    for i, h in enumerate(header):
+        if any(k in h for k in _COL_HINTS) and _ordinal_ratio(body, i) < 0.5:
+            return i
+    for i in range(len(header)):
+        if _ordinal_ratio(body, i) < 0.5:
+            return i
+    return -1
+
+
+def _table_items(block: List[str]) -> List[str]:
+    """把一个连续表格块拆成条目（取正确的那一列）。"""
+    rows = [_cells(l) for l in block]
+    rows = [r for r in rows if r and not _is_sep_row(r)]
+    if len(rows) < 2:
+        return []
+    header, body = rows[0], rows[1:]
+    idx = _pick_col(header, body)
+    if idx < 0:
+        return []
+    out: List[str] = []
+    for r in body:
+        if idx >= len(r):
+            continue
+        v = r[idx].strip()
+        if not v or _ORDINAL_CELL.match(v) or v == header[idx]:
+            continue
+        out.append(v)
+    return out
+
 
 def checklist(agent: Dict[str, Any], limit: int = 12) -> List[str]:
     """技能的输入清单（要用户给什么）。
@@ -364,17 +417,31 @@ def checklist(agent: Dict[str, Any], limit: int = 12) -> List[str]:
         text = agent.get("inputs_contract") or ""
 
     items: List[str] = []
+    table_block: List[str] = []
+
+    def flush_table():
+        nonlocal table_block
+        if table_block:
+            for v in _table_items(table_block):
+                if v and v not in items:
+                    items.append(v[:80])
+            table_block = []
+
     for raw in text.split("\n"):
         line = raw.strip()
-        if not line or line.startswith("#") or set(line) <= set("-|: "):
+        if line.startswith("|"):
+            table_block.append(line)
             continue
-        if line.startswith("|"):        # 表格行：取首列当条目
-            cells = [c.strip() for c in line.strip("|").split("|")]
-            line = cells[0] if cells else ""
-            if not line or set(line) <= set("-: "):
-                continue
+        flush_table()
+        if not line or line.startswith("#") or line.startswith(">"):
+            # 标题与引用块不是"要给什么"；引用块多是「缺 X 就必须拒绝」的红线，
+            # 它随整段输入契约进提示词，不该塞进清单
+            continue
+        if set(line) <= set("-|: "):
+            continue
         line = _BULLET.sub("", line).strip(" 　")
         line = re.sub(r"\*\*|`", "", line).strip()
         if line and line not in items:
             items.append(line[:80])
+    flush_table()
     return items[:limit]

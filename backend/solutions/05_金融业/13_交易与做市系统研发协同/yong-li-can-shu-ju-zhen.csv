@@ -1,0 +1,21 @@
+﻿序号,接口名称,场景类型,会话参数组合,输入要点,预期行为要点
+1,queryMarketTradableVolume,正常,marketSession=AU,bondCode=240011; marketId=XSHE; depthLevel=10,返回可成交量与十档市场深度
+2,queryMarketTradableVolume,边界,marketSession=AU,bondCode=240011; marketId=XSHE; depthLevel=20,深度档位取上限时仍返回完整档位
+3,queryMarketTradableVolume,异常,marketSession=（空）,bondCode=240011; marketId=XSHE,缺失会话参数返回会话未建立错误
+4,submitTradeOrder,正常,sessionToken=T01; account=A103,bondCode=240011; side=BUY; price=99.85; volume=100,返回指令编号与受理状态
+5,submitTradeOrder,边界,sessionToken=T01; account=A103,bondCode=240011; side=BUY; price=99.85; volume=0,数量为零返回参数校验失败
+6,submitTradeOrder,异常,sessionToken=（过期）,bondCode=240011; side=SELL; price=99.90; volume=50,会话令牌过期返回重新认证错误
+7,cancelTradeOrder,正常,sessionToken=T01,orderId=ORD-20260915-001,撤销成功返回已撤销状态
+8,cancelTradeOrder,异常,sessionToken=T02,orderId=ORD-20260915-999,指令不存在返回未找到错误
+9,queryBondPosition,正常,marketSession=AU,bondCode=240011; account=A103,返回持仓明细列表与计数
+10,queryBondPosition,边界,marketSession=AU,account=A103（无持仓）,空持仓返回空列表与零计数
+11,calcBondPnL,正常,无,bondCode=240011; clearSeq=CS-03,按清盘顺序返回单券损益明细
+12,calcBondPnL,异常,无,bondCode=（不存在）; clearSeq=CS-03,债券代码无效返回参数错误
+13,aggregateBondPnl,正常,无,clearSeq=CS-03; groupBy=债券代码,按清盘顺序排序汇总各券损益
+14,aggregateBondPnl,边界,无,clearSeq=CS-03; groupBy=（空）,分组维度缺省时按清盘顺序逐笔汇总
+15,generateConfirmation,正常,sessionToken=T01,tradeId=TRD-88231; templateId=STD-BOND,生成确认书并返回下载地址
+16,generateConfirmation,异常,sessionToken=（空）,tradeId=TRD-88231; templateId=STD-BOND,缺失会话令牌返回会话未建立错误
+17,updateCacheValue,正常,sessionProfile=PROFILE-A,cacheKey=pos:240011; valuePayload=结构化JSON,结构化载荷直传写入成功无中间类型转换
+18,updateCacheValue,边界,sessionProfile=PROFILE-A,cacheKey=pos:240011; valuePayload=（超长载荷）,载荷超限返回截断告警并拒绝写入
+19,batchImportCases,正常,sessionProfile=PROFILE-A,caseList=20条用例清单,逐条导入并回显会话配置内容
+20,batchImportCases,异常,sessionProfile=（不匹配）,caseList=20条用例清单,会话配置不匹配时导入前校验失败

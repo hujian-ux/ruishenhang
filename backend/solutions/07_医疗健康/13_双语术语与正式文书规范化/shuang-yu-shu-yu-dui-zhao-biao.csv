@@ -1,0 +1,26 @@
+﻿术语编号,中文术语,现行英文译法,标准英文译法,缩写,影响文书,备注
+T01,不良事件,adverse event,adverse event,AE,注册申请函;说明信,ICH 口径基础术语
+T02,药物警戒,Pharmacovigilance,pharmacovigilance,PV,说明信,正文语境应小写，标题场景按 Title Case
+T03,说明书,specification,prescribing information,,注册申请函,处方信息文件的标准称谓
+T04,适应症,indications,indications,,注册申请函,说明书章节标准复数形式
+T05,禁忌,contraindication,contraindications,,注册申请函,说明书章节标准复数形式
+T06,用法用量,dosage and administration,Dosage and Administration,,注册申请函,作为章节标题时用 Title Case
+T07,治疗期间不良事件,treatment emergent adverse event,treatment-emergent adverse event,TEAE,说明信,标准书写带连字符
+T08,严重不良事件,serious adverse event,serious adverse event,SAE,说明信,ICH 口径基础术语
+T09,总生存期,overall survival,overall survival,OS,月度汇报标题,首次出现给全称与缩写
+T10,无进展生存期,progression-free survival,progression-free survival,PFS,月度汇报标题,首次出现给全称与缩写
+T11,客观缓解率,objective response rate,objective response rate,ORR,月度汇报标题,首次出现给全称与缩写
+T12,市场准入,market access,market access,,说明信,正文语境小写
+T13,提交,submission,regulatory submission,,注册申请函,注册语境需限定词
+T14,补充申请,supplemental application,supplementary application,,注册申请函,依公司术语库统一为后者
+T15,风险管理计划,risk management plan,risk management plan,RMP,说明信,缩写首次出现给全称
+T16,质量源于设计,quality by design,quality by design,QbD,说明信,正文小写，缩写保留
+T17,上市后承诺,post-marketing commitment,postmarketing commitment,PMC,注册申请函,标准书写不带连字符
+T18,上市后要求,postmarketing requirement,postmarketing requirement,PMR,注册申请函,标准书写不带连字符
+T19,参考制剂,reference product,reference listed drug,RLD,注册申请函,依公司术语库统一为后者，需医学事务确认
+T20,生物等效性,bioequivalence,bioequivalence,BE,说明信,口径一致
+T21,治疗窗口,therapeutic index,therapeutic window,,说明信,两术语语义不同属错译，需医学事务确认
+T22,给药途径,administration route,route of administration,,注册申请函,标准语序
+T23,最大耐受剂量,maximum tolerated dose,maximum tolerated dose,MTD,说明信,口径一致
+T24,剂型,dosage form,dosage form,,注册申请函,口径一致
+T25,稳定性研究,stability study,stability study,,注册申请函,口径一致

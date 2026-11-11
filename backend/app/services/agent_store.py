@@ -144,18 +144,28 @@ def has_business_agents() -> bool:
     )
 
 
+_BOOTSTRAP_KEY = "bootstrap/solutions"
+
+
+def _seeded_sources() -> set:
+    """已灌过的包源相对路径集合（PG 持久；内存模式为空，重启会全量重灌）。"""
+    st = pg_store.get_state(_BOOTSTRAP_KEY) or {}
+    return set(st.get("seeded") or [])
+
+
 def bootstrap_solutions(root: str = "") -> int:
-    """首次启动自修复：把仓库内置的 115 包源直接注册为 published（幂等）。
+    """启动补齐：把仓库内置包源注册为 published（增量、幂等）。
 
     解决「客户本地装/重启后业务包为空 → 岗位选择器无选项」的交付硬伤：
-    - 仅当业务包为空时由 lifespan 调用，已存在（同 source_path）则跳过，可重复安全运行；
+    - M53 前是「空库才灌」；技能库从 115 扩到 203 后，老部署升级上来永远是 115，
+      新行业看不见。改成**按包源增量补**：没灌过的补进去，灌过的原样不动
+      （客户改过的 few-shot / 提示词 / 审批状态不会被覆盖）。
+    - 灌过哪些记在 app_state，**管理员主动删掉的包不会随重启复活**。
     - 平台自带资产 tenant_id 留空（PLATFORM_TENANT），全租户可见；
     - 直接 published（vendor 随产品交付的种子包，非用户提交，无需走审批）。
 
-    返回新建数量。
+    返回本次新建数量。
     """
-    if has_business_agents():
-        return 0
     try:
         from scripts.import_solutions import SOLUTIONS_ROOT, scan  # 延迟导入，避免循环依赖
         from app.routers.agents import _new_agent_id
@@ -169,12 +179,19 @@ def bootstrap_solutions(root: str = "") -> int:
     defs = scan(root)
     if not defs:
         return 0
+    seeded = _seeded_sources()
+    before = len(seeded)
+    existing_sources = {a.get("source_path") for a in _AGENTS.values() if a.get("source_path")}
     created = 0
     for d in defs:
+        src = d["source"]
+        if src in seeded:
+            continue  # 灌过就不碰（含管理员已下架/删除的）
+        if src in existing_sources:
+            # M50~M52 灌的老数据没有 marker：认下来补记，不重写（保留已有 few-shot 等）
+            seeded.add(src)
+            continue
         agent_id = _new_agent_id(d["name"])  # 与 HTTP 导入同源（含中文名 uuid 兜底），保证幂等一致
-        exist = _AGENTS.get(agent_id)
-        if exist and exist.get("source_path") == d["source"]:
-            continue  # 幂等：同来源已存在
         save({
             "agent_id": agent_id,
             "name": d["name"],
@@ -195,7 +212,10 @@ def bootstrap_solutions(root: str = "") -> int:
             "inputs_contract": d["inputs_contract"],
             "outputs_contract": d["outputs_contract"],
         })
+        seeded.add(src)
         created += 1
+    if created or len(seeded) > before:
+        pg_store.put_state(_BOOTSTRAP_KEY, {"seeded": sorted(seeded)})
     return created
 
 
@@ -338,6 +358,14 @@ INDUSTRY_NOTE: Dict[str, str] = {
     "零售": "门店运营、会员分层、爆品选品、社群触达",
     "跨境电商": "选品验证、多平台上架、PPC 利润、FBA 申诉",
     "办公角色": "不分行业：HR、行政、财务、销售的日常活",
+    # M53 扩容：115 → 203，新增 7 个行业板块
+    "金融业": "对公客群、监管报送、资产负债、渠道费用",
+    "教育培训": "考情分析、讲义生产、校区经营、投放复盘",
+    "医疗健康": "区域经营、合规文本、集采应对、学术资料",
+    "电信业": "投标材料、营服报表、终端库存、数据平台",
+    "能源化工": "工艺安全、环保监测、生产台账、集团口径",
+    "汽车产业": "数据治理、供需平衡、供应商审核、车载软件",
+    "泛互联网": "经营看板、口径纠偏、内容批量生产、自动化",
 }
 # 展示名：category_cn 是数据真值（筛选/接口都用它），这里只换前端看到的字。
 INDUSTRY_LABEL: Dict[str, str] = {
@@ -448,8 +476,8 @@ def catalog(caller, role: str = "") -> Dict[str, Any]:
                 for s, g in sorted(v["groups"].items())
             ],
         })
-    # 行业排序：具体行业在前、通用在后；同组按名称稳定排序
-    cats.sort(key=lambda c: (1 if c["universal"] else 0, c["category_cn"]))
+    # 行业排序：具体行业在前、通用在后；同组按包数降序（内容最厚的先看见），再按名称稳定
+    cats.sort(key=lambda c: (1 if c["universal"] else 0, -c["count"], c["category_cn"]))
     public = [ brief(a) for a in sorted(
         (a for a in rows if is_public(a)), key=lambda a: a.get("sort", 99)) ]
     roles = role_map.catalog(rows)

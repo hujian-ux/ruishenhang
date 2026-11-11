@@ -86,11 +86,12 @@ async def lifespan(app: FastAPI):
     usage_store.load_from_pg()   # M7：重启后账单不清零
     kb_store.load_from_pg()      # M8：试点灌进来的语料重启不清零
     agent_store.load_from_pg()   # M15：注册的智能体/技能包重启不清零
-    # 首次启动自修复：业务技能包为空（全新部署/内存模式重启）且仓库内置源存在时，
-    # 自动灌入 115 包并置 published，确保客户开箱即有岗位可选、无需手工 seed。幂等。
+    # 启动补齐：把仓库内置的技能包源注册为 published（增量、幂等）。
+    # 全新部署 → 灌满全部包；老部署升级 → 只补新增的（M53 技能库从 115 扩到 203）；
+    # 管理员删掉的包不会复活（已灌清单持久在 app_state）。
     seeded = agent_store.bootstrap_solutions()
     if seeded:
-        print(f"[bootstrap] 自动灌入 {seeded} 个业务技能包（仓库内置 115 包源）", flush=True)
+        print(f"[bootstrap] 补入 {seeded} 个业务技能包（仓库内置包源）", flush=True)
     agent_store.ensure_builtin_assistant()  # 内置通用助手：新用户开口即可提问
     agent_store.ensure_approval_assistant()  # M46 平台级审批助手（辅助层，只建议不落账）
     agent_store.ensure_public_skills()      # 公共库：文案/PPT/表格等办公基础技能（9 条，不进 115 口径）

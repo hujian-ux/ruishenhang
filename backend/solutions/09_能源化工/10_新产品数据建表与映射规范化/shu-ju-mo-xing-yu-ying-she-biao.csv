@@ -1,0 +1,26 @@
+﻿字段编号,字段名,数据类型,老系统对应字段,建表DDL要点,映射结果,缺口处理
+F01,product_model,VARCHAR(64),prod_code,NOT NULL；唯一索引 uk_product_model；COMMENT 标注型号编码规则,直接对齐,无缺口；核对通过，登记映射关系
+F02,product_name,VARCHAR(128),prod_name,NOT NULL；COMMENT 注明中英文混合命名口径,直接对齐,无缺口；核对通过，登记映射关系
+F03,form_factor,ENUM,prod_form,"ENUM(2U机架,4U机架,多节点,高密度)；DEFAULT NULL；COMMENT 附编码对照 2U→2U机架/4U→4U机架/MD→多节点/HD→高密度",归一转换（枚举统一）,枚举编码对照表统一：老编码逐值映射到新值域，对照关系写入 COMMENT
+F04,platform_series,VARCHAR(64),platform,DEFAULT NULL；索引 idx_platform_series 便于按平台筛选,直接对齐,无缺口；核对通过，登记映射关系
+F05,cpu_socket_count,TINYINT,cpu_desc,TINYINT UNSIGNED；CHECK(1<=值<=8)；COMMENT 注明换算 单路=1/双路=2/四路=4,归一转换（类型转换）,入库前按固定规则转换：剥离单位文本/换算固定单位，转换规则写入 COMMENT
+F06,cpu_model,VARCHAR(128),cpu_type,DEFAULT NULL；与 F05 分列存储，不再共用文本字段,直接对齐,无缺口；核对通过，登记映射关系
+F07,memory_slot_count,TINYINT,mem_slots,TINYINT UNSIGNED；CHECK(值>=0),直接对齐,无缺口；核对通过，登记映射关系
+F08,max_memory_capacity_gb,INT,mem_cap,INT UNSIGNED；单位 GB 固化进字段名；COMMENT 注明 1TB=1024GB 换算,归一转换（类型转换）,入库前按固定规则转换：剥离单位文本/换算固定单位，转换规则写入 COMMENT
+F09,drive_bay_count,TINYINT,disk_bays,TINYINT UNSIGNED；CHECK(值>=0),直接对齐,无缺口；核对通过，登记映射关系
+F10,drive_form_factor,ENUM,disk_spec,"ENUM(2.5寸,3.5寸,混合)；COMMENT 附老系统混合标注的归一口径",归一转换（枚举统一）,枚举编码对照表统一：老编码逐值映射到新值域，对照关系写入 COMMENT
+F11,psu_power_w,INT,psu_power,INT UNSIGNED；单位 W 固化进字段名；入库前剥离文本单位,归一转换（类型转换）,入库前按固定规则转换：剥离单位文本/换算固定单位，转换规则写入 COMMENT
+F12,psu_redundancy,ENUM,psu_redun,"ENUM(无冗余,1+1冗余,CRPS)；COMMENT 附老系统冗余编码对照表",归一转换（枚举统一）,枚举编码对照表统一：老编码逐值映射到新值域，对照关系写入 COMMENT
+F13,nic_port_count,TINYINT,nic_ports,TINYINT UNSIGNED；CHECK(值>=0),直接对齐,无缺口；核对通过，登记映射关系
+F14,pcie_slot_count,TINYINT,无对应字段,TINYINT UNSIGNED；CHECK(值>=0)；新平台先建并登记缺口,老系统缺失（待补建）,新平台先建并登记缺口，待老系统补建后回填映射
+F15,cooling_type,ENUM,cool_flag,"ENUM(风冷,液冷,风液混合)；COMMENT 注明由标记位升级为枚举",归一转换（枚举统一）,枚举编码对照表统一：老编码逐值映射到新值域，对照关系写入 COMMENT
+F16,fan_module_count,TINYINT,fan_mods,TINYINT UNSIGNED；CHECK(值>=0),直接对齐,无缺口；核对通过，登记映射关系
+F17,rated_voltage,VARCHAR(32),volt_range,VARCHAR(32)；格式统一为「200-240V」区间式；COMMENT 注明区间语义,归一转换（类型转换）,入库前按固定规则转换：剥离单位文本/换算固定单位，转换规则写入 COMMENT
+F18,bmc_model,VARCHAR(64),bmc_ver,DEFAULT NULL；COMMENT 注明与固件版本字段解耦,直接对齐,无缺口；核对通过，登记映射关系
+F19,management_port,ENUM,无对应字段,"ENUM(专用带外口,共享网卡口)；新平台先建并登记缺口",老系统缺失（待补建）,新平台先建并登记缺口，待老系统补建后回填映射
+F20,operating_temp_min_c,TINYINT,无对应字段,TINYINT；CHECK(-40<=值<=55)；与 F21 联合校验 min<=max,老系统缺失（待补建）,新平台先建并登记缺口，待老系统补建后回填映射
+F21,operating_temp_max_c,TINYINT,temp_max,TINYINT；CHECK(-40<=值<=55)；与 F20 联合校验 min<=max,直接对齐,无缺口；核对通过，登记映射关系
+F22,noise_level_db,"DECIMAL(4,1)",无对应字段,"DECIMAL(4,1)；DEFAULT NULL；COMMENT 注明仅风冷机型登记",老系统缺失（待补建）,新平台先建并登记缺口，待老系统补建后回填映射
+F23,cert_list,VARCHAR(256),无对应字段,VARCHAR(256)；DEFAULT NULL；多认证以分号分隔,老系统缺失（待补建）,新平台先建并登记缺口，待老系统补建后回填映射
+F24,launch_status,ENUM,status_code,"ENUM(规划中,试产,已上市,停产)；DEFAULT 规划中；COMMENT 附状态流转口径",直接对齐,无缺口；核对通过，登记映射关系
+F25,warranty_years,TINYINT,warranty,TINYINT UNSIGNED；CHECK(1<=值<=10)；COMMENT 注明按商务合同口径,直接对齐,无缺口；核对通过，登记映射关系

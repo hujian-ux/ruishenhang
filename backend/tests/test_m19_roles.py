@@ -1,13 +1,14 @@
 """M19 · 职业工作台。
 
-背景：115 个技能包原来只按行业分（制造业/零售/跨境/办公角色）。员工是按岗位找工具的
-——财务不会先想"我属于哪个行业"。故新增职业维度，作为技能库的一级入口。
+背景：技能包原来只按行业分（制造业/零售/跨境/办公角色）。M53 起扩到 203 个、
+11 个行业，但员工是按岗位找工具的——财务不会先想"我属于哪个行业"。故职业维度
+作为技能库的一级入口。
 
 这一层要守住的四件事：
-1. 115 个包必须全部有职业归属，不允许出现"其他"黑洞（映射表漏了会静默丢包）
+1. 全部包都必须有职业归属，不允许出现"其他"黑洞（映射表漏了会静默丢包）
 2. 职业是**横切标签**，不替代行业：一个包可挂多个职业，主职业唯一
 3. 选中职业要先给 core（4 个开箱即用），再给全部，不能一上来摊 20 个
-4. 行业视角与 115 口径不能变（老接口、老看板还在用）
+4. 行业视角与包数口径不能变（老接口、老看板还在用）
 """
 from fastapi.testclient import TestClient
 import pytest
@@ -32,13 +33,22 @@ def _isolate_store():
     agent_store._AGENTS.update(backup)
 
 
-def _seed_all(scope: str = "global"):
-    """把 115 个包按真实解析结果灌进 store（模拟 M15 导入后的状态）。"""
+def _scan():
+    """包总数以导入器扫描为准，不在测试里写死（M53：115 → 203）。"""
     import os
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts"))
     from import_solutions import scan
-    for i, d in enumerate(scan()):
+    return scan()
+
+
+def _total() -> int:
+    return len(_scan())
+
+
+def _seed_all(scope: str = "global"):
+    """把全部包按真实解析结果灌进 store（模拟 M15 导入后的状态）。"""
+    for i, d in enumerate(_scan()):
         agent_store.save({
             "agent_id": f"ag_r{i:03d}",
             "name": d["name"],
@@ -54,9 +64,10 @@ def _seed_all(scope: str = "global"):
 
 
 def test_mapping_covers_every_pack():
-    """115 条全部有职业；核心包归属正确（validate 会把错配直接点出来）。"""
+    """全部包都有职业；核心包归属正确（validate 会把错配直接点出来）。"""
     assert role_map.validate() == []
-    assert len(role_map.PACK_ROLES) == 115
+    # 映射表条数必须等于实际包数：漏登记会静默落到兜底岗，数字对不上就该红
+    assert len(role_map.PACK_ROLES) == _total()
     # 每个职业的 4 个 core 都是真实存在的包名
     for rid, packs in role_map.ROLE_CORE.items():
         assert len(packs) == 4, f"{rid} 的核心包应恰好 4 个"
@@ -82,9 +93,9 @@ def test_catalog_exposes_roles_alongside_industry():
     data = r.json()["data"]
     assert data["categories"], "行业视角不能因新维度而消失"
     assert data["roles"], "职业视角必须有内容"
-    assert data["total"] == 115
+    assert data["total"] == _total()
     # 每个包只归一个主职业，故职业计数之和必须等于总包数（不能重复计数）
-    assert data["role_total"] == 115
+    assert data["role_total"] == _total()
     names = [x["name"] for x in data["roles"]]
     assert "财务" in names and "人事" in names and "销售" in names
 
@@ -119,24 +130,24 @@ def test_employee_sees_published_skill_library():
     """普通员工必须能看到技能库。
 
     回归用例：M15 批量导入写的是 scope=department + 导入人部门，结果销售部员工
-    看到「0 个业务技能包 · 0 个岗位」，而管理员看到 115 个。之前所有演示都用管理员
+    看到「0 个业务技能包 · 0 个岗位」，而管理员能看到全部。之前所有演示都用管理员
     身份，所以这个问题藏了很久。技能库是公司资产，不该是导入人所在部门的私产。
     """
     _seed_all()
     r = client.get("/api/v1/agents/roles", headers=EMP)
     assert r.status_code == 200
     d = r.json()["data"]
-    assert d["total"] == 115, "员工不该因为部门不同而看不到技能库"
+    assert d["total"] == _total(), "员工不该因为部门不同而看不到技能库"
     assert len(d["roles"]) == len(role_map.ROLES)
     # 行业视角同样要有，不能只修了一个入口
-    assert client.get("/api/v1/agents/catalog", headers=EMP).json()["data"]["total"] == 115
+    assert client.get("/api/v1/agents/catalog", headers=EMP).json()["data"]["total"] == _total()
 
 
 def test_department_scope_is_still_respected():
     """修 bug 不能顺手把 RBAC 放开：department 域的包对外部门仍然不可见。"""
     _seed_all(scope="department")
     assert client.get("/api/v1/agents/roles", headers=EMP).json()["data"]["total"] == 0
-    assert client.get("/api/v1/agents/roles", headers=ADMIN).json()["data"]["total"] == 115
+    assert client.get("/api/v1/agents/roles", headers=ADMIN).json()["data"]["total"] == _total()
 
 
 def test_roles_list_without_param():
@@ -145,7 +156,7 @@ def test_roles_list_without_param():
     assert r.status_code == 200
     d = r.json()["data"]
     assert len(d["roles"]) == len(role_map.ROLES)
-    assert sum(x["count"] for x in d["roles"]) == 115
+    assert sum(x["count"] for x in d["roles"]) == _total()
     # 空职业不出现在目录里（前端不该渲染 0 个卡的岗位）
     assert all(x["count"] > 0 for x in d["roles"])
 
@@ -217,6 +228,6 @@ def test_universal_industry_is_marked_and_sorted_last():
     assert [c["category_cn"] for c in uni] == ["办公角色"]
     assert uni[0]["name"] == "通用办公"
     assert cats[-1]["universal"] is True, "通用行业必须排最后，具体行业在前"
-    # 公共库仍然不进行业树，也不进 total（115 口径不能变）
+    # 公共库仍然不进行业树，也不进 total（包数口径不能变）
     assert all(c["category_cn"] != "公共库" for c in cats)
-    assert data["total"] == 115
+    assert data["total"] == _total()

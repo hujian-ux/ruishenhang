@@ -1,4 +1,5 @@
 """M47 · 审批助手 enrich 接真模型通道：enrich=true 透传、真回复才有 llm_hint、失败优雅降级。"""
+import itertools
 import sys
 import os
 
@@ -17,10 +18,15 @@ def _admin():
     return {"Authorization": create_dev_token("u_a47e", "d_it", "platform_admin", "t_demo")}
 
 
+_SEQ = itertools.count(1)
+
+
 def _register():
     emp = {"Authorization": create_dev_token("u_emp47e", "d_sales", "employee", "t_demo")}
+    # M53：agent_id 由「租户+名字」确定性生成，同名注册会 409（防静默覆盖）。
+    # 每个用例注册自己的智能体，名字必须唯一。
     r = client.post("/api/v1/agents",
-                    json={"name": "M47助手enrich", "adapter_type": "llm_retrieval",
+                    json={"name": f"M47助手enrich{next(_SEQ)}", "adapter_type": "llm_retrieval",
                           "description": "M47", "knowledge_scope": "department"}, headers=emp)
     assert r.status_code == 200, r.text
     return r.json()["data"]["approval_id"]

@@ -5,7 +5,7 @@ docker-compose 的 postgres 就绪时自动启用（psycopg2/psycopg 任一）�
 表结构见 infra/init/02_persistence.sql（jsonb 载荷，免迁移约束）。
 """
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
 
@@ -112,11 +112,39 @@ def _ensure_tables() -> None:
                 created_at TIMESTAMPTZ DEFAULT now(),
                 updated_at TIMESTAMPTZ DEFAULT now()
             );
+            -- M53：通用键值状态（当前只存「哪些技能包源已灌过」）。
+            -- 没有它，增量灌库就得靠「库里有没有包」判断，管理员删掉的包会随重启复活。
+            CREATE TABLE IF NOT EXISTS app_state (
+                state_key TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
         """)
 
 
 def available() -> bool:
     return _connect() is not None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 通用键值状态（M53）：存「哪些技能包源已灌过」这类平台级小事实。
+# 放 PG 是因为内存重启即丢，而这个标记一旦丢，管理员删掉的包会随重启复活。
+# ─────────────────────────────────────────────────────────────────────────────
+def get_state(key: str) -> Optional[Dict[str, Any]]:
+    conn = _connect()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT payload FROM app_state WHERE state_key = %s", (key,))
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception:
+        return None
+
+
+def put_state(key: str, payload: Dict[str, Any]) -> bool:
+    return upsert("app_state", key, payload)
 
 
 # 白名单：不在表里的 table 会被 upsert 静默拒绝（返回 False）。
@@ -128,6 +156,7 @@ _KEY_COL = {
     "agents": "agent_id",
     "agent_files": "file_id",
     "tenants": "tenant_id",
+    "app_state": "state_key",
 }
 
 

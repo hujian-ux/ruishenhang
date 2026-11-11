@@ -1,4 +1,5 @@
 """M46b · 审批助手（辅助层）：assist 接口返回建议、GET 详情含 stages、助手智能体注册且不污染 115 口径。"""
+import itertools
 import sys
 import os
 
@@ -17,8 +18,13 @@ def _admin():
     return {"Authorization": create_dev_token("u_admin_a", "d_it", "platform_admin", "t_demo")}
 
 
-def _register(name="M46b助手测试"):
+_SEQ = itertools.count(1)
+
+
+def _register(name=""):
     emp = {"Authorization": create_dev_token("u_emp_a", "d_sales", "employee", "t_demo")}
+    # M53：id 由「租户+名字」确定性生成，同名会 409。每个用例用唯一名字。
+    name = name or f"M46b助手测试{next(_SEQ)}"
     r = client.post("/api/v1/agents",
                     json={"name": name, "adapter_type": "llm_retrieval",
                           "description": "M46b 辅助测试", "knowledge_scope": "department"}, headers=emp)

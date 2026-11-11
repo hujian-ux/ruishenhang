@@ -1,0 +1,21 @@
+﻿用例编号,接口编号,接口名称,场景类型,会话参数,预期输入,预期返回,文档同步状态
+TC-FIN13-001,API-01,queryMarketTradableVolume,正常,marketSession=AU,bondCode=240011; marketId=XSHE; depthLevel=10；会话参数：marketSession=AU,"返回可成交量与十档市场深度；返回字段：tradableVolume, depthLevels",本次同步补全（接口说明已随实现更新）
+TC-FIN13-002,API-01,queryMarketTradableVolume,边界,marketSession=AU,bondCode=240011; marketId=XSHE; depthLevel=20；会话参数：marketSession=AU,"深度档位取上限时仍返回完整档位；返回字段：tradableVolume, depthLevels",本次同步补全（接口说明已随实现更新）
+TC-FIN13-003,API-01,queryMarketTradableVolume,异常,marketSession=（空）,bondCode=240011; marketId=XSHE；会话参数：marketSession=（空）,"缺失会话参数返回会话未建立错误；返回字段：tradableVolume, depthLevels",本次同步补全（接口说明已随实现更新）
+TC-FIN13-004,API-02,submitTradeOrder,正常,sessionToken=T01; account=A103,bondCode=240011; side=BUY; price=99.85; volume=100；会话参数：sessionToken=T01; account=A103,"返回指令编号与受理状态；返回字段：orderId, submitStatus",文档已对齐
+TC-FIN13-005,API-02,submitTradeOrder,边界,sessionToken=T01; account=A103,bondCode=240011; side=BUY; price=99.85; volume=0；会话参数：sessionToken=T01; account=A103,"数量为零返回参数校验失败；返回字段：orderId, submitStatus",文档已对齐
+TC-FIN13-006,API-02,submitTradeOrder,异常,sessionToken=（过期）,bondCode=240011; side=SELL; price=99.90; volume=50；会话参数：sessionToken=（过期）,"会话令牌过期返回重新认证错误；返回字段：orderId, submitStatus",文档已对齐
+TC-FIN13-007,API-03,cancelTradeOrder,正常,sessionToken=T01,orderId=ORD-20260915-001；会话参数：sessionToken=T01,撤销成功返回已撤销状态；返回字段：cancelStatus,文档已对齐
+TC-FIN13-008,API-03,cancelTradeOrder,异常,sessionToken=T02,orderId=ORD-20260915-999；会话参数：sessionToken=T02,指令不存在返回未找到错误；返回字段：cancelStatus,文档已对齐
+TC-FIN13-009,API-04,queryBondPosition,正常,marketSession=AU,bondCode=240011; account=A103；会话参数：marketSession=AU,"返回持仓明细列表与计数；返回字段：positionList, positionCount",文档已对齐
+TC-FIN13-010,API-04,queryBondPosition,边界,marketSession=AU,account=A103（无持仓）；会话参数：marketSession=AU,"空持仓返回空列表与零计数；返回字段：positionList, positionCount",文档已对齐
+TC-FIN13-011,API-05,calcBondPnL,正常,无,bondCode=240011; clearSeq=CS-03；会话参数：无,按清盘顺序返回单券损益明细；返回字段：pnlDetail,文档已对齐
+TC-FIN13-012,API-05,calcBondPnL,异常,无,bondCode=（不存在）; clearSeq=CS-03；会话参数：无,债券代码无效返回参数错误；返回字段：pnlDetail,文档已对齐
+TC-FIN13-013,API-06,aggregateBondPnl,正常,无,clearSeq=CS-03; groupBy=债券代码；会话参数：无,按清盘顺序排序汇总各券损益；返回字段：pnlSummary,本次同步补全（接口说明已随实现更新）
+TC-FIN13-014,API-06,aggregateBondPnl,边界,无,clearSeq=CS-03; groupBy=（空）；会话参数：无,分组维度缺省时按清盘顺序逐笔汇总；返回字段：pnlSummary,本次同步补全（接口说明已随实现更新）
+TC-FIN13-015,API-07,generateConfirmation,正常,sessionToken=T01,tradeId=TRD-88231; templateId=STD-BOND；会话参数：sessionToken=T01,生成确认书并返回下载地址；返回字段：confirmationUrl,文档已对齐
+TC-FIN13-016,API-07,generateConfirmation,异常,sessionToken=（空）,tradeId=TRD-88231; templateId=STD-BOND；会话参数：sessionToken=（空）,缺失会话令牌返回会话未建立错误；返回字段：confirmationUrl,文档已对齐
+TC-FIN13-017,API-08,updateCacheValue,正常,sessionProfile=PROFILE-A,cacheKey=pos:240011; valuePayload=结构化JSON；会话参数：sessionProfile=PROFILE-A,结构化载荷直传写入成功无中间类型转换；返回字段：updateStatus,本次同步补全（接口说明已随实现更新）
+TC-FIN13-018,API-08,updateCacheValue,边界,sessionProfile=PROFILE-A,cacheKey=pos:240011; valuePayload=（超长载荷）；会话参数：sessionProfile=PROFILE-A,载荷超限返回截断告警并拒绝写入；返回字段：updateStatus,本次同步补全（接口说明已随实现更新）
+TC-FIN13-019,API-09,batchImportCases,正常,sessionProfile=PROFILE-A,caseList=20条用例清单；会话参数：sessionProfile=PROFILE-A,逐条导入并回显会话配置内容；返回字段：importResult,本次同步补全（接口说明已随实现更新）
+TC-FIN13-020,API-09,batchImportCases,异常,sessionProfile=（不匹配）,caseList=20条用例清单；会话参数：sessionProfile=（不匹配）,会话配置不匹配时导入前校验失败；返回字段：importResult,本次同步补全（接口说明已随实现更新）

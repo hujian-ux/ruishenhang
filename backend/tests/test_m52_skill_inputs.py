@@ -75,20 +75,22 @@ def test_english_inputs_header_is_parsed():
 
 
 def test_all_packs_have_inputs_contract():
-    """115 个包一个都不能空：空契约 = 试跑时模型必然反问用户要材料。"""
+    """全部包一个都不能空：空契约 = 试跑时模型必然反问用户要材料。"""
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts"))
     from import_solutions import scan
 
     defs = scan()
-    assert len(defs) == 115
+    n = len(defs)
+    # 不写死包数（M53 从 115 扩到 203）：只要求不比 M52 少，且段命中率按比例
+    assert n >= 115, f"包源不该比扩容前还少，实际 {n}"
     empty_in = [d["name"] for d in defs if not d["inputs_contract"].strip()]
     empty_out = [d["name"] for d in defs if not d["outputs_contract"].strip()]
     assert empty_in == [], f"输入契约为空的包：{empty_in}"
-    assert len(empty_out) <= 1, f"产出契约缺失过多：{empty_out}"
-    # 流程/规则命中率是「段有没有被正确归档」的直接指标，M52 前分别只有 59 / 17
-    assert sum(1 for d in defs if d["has_workflow"]) >= 110
-    assert sum(1 for d in defs if d["has_rules"]) >= 60
+    assert len(empty_out) <= max(1, n // 100), f"产出契约缺失过多：{empty_out}"
+    # 流程/规则命中率是「段有没有被正确归档」的直接指标
+    assert sum(1 for d in defs if d["has_workflow"]) >= int(n * 0.9)
+    assert sum(1 for d in defs if d["has_rules"]) >= int(n * 0.6)
 
 
 def test_section_alias_variants():

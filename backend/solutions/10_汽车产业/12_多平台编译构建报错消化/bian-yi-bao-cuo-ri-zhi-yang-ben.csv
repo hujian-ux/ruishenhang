@@ -1,0 +1,16 @@
+﻿记录编号,芯片平台,错误类型,报错原文摘要,涉及文件
+LNK-01,ZX-A9,链接错误,"undefined reference to 'EnergyFlowRenderer::onDataUpdate()'",energy_flow_renderer.cpp
+LNK-02,ZX-A9,链接错误,"undefined reference to 'avif_decode_frame'",libavif_wrapper.c
+LNK-03,ZX-M7,链接错误,"undefined reference to 'v2x::Stack::init()'",v2x_stack_stub.cpp
+LNK-04,ZX-M7,链接错误,"undefined reference to 'ClusterThemeV2::refresh()'",cluster_theme_v2.cpp
+LNK-05,ZX-S5,链接错误,"undefined reference to 'AudioHalProxy::openSession()'",audio_hal_proxy.cpp
+LNK-06,ZX-S5,链接错误,"undefined reference to 'NavEngine::reroute()'",nav_engine.cpp
+PATH-01,ZX-A9,路径错误,执行目录 /build/zx-a9 与产物目录 /out/zx-a9/release 不一致，增量拷贝遗漏,build_zx_a9.sh
+PATH-02,ZX-A9,路径错误,"fatal error: cluster_config.h: No such file or directory",theme_service.cpp
+PATH-03,ZX-M7,路径错误,产物目录被清理脚本误删，打包步骤找不到 system.img,pack_images.sh
+PATH-04,ZX-S5,路径错误,"cannot find -lzxcodec：库搜索路径未包含预编译库目录",link_zx_s5.mk
+PATH-05,ZX-M7,路径错误,"make: No rule to make target 'out/zx-m7/objs.mk'，需先在仓库根目录执行环境初始化",Makefile
+SYN-01,ZX-M7,语法错误,"expected ';' before 'return' in battery_algo.c line 212",battery_algo.c
+SYN-02,ZX-A9,语法错误,macro BATT_SOC_CLAMP expands to nested ternary without parentheses in soc_filter.h line 76,soc_filter.h
+SYN-03,ZX-S5,语法错误,"expected '}' at end of input in media_list_parser.cpp line 341",media_list_parser.cpp
+SYN-04,ZX-A9,语法错误,invalid suffix on literal; identifier follows string constant in speed_label.c line 88,speed_label.c

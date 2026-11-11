@@ -1,4 +1,5 @@
 """M4 智能体编排与会话记忆测试：invoke 端点、多轮记忆、归属校验、窗口封顶。"""
+import itertools
 import sys
 import os
 
@@ -18,10 +19,15 @@ OTHER_AUTH = {"Authorization": create_dev_token(user_id="u_2002", dept_id="d_sal
 # 平台管理员（M5：发布审批用）
 ADMIN = {"Authorization": create_dev_token(user_id="u_9000", dept_id="d_it", role="platform_admin")}
 
+# M53：agent_id 由名字确定性生成，同名注册会 409（防静默覆盖）。
+# 这里每次给不同名字，语义上也更贴合「注册两个不同的智能体」。
+_AG_SEQ = itertools.count(1)
 
-def _register_agent() -> str:
+
+def _register_agent(name: str = "") -> str:
     r = client.post("/api/v1/agents",
-                    json={"name": "营销知识助手", "adapter_type": "llm_retrieval",
+                    json={"name": name or f"营销知识助手{next(_AG_SEQ)}",
+                          "adapter_type": "llm_retrieval",
                           "description": "营销知识库问答", "knowledge_scope": "department"},
                     headers=AUTH)
     assert r.status_code == 200, r.text

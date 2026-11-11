@@ -1,0 +1,26 @@
+﻿术语编号,中文术语,现行英文译法,标准英文译法,不统一类型,规范化动作,影响文书,校对状态
+T01,不良事件,adverse event,adverse event,一致,维持现行译法，写入可复用配置,注册申请函;说明信,复核一致
+T02,药物警戒,Pharmacovigilance,pharmacovigilance,大小写不统一,统一为标准写法（正文小写 / 标题 Title Case）,说明信,已纠正，双语对照复核通过
+T03,说明书,specification,prescribing information,译法不统一,以标准译法替换现行译法,注册申请函,已纠正，双语对照复核通过
+T04,适应症,indications,indications,一致,维持现行译法，写入可复用配置,注册申请函,复核一致
+T05,禁忌,contraindication,contraindications,单复数不统一,统一为标准单复数形式,注册申请函,已纠正，双语对照复核通过
+T06,用法用量,dosage and administration,Dosage and Administration,大小写不统一,统一为标准写法（正文小写 / 标题 Title Case）,注册申请函,已纠正，双语对照复核通过
+T07,治疗期间不良事件,treatment emergent adverse event,treatment-emergent adverse event,连字符不统一,统一连字符书写形式,说明信,已纠正，双语对照复核通过
+T08,严重不良事件,serious adverse event,serious adverse event,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T09,总生存期,overall survival,overall survival,一致,维持现行译法，写入可复用配置,月度汇报标题,复核一致
+T10,无进展生存期,progression-free survival,progression-free survival,一致,维持现行译法，写入可复用配置,月度汇报标题,复核一致
+T11,客观缓解率,objective response rate,objective response rate,一致,维持现行译法，写入可复用配置,月度汇报标题,复核一致
+T12,市场准入,market access,market access,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T13,提交,submission,regulatory submission,译法不统一,以标准译法替换现行译法,注册申请函,已纠正，双语对照复核通过
+T14,补充申请,supplemental application,supplementary application,译法不统一,以标准译法替换现行译法,注册申请函,已纠正，双语对照复核通过
+T15,风险管理计划,risk management plan,risk management plan,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T16,质量源于设计,quality by design,quality by design,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T17,上市后承诺,post-marketing commitment,postmarketing commitment,连字符不统一,统一连字符书写形式,注册申请函,已纠正，双语对照复核通过
+T18,上市后要求,postmarketing requirement,postmarketing requirement,一致,维持现行译法，写入可复用配置,注册申请函,复核一致
+T19,参考制剂,reference product,reference listed drug,译法不统一,以标准译法替换现行译法,注册申请函,已给标准译法，待医学事务确认
+T20,生物等效性,bioequivalence,bioequivalence,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T21,治疗窗口,therapeutic index,therapeutic window,译法不统一,以标准译法替换现行译法,说明信,已给标准译法，待医学事务确认
+T22,给药途径,administration route,route of administration,译法不统一,以标准译法替换现行译法,注册申请函,已纠正，双语对照复核通过
+T23,最大耐受剂量,maximum tolerated dose,maximum tolerated dose,一致,维持现行译法，写入可复用配置,说明信,复核一致
+T24,剂型,dosage form,dosage form,一致,维持现行译法，写入可复用配置,注册申请函,复核一致
+T25,稳定性研究,stability study,stability study,一致,维持现行译法，写入可复用配置,注册申请函,复核一致

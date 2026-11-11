@@ -1,0 +1,26 @@
+﻿字段编号,字段名,数据类型,枚举值域,老系统对应字段,备注
+F01,product_model,VARCHAR(64),,prod_code,新型号编码规则与老系统一致
+F02,product_name,VARCHAR(128),,prod_name,中英文混合名称
+F03,form_factor,ENUM,2U机架/4U机架/多节点/高密度,prod_form,老系统用编码 2U/4U/MD/HD
+F04,platform_series,VARCHAR(64),,platform,平台系列代号
+F05,cpu_socket_count,TINYINT,,cpu_desc,老系统存文本「单路/双路/四路」
+F06,cpu_model,VARCHAR(128),,cpu_type,处理器型号
+F07,memory_slot_count,TINYINT,,mem_slots,内存槽位数
+F08,max_memory_capacity_gb,INT,,mem_cap,老系统存文本「1TB/2TB」
+F09,drive_bay_count,TINYINT,,disk_bays,硬盘托架数
+F10,drive_form_factor,ENUM,2.5寸/3.5寸/混合,disk_spec,老系统混合标注不规范
+F11,psu_power_w,INT,,psu_power,老系统存文本「550W」带单位
+F12,psu_redundancy,ENUM,无冗余/1+1冗余/CRPS,psu_redun,老系统冗余编码不统一
+F13,nic_port_count,TINYINT,,nic_ports,网卡端口数
+F14,pcie_slot_count,TINYINT,,无对应字段,老系统未登记 PCIe 插槽数
+F15,cooling_type,ENUM,风冷/液冷/风液混合,cool_flag,老系统仅风冷标记位
+F16,fan_module_count,TINYINT,,fan_mods,风扇模块数
+F17,rated_voltage,VARCHAR(32),,volt_range,老系统存区间文本「200-240V」
+F18,bmc_model,VARCHAR(64),,bmc_ver,BMC 型号
+F19,management_port,ENUM,专用带外口/共享网卡口,无对应字段,老系统未区分带外管理口
+F20,operating_temp_min_c,TINYINT,,无对应字段,老系统只登记温度上限
+F21,operating_temp_max_c,TINYINT,,temp_max,工作温度上限
+F22,noise_level_db,"DECIMAL(4,1)",,无对应字段,老系统未登记噪音等级
+F23,cert_list,VARCHAR(256),,无对应字段,老系统无独立认证清单字段
+F24,launch_status,ENUM,规划中/试产/已上市/停产,status_code,上市状态
+F25,warranty_years,TINYINT,,warranty,质保年限

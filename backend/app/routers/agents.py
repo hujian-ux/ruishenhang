@@ -68,9 +68,22 @@ async def my_role(caller: CallerContext = Depends(get_caller)):
 _AGENTS = agent_store._AGENTS
 
 
-def _new_agent_id(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]", "", name.lower())
-    return "ag_" + (slug[:16] or uuid.uuid4().hex[:8])
+# 技能包 id：**必须确定性**。中文名会被 slug 清空，早先回退到 uuid4 随机值，
+# 导致每次重启（无 PG 内存模式）203 个中文技能包的 id 全变——前端收藏、历史会话、
+# 审批单、外部按 id 调用全部断链。
+#
+# 同时 id 必须带**租户维度**：不同企业各自有「报销单合规预审」是完全合法的，
+# 只按名字生成会让 A 企业的包挡住 B 企业注册（409）或互相覆盖。
+# 平台包（tenant 为空）走可读 slug / uuid5(name)，与历史数据对齐。
+_ID_NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
+
+
+def _new_agent_id(name: str, tenant_id: str = "") -> str:
+    slug = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    if not tenant_id and len(slug) >= 4:
+        return "ag_" + slug[:16]
+    key = (name or "").strip() if not tenant_id else f"{tenant_id}\x00{(name or '').strip()}"
+    return "ag_" + uuid.uuid5(_ID_NS, key).hex[:8]
 
 
 def _validate(adapter_type: str, knowledge_scope: str) -> None:
@@ -90,7 +103,18 @@ async def register_agent(req: AgentRegisterRequest, caller: CallerContext = Depe
         raise HTTPException(status_code=400, detail="缺选型不可发布：adapter_type 必填（第35章）")
     _validate(req.adapter_type, req.knowledge_scope)
 
-    agent_id = req.agent_id or _new_agent_id(req.name)
+    agent_id = req.agent_id or _new_agent_id(req.name, caller.tenantId)
+    # id 由「租户 + 名字」确定性生成。自动生成时必须挡住**同租户同名**重复注册，
+    # 否则第二次会静默覆盖前一个的提示词/配置——用户以为建了两个，实际只有一个。
+    # 跨租户同名是合法的（两家企业都有「报销单预审」），id 里带 tenant 所以不冲突。
+    # 显式传 agent_id 的调用方（导入/回灌/脚本）不受影响，仍可幂等覆盖。
+    if not req.agent_id:
+        exist = agent_store._AGENTS.get(agent_id)
+        if exist and exist.get("name") == req.name:
+            raise HTTPException(
+                status_code=409,
+                detail=f"已存在同名智能体「{req.name}」（{agent_id}），请改名，或直接编辑已有那个",
+            )
     sel = framework.ADAPTER_META.get(req.adapter_type, {})
     agent_store.save({
         "agent_id": agent_id,
@@ -145,7 +169,7 @@ async def import_agents(req: AgentImportRequest, caller: CallerContext = Depends
             skipped.append({"name": it.name, "reason": "adapter_type/knowledge_scope 非法"})
             continue
         # 幂等：同一 source_path 重复导入不生成第二个智能体
-        agent_id = _new_agent_id(it.name)
+        agent_id = _new_agent_id(it.name, caller.tenantId)
         exist = agent_store.get(agent_id)
         if exist and exist.get("source_path") == it.source_path:
             skipped.append({"name": it.name, "reason": "已存在（同来源）", "agent_id": agent_id})

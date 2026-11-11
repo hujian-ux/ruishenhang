@@ -1,0 +1,16 @@
+﻿记录编号,芯片平台,错误类型,报错摘要,归因,处理方向,处置等级,是否需人工确认
+LNK-01,ZX-A9,链接错误,undefined reference to 'EnergyFlowRenderer::onDataUpdate()',符号 EnergyFlowRenderer::onDataUpdate() 的实现文件未参与本次编译：源文件未加入构建清单或声明与实现签名不一致,核对构建清单与签名一致性，用 objdump 确认目标文件；只诊不改，是否修改由工程师决定,L1 只诊不改,是
+LNK-02,ZX-A9,链接错误,undefined reference to 'avif_decode_frame',符号 avif_decode_frame 来自外部库：预编译库未加入链接列表或库名不匹配,用 nm 在预编译库中确认符号所在库文件，核对链接列表；只诊不改,L1 只诊不改,是
+LNK-03,ZX-M7,链接错误,undefined reference to 'v2x::Stack::init()',符号 v2x::Stack::init() 被条件编译宏裁剪：对应平台未开启启用宏，实现未参与编译,核对平台条件编译宏配置，用 nm 确认符号后由人工决定是否开启宏,L1 只诊不改,是
+LNK-04,ZX-M7,链接错误,undefined reference to 'ClusterThemeV2::refresh()',符号 ClusterThemeV2::refresh() 的实现文件未参与本次编译：源文件未加入构建清单或声明与实现签名不一致,核对构建清单与签名一致性，用 objdump 确认目标文件；只诊不改，是否修改由工程师决定,L1 只诊不改,是
+LNK-05,ZX-S5,链接错误,undefined reference to 'AudioHalProxy::openSession()',符号 AudioHalProxy::openSession() 的实现文件未参与本次编译：源文件未加入构建清单或声明与实现签名不一致,核对构建清单与签名一致性，用 objdump 确认目标文件；只诊不改，是否修改由工程师决定,L1 只诊不改,是
+LNK-06,ZX-S5,链接错误,undefined reference to 'NavEngine::reroute()',符号 NavEngine::reroute() 的实现文件未参与本次编译：源文件未加入构建清单或声明与实现签名不一致,核对构建清单与签名一致性，用 objdump 确认目标文件；只诊不改，是否修改由工程师决定,L1 只诊不改,是
+PATH-01,ZX-A9,路径错误,执行目录 /build/zx-a9 与产物目录 /out/zx-a9/release 不一致，增量拷贝遗漏,构建脚本工作目录与预期不一致：相对路径与产物目录配置失效,在仓库根目录重新发起构建并核对 OUT_DIR 配置，命令执行前需人工确认,L2 命令待确认,是
+PATH-02,ZX-A9,路径错误,fatal error: cluster_config.h: No such file or directory,头文件搜索路径缺失：依赖头文件不在当前包含路径中,核对 include 路径与依赖安装状态，补路径命令需人工确认,L2 命令待确认,是
+PATH-03,ZX-M7,路径错误,产物目录被清理脚本误删，打包步骤找不到 system.img,产物目录被外部流程清理：打包步骤读取时产物已缺失,重跑构建前确认清理脚本调度时段，避开打包窗口；命令执行前需人工确认,L2 命令待确认,是
+PATH-04,ZX-S5,路径错误,cannot find -lzxcodec：库搜索路径未包含预编译库目录,库搜索路径未包含预编译库目录：链接器找不到指定库,核对库目录配置与库名，补库搜索路径需人工确认,L2 命令待确认,是
+PATH-05,ZX-M7,路径错误,make: No rule to make target 'out/zx-m7/objs.mk'，需先在仓库根目录执行环境初始化,构建脚本工作目录与预期不一致：相对路径与产物目录配置失效,在仓库根目录重新发起构建并核对 OUT_DIR 配置，命令执行前需人工确认,L2 命令待确认,是
+SYN-01,ZX-M7,语法错误,expected ';' before 'return' in battery_algo.c line 212,语句缺分号：上一语句结尾遗漏,定位到 battery_algo.c 具体行号，给出最小修改建议，由工程师在 IDE 中确认采纳,L3 建议可直接采纳,否（建议可直接采纳）
+SYN-02,ZX-A9,语法错误,macro BATT_SOC_CLAMP expands to nested ternary without parentheses in soc_filter.h line 76,宏展开后语法歧义：嵌套三元表达式未加括号,定位到 soc_filter.h 具体行号，给出最小修改建议，由工程师在 IDE 中确认采纳,L3 建议可直接采纳,否（建议可直接采纳）
+SYN-03,ZX-S5,语法错误,expected '}' at end of input in media_list_parser.cpp line 341,代码块大括号不闭合：函数或类定义未收尾,定位到 media_list_parser.cpp 具体行号，给出最小修改建议，由工程师在 IDE 中确认采纳,L3 建议可直接采纳,否（建议可直接采纳）
+SYN-04,ZX-A9,语法错误,invalid suffix on literal; identifier follows string constant in speed_label.c line 88,字符串字面量与标识符之间缺空格：预处理拼接引发误读,定位到 speed_label.c 具体行号，给出最小修改建议，由工程师在 IDE 中确认采纳,L3 建议可直接采纳,否（建议可直接采纳）
