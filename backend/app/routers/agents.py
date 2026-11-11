@@ -293,6 +293,9 @@ async def agent_inputs(agent_id: str, caller: CallerContext = Depends(get_caller
     items = skill_pack.checklist(agent)
     files = skill_pack.samples(src) if src else []
     inputs = [f for f in files if f["kind"] == "input"]
+    # M55：把「标准模板参考」（领域规范 md）透出，前端可告诉用户「这份技能要传的标准长这样」
+    ref_specs = agent.get("reference_specs") or []
+    ref_summary = [{"name": s["name"], "chars": s.get("chars", 0)} for s in ref_specs]
     return {"code": 0, "data": {
         "agent_id": agent_id,
         "name": agent.get("name"),
@@ -304,6 +307,7 @@ async def agent_inputs(agent_id: str, caller: CallerContext = Depends(get_caller
                      "ext": f["ext"], "from_readme": f["from_readme"]} for f in files],
         "input_sample_count": len(inputs),
         "can_run_with_samples": bool(inputs),
+        "reference_specs": ref_summary,
         "hint": ("" if inputs else
                  "这个包没带原始输入样例，试跑要自己上传文件；输入清单见 checklist。"),
     }}

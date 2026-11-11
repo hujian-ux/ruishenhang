@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from app.models.caller import CallerContext
 from app.services import knowledge, model_gateway, session_store, web_search, guardrails
 from app.services import agent_store, fewshot
+from app.services import solution_materials
 from app.core.config import settings
 
 
@@ -337,6 +338,13 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         _ag = agent_store.get(agent_id)
         if _ag and _ag.get("fewshot"):
             system_prompt = fewshot.compose_with_fewshot(system_prompt, _ag)
+            skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    # M55：opt-in 把方案库「验收标准 + 标准模板参考」揉进 system_prompt（默认关）。
+    # 仅当 agent 已挂 acceptance/reference_specs 时生效，对未启用路径零变更。
+    if settings.MATERIALS_ENABLED and agent_id:
+        _ag = agent_store.get(agent_id)
+        if _ag:
+            system_prompt = solution_materials.compose_materials(system_prompt, _ag)
             skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
     # P2-40：把适配器类型 + 是否需引用透给模型网关做路由（检索/引用类倾向大模型保质量）
     agent_meta = {"adapter_type": adapter_type, "require_citation": grounded or use_web}

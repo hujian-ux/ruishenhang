@@ -81,6 +81,10 @@ class Settings:
     # M15/M17 P1：166 个 xlsx 交付物转 few-shot，默认关；开启后运行时把样例拼进
     # 命中技能的 system_prompt，提升产出物格式一致性。置 1 才生效。
     FEWSHOT_ENABLED = _env("FEWSHOT_ENABLED", "0") == "1"
+    # M55：把方案库的「验收清单/关键追问 + 领域规范 md」揉进技能，默认关；开启后
+    # 运行时把验收标准（自检清单）与标准模板参考（格式范本，非数据）拼进命中技能的
+    # system_prompt，出活更稳、可验收、可校验用户上传格式。置 1 才生效。
+    MATERIALS_ENABLED = _env("MATERIALS_ENABLED", "0") == "1"
     # few-shot 方案库根目录（存放「原始数据 ↔ 交付物」成对 xlsx）。为空时
     # /ops/build-fewshot 回退到 os.environ 或默认 D:/workbuddy_解决方案。
     # 真实启用：指向实际 166 包语料目录；本仓附带示例语料见

@@ -223,6 +223,9 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
     by_dir = {p["solution_dir"]: p for p in pairs}
     attached = 0
     skipped_no_pair = 0
+    attached_acceptance = 0
+    attached_specs = 0
+    from app.services import solution_materials
     for a in list(agent_store._AGENTS.values()):
         if a.get("builtin") or a.get("category") == "public":
             continue
@@ -235,10 +238,21 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
             continue
         block = fewshot.build_fewshot_block(p["input_path"], p["output_path"])
         fewshot.attach_fewshot(a, block)
+        # M55：同目录下的验收清单/关键追问 + 领域规范 md 一起揉进技能
+        sol_path = os.path.join(root, key)
+        acc = solution_materials.extract_acceptance(sol_path)
+        specs = solution_materials.collect_reference_specs(sol_path)
+        solution_materials.attach_materials(a, acc, specs)
         agent_store.save(a)
         attached += 1
+        if acc:
+            attached_acceptance += 1
+        if specs:
+            attached_specs += 1
     return {"code": 0, "data": {"pairs_found": len(pairs), "attached": attached,
-                                "skipped_no_pair": skipped_no_pair}}
+                                "skipped_no_pair": skipped_no_pair,
+                                "attached_acceptance": attached_acceptance,
+                                "attached_specs": attached_specs}}
 
 
 def _fewshot_root() -> str:
