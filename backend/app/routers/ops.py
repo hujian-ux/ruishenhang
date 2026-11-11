@@ -257,17 +257,29 @@ def _fewshot_root() -> str:
 def _resolve_solution_dir(src: str, by_dir: dict) -> str:
     """把 agent 的 source_path / solution_dir 解析成 by_dir 里存在的键。
 
-    板块 01-03 的 skill.md 与 xlsx 同目录；板块 04 的 skill.md 嵌套更深，
-    xlsx 在其上两级。逐层向上回退到「by_dir 中已知含 xlsx 的目录」，
-    使 115 个业务包都能匹配到交付物（原精确相等只命中 9 个）。
-    路径统一为正斜杠（scan_solution_pairs 与 import_solutions 均如此规范化）。
+    匹配两路（路径统一正斜杠）：
+      1) 向上回退到最近的含样例祖先目录（板块 04 skill.md 比 xlsx 深两级；
+         01-03 同目录）。
+      2) 嵌套样例兜底：CSV 常藏在包内子目录（如 ``03-ji-neng-bao``），此时
+         by_dir 键是 agent 包目录的**子路径**而非祖先。若 agent 包目录是某
+         by_dir 键的前缀，取最深（最具体）的那个键，使子目录里的 CSV 也能命中。
+    使所有业务包（含 05–11 新行业嵌套 CSV）都能匹配到样例。
     """
     key = (src or "").replace("\\", "/")
-    while key:
-        if key in by_dir:
-            return key
-        parent = key.rsplit("/", 1)[0] if "/" in key else ""
-        if parent == key:
+    # 1) 向上回退到含样例的祖先目录
+    k = key
+    while k:
+        if k in by_dir:
+            return k
+        parent = k.rsplit("/", 1)[0] if "/" in k else ""
+        if parent == k:
             break
-        key = parent
+        k = parent
+    # 2) 嵌套样例：agent 包目录是 by_dir 键的前缀 → 取最深匹配。
+    #    src 可能是 ``包/skill.md``（含文件名），先剥掉文件名得到包目录再比前缀。
+    base = key[:-len("/skill.md")] if key.endswith("/skill.md") else key
+    if base:
+        cands = [k2 for k2 in by_dir if k2.startswith(base + "/")]
+        if cands:
+            return max(cands, key=len)
     return ""

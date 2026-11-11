@@ -117,6 +117,44 @@ def test_scan_multi_raw_one_deliverable(tmp_path):
     assert p["input_name"] in ("fei-yong-bao-xiao-dan.xlsx", "fa-piao-yang-ben.xlsx")
 
 
+def test_scan_csv_pairing(tmp_path):
+    """M54 · D 盘方案库另存 348 个 csv 表格素材（覆盖 05–11 新行业），scanner 必须
+    也能配对 csv（与 xlsx 同套关键词逻辑）。"""
+    import csv as _csv
+    d = tmp_path / "05_金融业" / "某包"
+    d.mkdir(parents=True)
+    with open(d / "yuan-shu-ju-biao.csv", "w", encoding="utf-8-sig", newline="") as f:
+        w = _csv.writer(f)
+        w.writerow(["企业", "营收"])
+        w.writerow(["甲", "3亿"])
+    with open(d / "fen-xi-biao.csv", "w", encoding="utf-8-sig", newline="") as f:
+        w = _csv.writer(f)
+        w.writerow(["企业", "赛道"])
+        w.writerow(["甲", "半导体"])
+    pairs = fewshot.scan_solution_pairs(str(tmp_path))
+    assert len(pairs) == 1
+    p = pairs[0]
+    assert p["input_name"].endswith(".csv") and p["output_name"].endswith(".csv")
+    assert "yuan-shu-ju" in p["input_name"] and "fen-xi" in p["output_name"]
+    # CSV 内容能解析进 few-shot 块
+    block = fewshot.build_fewshot_block(p["input_path"], p["output_path"])
+    assert "表头：" in block and "样本：" in block
+
+
+def test_resolve_nested_csv_prefix(tmp_path):
+    """CSV 常藏在包内子目录（如 03-ji-neng-bao），agent 包目录是 by_dir 键的前缀，
+    _resolve_solution_dir 必须靠前缀匹配命中深层子目录，而非仅向上回退。"""
+    from app.routers import ops
+    by_dir = {"05_金融业/某包/03-ji-neng-bao": {"p": 1}}
+    # 向上回退找不到（键在子目录），靠前缀匹配
+    assert ops._resolve_solution_dir("05_金融业/某包/skill.md", by_dir) == "05_金融业/某包/03-ji-neng-bao"
+    # CSV 在更深的子目录，agent 包目录仍是前缀 → 命中
+    by_dir2 = {"05_金融业/某包/03-ji-neng-bao/子": {"p": 1}}
+    assert ops._resolve_solution_dir("05_金融业/某包/skill.md", by_dir2) == "05_金融业/某包/03-ji-neng-bao/子"
+    # 兄弟子目录（非前缀）不误命中
+    assert ops._resolve_solution_dir("05_金融业/某包/其他子/skill.md", by_dir) == ""
+
+
 def test_fewshot_root_precedence(monkeypatch):
     """build-fewshot 扫描根的优先级：环境变量 > D 盘默认 > 仓库回退。"""
     from app.routers import ops

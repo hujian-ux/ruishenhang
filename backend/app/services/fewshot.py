@@ -17,6 +17,7 @@ M15/M17 反复点名的性价比最高的产出一致性手段：每个方案目
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import os
 from typing import Any, Dict, List, Optional
@@ -35,11 +36,24 @@ _OUTPUT_KW = ["交付", "输出", "成果", "报告", "结果", "终稿", "成�
 # 命中不到，必须用拼音片段识别「输入/交付物」。仅收录**无歧义**的片段，避免误配。
 _INPUT_PINYIN = ["yuan-shi-shu-ju", "shu-ju", "ming-xi", "liu-shui", "ji-lu",
                  "yu-e", "di-gao", "tai-zhang", "jin-xiao-cun", "yuan-cai-liao",
-                 "ji-chu", "qi-chu", "yang-ben"]
+                 "ji-chu", "qi-chu", "yang-ben", "ming-dan", "su-cai"]
 _OUTPUT_PINYIN = ["jiao-fu-wu", "fen-xi", "yu-shen", "bao-biao", "hui-zong",
                   "ce-suan", "cheng-guo", "jie-guo", "fang-an", "dao-chu",
                   "ping-shen", "jian-yi", "dui-bi", "chan-chu", "bao-gao",
-                  "jie-suan", "bo-dong"]
+                  "jie-suan", "bo-dong", "zuo-zhan-ka", "zhen-duan", "yu-ce",
+                  "jue-ce"]
+
+# few-shot 样例文件扩展名（xlsx/xlsm 为原交付物；csv 为 D 盘方案库另存的表格素材，
+# 全量 348 个，覆盖 05–11 七个新行业，是补齐样例覆盖的主来源）。
+_SAMPLE_EXTS = (".xlsx", ".xlsm", ".csv")
+
+
+def _is_input(name: str) -> bool:
+    return any(k in name for k in _INPUT_KW + _INPUT_PINYIN)
+
+
+def _is_output(name: str) -> bool:
+    return any(k in name for k in _OUTPUT_KW + _OUTPUT_PINYIN)
 
 
 def scan_solution_pairs(root: str) -> List[Dict[str, Any]]:
@@ -56,23 +70,23 @@ def scan_solution_pairs(root: str) -> List[Dict[str, Any]]:
     """
     pairs: List[Dict[str, Any]] = []
     for dirpath, _, files in os.walk(root):
-        xs = [f for f in files if f.lower().endswith((".xlsx", ".xlsm"))]
+        xs = [f for f in files if f.lower().endswith(_SAMPLE_EXTS)]
         if not xs:
             continue
         rel = os.path.relpath(dirpath, root).replace("\\", "/")
-        ins = [f for f in xs if any(k in f for k in _INPUT_KW + _INPUT_PINYIN)]
-        outs = [f for f in xs if any(k in f for k in _OUTPUT_KW + _OUTPUT_PINYIN)]
+        ins = [f for f in xs if _is_input(f)]
+        outs = [f for f in xs if _is_output(f)]
         if ins and outs:
             pairs.append(_mk(rel, dirpath, ins[0], outs[0]))
         elif outs and len(xs) >= 2:
+            # 有明确交付物 + 其他文件 → 取首个非交付物作输入样例（多原始数据+单交付物常见）
             rest = [f for f in xs if f not in outs]
             pairs.append(_mk(rel, dirpath, rest[0] if rest else "", outs[0]))
-        elif len(xs) == 2:
-            pairs.append(_mk(rel, dirpath, xs[0], xs[1]))
         elif len(xs) == 1:
             # 单文件：多半是交付物样例，作为 output-only 配对（input 留空）
             pairs.append(_mk(rel, dirpath, "", xs[0]))
-        # 多于 2 个且无法识别 → 跳过，不强行乱配
+        # 恰好 2 个且无法区分为输入/交付物 → 不瞎猜（避免两份原始数据被教成交付物模板）；
+        # 多于 2 个且无法识别 → 跳过。两类均保守不配对。
     return pairs
 
 
@@ -88,6 +102,8 @@ def _mk(rel: str, dirpath: str, in_name: str, out_name: str) -> Dict[str, Any]:
 
 def _sheet_desc(path: str, max_cols: int = 12, max_rows: int = 3) -> str:
     try:
+        if path.lower().endswith(".csv"):
+            return _csv_desc(path, max_cols, max_rows)
         raw = open(path, "rb").read()
         sheets = tabular._parse_xlsx(raw)
     except Exception:
@@ -102,6 +118,31 @@ def _sheet_desc(path: str, max_cols: int = 12, max_rows: int = 3) -> str:
         for row in (s.get("sample") or [])[:max_rows]:
             cells = [str(c) for c in row[:max_cols]]
             lines.append("样本：" + "｜".join(cells))
+    return "\n".join(lines)
+
+
+def _csv_desc(path: str, max_cols: int = 12, max_rows: int = 3) -> str:
+    """读 CSV 表头 + ≤3 样本行（与 xlsx 同款紧凑格式）。编码按 utf-8-sig→gbk→utf-8 兜底。"""
+    rows: List[List[str]] = []
+    for enc in ("utf-8-sig", "gbk", "utf-8"):
+        try:
+            with open(path, "r", encoding=enc, newline="") as f:
+                for i, row in enumerate(csv.reader(f)):
+                    if i > max_rows:
+                        break
+                    rows.append(row)
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    else:
+        return f"（无法解析：{os.path.basename(path)}）"
+    if not rows:
+        return f"（空表 {os.path.basename(path)}）"
+    headers = [str(h).strip() for h in rows[0][:max_cols]]
+    lines = ["表头：" + "｜".join(headers)]
+    for row in rows[1:max_rows + 1]:
+        cells = [str(c).strip() for c in row[:max_cols]]
+        lines.append("样本：" + "｜".join(cells))
     return "\n".join(lines)
 
 
