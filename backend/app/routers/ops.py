@@ -218,9 +218,7 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
     """
     if caller.role != "platform_admin":
         return {"code": 3, "msg": "需要平台管理员权限"}
-    # 默认指向仓库内置 115 包源（backend/solutions）；可用 SOLUTIONS_ROOT 环境变量覆盖。
-    _repo_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "solutions")
-    root = settings.SOLUTIONS_ROOT or os.environ.get("SOLUTIONS_ROOT") or _repo_root
+    root = _fewshot_root()
     pairs = fewshot.scan_solution_pairs(root)
     by_dir = {p["solution_dir"]: p for p in pairs}
     attached = 0
@@ -241,6 +239,19 @@ def build_fewshot(caller: CallerContext = Depends(get_caller)):
         attached += 1
     return {"code": 0, "data": {"pairs_found": len(pairs), "attached": attached,
                                 "skipped_no_pair": skipped_no_pair}}
+
+
+def _fewshot_root() -> str:
+    """决定 build-fewshot 扫描哪个方案库。
+
+    优先级：settings.SOLUTIONS_ROOT > 环境变量 SOLUTIONS_ROOT > D:/workbuddy_解决方案
+    （166 个真实交付物样例所在，存在即用）> 仓库内置源 backend/solutions（仅包内样例，
+    客户部署机无 D 盘目录时回退）。
+    """
+    _repo_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "solutions")
+    _default_root = "D:/workbuddy_解决方案"
+    return (settings.SOLUTIONS_ROOT or os.environ.get("SOLUTIONS_ROOT")
+            or (_default_root if os.path.isdir(_default_root) else _repo_root))
 
 
 def _resolve_solution_dir(src: str, by_dir: dict) -> str:

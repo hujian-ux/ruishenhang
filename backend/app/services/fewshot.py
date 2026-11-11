@@ -24,21 +24,35 @@ from typing import Any, Dict, List, Optional
 from app.core.config import settings
 from app.services import tabular
 
+# 中文关键词（原）：直接命中文件名里的中文字。
 _INPUT_KW = ["原始", "输入", "数据", "明细", "台账", "源数据", "样本", "基础",
              "期初", "底稿", "明细表", "原材料", "进销存"]
 _OUTPUT_KW = ["交付", "输出", "成果", "报告", "结果", "终稿", "成品", "分析",
               "结算", "预审", "波动", "报表", "汇总", "测算", "对比", "产出",
               "评审", "建议", "方案", "导出"]
+# 拼音标记层（M17 P2）：D:/workbuddy_解决方案 的样例文件名是拼音（如
+# ``ying-shou-zhang-kuan-zhang-ling-fen-xi-biao``），中文关键词在中文字符串里
+# 命中不到，必须用拼音片段识别「输入/交付物」。仅收录**无歧义**的片段，避免误配。
+_INPUT_PINYIN = ["yuan-shi-shu-ju", "shu-ju", "ming-xi", "liu-shui", "ji-lu",
+                 "yu-e", "di-gao", "tai-zhang", "jin-xiao-cun", "yuan-cai-liao",
+                 "ji-chu", "qi-chu", "yang-ben"]
+_OUTPUT_PINYIN = ["jiao-fu-wu", "fen-xi", "yu-shen", "bao-biao", "hui-zong",
+                  "ce-suan", "cheng-guo", "jie-guo", "fang-an", "dao-chu",
+                  "ping-shen", "jian-yi", "dui-bi", "chan-chu", "bao-gao",
+                  "jie-suan", "bo-dong"]
 
 
 def scan_solution_pairs(root: str) -> List[Dict[str, Any]]:
     """遍历方案库，配对（原始数据 xlsx ↔ 交付物 xlsx）。
 
     返回 ``[{solution_dir, input_path, output_path, input_name, output_name}]``。
-    规则：
-      - 一个目录里有可识别的输入/输出各至少一个 → 取各自首个配对；
+    规则（保守，宁可不配也不乱配）：
+      - 有可识别的输入/输出各至少一个 → 取各自首个配对；
+      - 无输入但能识别唯一交付物且文件数≥2 → 取首个非交付物作输入样例、交付物作输出
+        （多文件财务包常见：多份原始数据 + 一份分析表）；
       - 目录恰好 2 个 xlsx 且无法识别 → 按顺序（前=输入，后=输出）配对；
-      - 多于 2 个且无法识别 → 跳过，不强行乱配。
+      - 单个 xlsx → 作为 output-only 配对（input 留空）；
+      - 多于 2 个且无法识别（多为「全原始数据无交付物」）→ 跳过。
     """
     pairs: List[Dict[str, Any]] = []
     for dirpath, _, files in os.walk(root):
@@ -46,10 +60,13 @@ def scan_solution_pairs(root: str) -> List[Dict[str, Any]]:
         if not xs:
             continue
         rel = os.path.relpath(dirpath, root).replace("\\", "/")
-        ins = [f for f in xs if any(k in f for k in _INPUT_KW)]
-        outs = [f for f in xs if any(k in f for k in _OUTPUT_KW)]
+        ins = [f for f in xs if any(k in f for k in _INPUT_KW + _INPUT_PINYIN)]
+        outs = [f for f in xs if any(k in f for k in _OUTPUT_KW + _OUTPUT_PINYIN)]
         if ins and outs:
             pairs.append(_mk(rel, dirpath, ins[0], outs[0]))
+        elif outs and len(xs) >= 2:
+            rest = [f for f in xs if f not in outs]
+            pairs.append(_mk(rel, dirpath, rest[0] if rest else "", outs[0]))
         elif len(xs) == 2:
             pairs.append(_mk(rel, dirpath, xs[0], xs[1]))
         elif len(xs) == 1:

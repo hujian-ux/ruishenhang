@@ -89,3 +89,48 @@ def test_resolve_solution_dir_walks_up_to_xlsx_ancestor():
     # 找不到返回空（后续跳过，不挂）
     assert ops._resolve_solution_dir("99_不存在/xx", by_dir) == ""
 
+
+def test_scan_pinyin_pairing(tmp_path):
+    """M17 P2 · D 盘样例文件名是拼音（如 ying-shou-zhang-kuan-zhang-ling-fen-xi-biao），
+    中文关键词命中不到，必须用拼音标记层识别输入/交付物。"""
+    d = tmp_path / "04_角色" / "财务" / "应收账款账龄分析"
+    d.mkdir(parents=True)
+    _write_xlsx(d / "ying-shou-zhang-kuan-ming-xi-zhang.xlsx", ["客户", "余额"], [["A", 50]])
+    _write_xlsx(d / "ying-shou-zhang-kuan-zhang-ling-fen-xi-biao.xlsx", ["账龄", "金额"], [["90+", 80]])
+    pairs = fewshot.scan_solution_pairs(str(tmp_path))
+    assert len(pairs) == 1
+    p = pairs[0]
+    assert "ming-xi" in p["input_name"] and "fen-xi-biao" in p["output_name"]
+
+
+def test_scan_multi_raw_one_deliverable(tmp_path):
+    """多份原始数据 + 一份交付物（财务包常见）：识别到唯一交付物即配对，取首个非交付物作输入样例。"""
+    d = tmp_path / "04_角色" / "财务" / "报销单合规预审"
+    d.mkdir(parents=True)
+    _write_xlsx(d / "fei-yong-bao-xiao-dan.xlsx", ["a"], [[1]])            # 原始
+    _write_xlsx(d / "fa-piao-yang-ben.xlsx", ["b"], [[2]])                 # 原始
+    _write_xlsx(d / "bao-xiao-he-gui-yu-shen-qing-dan.xlsx", ["c"], [[3]])  # 交付物（yu-shen）
+    pairs = fewshot.scan_solution_pairs(str(tmp_path))
+    assert len(pairs) == 1
+    p = pairs[0]
+    assert p["output_name"] == "bao-xiao-he-gui-yu-shen-qing-dan.xlsx"
+    assert p["input_name"] in ("fei-yong-bao-xiao-dan.xlsx", "fa-piao-yang-ben.xlsx")
+
+
+def test_fewshot_root_precedence(monkeypatch):
+    """build-fewshot 扫描根的优先级：环境变量 > D 盘默认 > 仓库回退。"""
+    from app.routers import ops
+    monkeypatch.setattr(ops.settings, "SOLUTIONS_ROOT", "")
+    monkeypatch.delenv("SOLUTIONS_ROOT", raising=False)
+    # D 盘不存在 → 回退仓库 solutions
+    monkeypatch.setattr(os.path, "isdir", lambda p: False)
+    assert ops._fewshot_root().endswith("solutions")
+    # D 盘存在 → 用 D 盘
+    monkeypatch.setattr(os.path, "isdir", lambda p: p == "D:/workbuddy_解决方案")
+    assert ops._fewshot_root() == "D:/workbuddy_解决方案"
+    # 环境变量最高优先
+    monkeypatch.setenv("SOLUTIONS_ROOT", "/custom/root")
+    assert ops._fewshot_root() == "/custom/root"
+    monkeypatch.delenv("SOLUTIONS_ROOT", raising=False)
+
+
