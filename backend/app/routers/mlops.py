@@ -10,8 +10,12 @@
 - POST   /mlops/trains              基线 sklearn 训练，返回 run + 登记模型(staging)
 - GET    /mlops/trains/{run_id}     训练任务状态/指标
 - POST   /mlops/models/{model_id}/promote  晋升 staging→production（platform_admin）
+- POST   /mlops/models/{model_id}/rollback 灰度回滚：降级坏生产模型并恢复同名上一生产模型（platform_admin）
 - POST   /mlops/drift/run           多维特征漂移（PSI + 均值漂移）
 - POST   /mlops/retrain             真实自动重训入口（platform_admin；需 MLOPS_AUTO_RETRAIN=1）
+- POST   /mlops/pipeline/run        训练编排执行：数据准备→漂移→训练→评估→晋升 多阶段（platform_admin；需 MLOPS_AUTO_RETRAIN=1）
+- POST   /mlops/feast/sync           把本地数据集同步进 Feast 并 materialize 到在线存储（platform_admin；Feast 不可用时 409）
+- POST   /mlops/feast/online         从 Feast 在线存储低延迟取特征（需登录；Feast 不可用时 409）
 
 鉴权：全部需登录；promote 需 platform_admin；数据集/模型/训练按 tenant_id 隔离。
 """
@@ -155,6 +159,19 @@ async def mlops_promote(model_id: str, caller: CallerContext = Depends(get_calle
     return {"code": 0, "data": data}
 
 
+@router.post("/models/{model_id}/rollback")
+async def mlops_rollback(model_id: str, caller: CallerContext = Depends(get_caller)):
+    """灰度回滚：降级指定生产模型回 staging，并恢复同名上一生产模型（需 platform_admin）。"""
+    try:
+        data = mlops.rollback_model(model_id, caller)
+    except PermissionError:
+        raise HTTPException(status_code=403,
+                            detail="forbidden: 仅 platform_admin 可回滚模型")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"code": 0, "data": data}
+
+
 @router.post("/drift/run")
 async def mlops_drift_run(body: dict, caller: CallerContext = Depends(get_caller)):
     """多维特征漂移（PSI + 均值漂移）。baseline 取数据集，observed 取记录或数据集。"""
@@ -192,4 +209,66 @@ async def mlops_retrain(body: dict, caller: CallerContext = Depends(get_caller))
             auto_promote=bool(body.get("auto_promote", False)))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    return {"code": 0, "data": data}
+
+
+@router.post("/pipeline/run")
+async def mlops_pipeline_run(body: dict, caller: CallerContext = Depends(get_caller)):
+    """P2 训练编排执行（platform_admin）：数据准备→漂移→训练→评估→晋升 多阶段，带阶段状态与审计。
+
+    委托 run_training_pipeline；返回含 stages（每阶段 status）与向后兼容字段。
+    安全默认：需 MLOPS_AUTO_RETRAIN=1；auto_promote 显式才晋升（指标更优防回退）；
+    skip_drift_check=True 可跳过漂移直接训练（手动触发训练用）。
+    """
+    if caller.role != "platform_admin":
+        raise HTTPException(status_code=403, detail="forbidden: 仅 platform_admin 可触发训练编排")
+    if not settings.MLOPS_AUTO_RETRAIN:
+        raise HTTPException(status_code=409,
+                            detail="MLOPS_AUTO_RETRAIN 未开启；开启后才允许训练编排（安全默认）")
+    _require_keys(body, "baseline_dataset_id")
+    try:
+        data = mlops.run_training_pipeline(
+            body["baseline_dataset_id"],
+            observed_records=body.get("observed_records") or [],
+            tenant_id=caller.tenantId, caller=caller,
+            auto_promote=bool(body.get("auto_promote", False)),
+            skip_drift_check=bool(body.get("skip_drift_check", False)))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"code": 0, "data": data}
+
+
+# ───────────────────────────── Feast 在线特征服务 ─────────────────────────────
+@router.post("/feast/sync")
+async def mlops_feast_sync(body: dict, caller: CallerContext = Depends(get_caller)):
+    """把本地数据集同步进 Feast 并 materialize 到在线存储（platform_admin）。
+
+    Feast 未安装或仓库初始化失败时返回 409（诚实降级，不谎称已接）。
+    返回 materialize 摘要（feature_view / entity / n_rows / online_store）。
+    """
+    if caller.role != "platform_admin":
+        raise HTTPException(status_code=403, detail="forbidden: 仅 platform_admin 可同步特征")
+    _require_keys(body, "dataset_id")
+    try:
+        data = mlops.feast_sync_dataset(body["dataset_id"])
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"code": 0, "data": data}
+
+
+@router.post("/feast/online")
+async def mlops_feast_online(body: dict, caller: CallerContext = Depends(get_caller)):
+    """从 Feast 在线存储低延迟取特征（需登录；Feast 不可用时 409）。
+
+    body: {dataset_id, entity_ids:[...], features?:[...]}；features 省略取全部。
+    """
+    _require_keys(body, "dataset_id", "entity_ids")
+    try:
+        data = mlops.feast_online_features(
+            body["dataset_id"], body["entity_ids"],
+            features=body.get("features"))
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return {"code": 0, "data": data}

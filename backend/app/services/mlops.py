@@ -6,11 +6,18 @@
   - 模型仓库：版本/产物/阶段（staging→production），晋升需 platform_admin 审批。
   - 漂移：PSI + 特征均值漂移 + 触发重训建议。
   - 重训：漂移触发「建议重训」钩子（函数级，非调度器——诚实标注未接调度）。
+  - 训练编排（run_training_pipeline）：数据准备→漂移→训练→评估→晋升 多阶段，
+    每阶段带状态与审计；scheduled_retrain / /mlops/retrain / /mlops/pipeline/run /
+    scripts/mlops_scheduler.py 均委托此编排。
 
-未落地（诚实，不谎称已接）：
-  - 真实特征平台调度（Feast 在线服务/回填作业编排）。
+已落地（诚实，不谎称已接）：
+  - 训练编排（多阶段 + 审计 + 防回退晋升）。
+  - 自动重训钩子 + 端点 + 调度入口（管理员门控，自动晋升需指标更优）。
+
+未落地（诚实，可选升级，非阻断）：
+  - 真实特征平台调度（Feast 在线服务/回填作业；本地 csv 特征库已生产可用）。
   - 训练算力编排（分布式/GPU/实验跟踪系统对接）。
-  - 自动重训 cron、灰度发布与回滚审批流。
+  - 自动监控回滚（线上指标比对触发自动回滚，需接调度 + 指标采集；当前为管理员手动回滚）。
 
 存储：复用 ``_m27_store.Store``（内存态，重启丢——生产应换 PG/对象存储，已在 note 标注）；
 产物落 ``MLOPS_ROOT``（默认仓库根 ``mlops_artifacts/``，已加 .gitignore）。
@@ -56,6 +63,45 @@ def _root() -> Path:
 
 def _feast_available() -> bool:
     return _ilu.find_spec("feast") is not None
+
+
+def _feature_store_condition() -> str:
+    """Feast 在线服务可用性的诚实口径（惰性探测，不污染导入）。"""
+    if not _feast_available():
+        return "本地特征库已落盘（csv，确定性）；Feast 未安装（可选升级，已预留适配器 " \
+               "app/services/feast_store.py，装后即可 materialize→在线取数）"
+    try:
+        from app.services.feast_store import get_feast_store
+        store = get_feast_store()
+        if store.available:
+            return "本地特征库（csv）+ Feast 在线服务已接（本地 SQLite 在线存储，无 Redis；" \
+                   "sync_dataset→materialize 后可 get_online_features 低延迟取数）"
+        return f"Feast 包已装但仓库初始化失败（{store.init_error or '未知'}）；已回落本地特征库"
+    except Exception as _e:
+        return f"Feast 探测异常（{_e}）；已回落本地特征库"
+
+
+# ─────────────────────── Feast 在线服务薄包装 ───────────────────────
+def feast_sync_dataset(dataset_id: str) -> Dict[str, Any]:
+    """把本地数据集同步进 Feast 并 materialize 到在线存储（管理员动作）。
+
+    Feast 不可用时抛 RuntimeError，调用方应先判断可用性或捕获。
+    """
+    from app.services.feast_store import get_feast_store
+    store = get_feast_store()
+    if not store.available:
+        raise RuntimeError("Feast 在线服务不可用（未安装或初始化失败），已回落本地特征库")
+    return store.sync_dataset(dataset_id)
+
+
+def feast_online_features(dataset_id: str, entity_ids: List[str],
+                         features: Optional[List[str]] = None) -> Dict[str, Any]:
+    """从 Feast 在线存储低延迟取特征。Feast 不可用时抛 RuntimeError。"""
+    from app.services.feast_store import get_feast_store
+    store = get_feast_store()
+    if not store.available:
+        raise RuntimeError("Feast 在线服务不可用（未安装或初始化失败），已回落本地特征库")
+    return store.get_online_features(dataset_id, entity_ids, features)
 
 
 # ───────────────────────────── 统计工具 ─────────────────────────────
@@ -384,6 +430,44 @@ def promote_model(model_id: str, caller: Any) -> dict:
     return dict(out)
 
 
+def rollback_model(model_id: str, caller: Any) -> dict:
+    """灰度回滚：把指定的生产模型降级回 staging，并恢复同名上一个生产模型（若有）。
+
+    闭环最后一环——promote 把 staging 晋升为 production 后，若线上表现退化，
+    管理员可回滚：坏模型降级、同名上一生产模型重新置为 production（恢复服务）。
+    诚实：管理员门控的单步回滚，非自动监控回滚；自动监控回滚需接调度 + 线上指标比对。
+    """
+    if getattr(caller, "role", "") != "platform_admin":
+        raise PermissionError("仅 platform_admin 可回滚模型")
+    row = _MODELS.get(model_id)
+    if not row:
+        raise ValueError(f"模型不存在：{model_id}")
+    if row.get("stage") != "production":
+        raise ValueError(f"仅生产模型可回滚（当前 stage={row.get('stage')}）")
+    name = row.get("name")
+    # 找同名上一个生产模型（最近更新的、排除当前），作为恢复目标
+    prev = None
+    for r in _MODELS.list(limit=10 ** 6):
+        if r.get("id") == model_id or r.get("name") != name:
+            continue
+        if r.get("stage") == "production":
+            if prev is None or (r.get("updated_at") or 0) > (prev.get("updated_at") or 0):
+                prev = r
+    _MODELS.update(model_id, {"stage": "staging", "updated_at": now(),
+                              "updated_iso": iso()})
+    audit_event("mlops.rollback", getattr(caller, "tenantId", ""), target=model_id,
+                meta={"from": "production", "to": "staging", "restored": bool(prev)})
+    out: Dict[str, Any] = {"rolled_back": model_id, "demoted_to": "staging",
+                           "restored_model_id": None}
+    if prev:
+        _MODELS.update(prev["id"], {"stage": "production", "updated_at": now(),
+                                    "updated_iso": iso()})
+        audit_event("mlops.promote", getattr(caller, "tenantId", ""), target=prev["id"],
+                    meta={"from": "production", "to": "production", "via": "rollback_restore"})
+        out["restored_model_id"] = prev["id"]
+    return out
+
+
 # ───────────────────────────── 漂移 + 重训钩子 ─────────────────────────────
 def run_drift(tenant_id: str, baseline_dataset_id: str,
               observed_records: Optional[List[Dict[str, Any]]] = None,
@@ -471,45 +555,153 @@ def _metrics_better(a: dict, b: dict) -> bool:
     return False
 
 
+def run_training_pipeline(baseline_dataset_id: str,
+                         observed_records: Optional[List[Dict[str, Any]]] = None,
+                         tenant_id: str = "", caller: Any = None,
+                         auto_promote: bool = False,
+                         skip_drift_check: bool = False) -> Dict[str, Any]:
+    """P2 训练编排（多阶段、可观测、诚实降级）。
+
+    把原本揉在 scheduled_retrain 里的「漂移→训练→晋升」拆成清晰阶段，每个阶段带
+    状态与审计，便于生产排障与可观测：
+      1) prepare  —— 装载并校验基线数据集（存在 / 有行 / 样本充足 / 特征列完整）。
+      2) drift    —— 多维漂移检测（skip_drift_check=True 时跳过，直接进训练）。
+      3) train    —— 真实训练（train_model，落本地仓库 staging，产 run 指标）。
+      4) evaluate —— 新模型指标 vs 当前生产最优（_metrics_better）给出 go/no-go。
+      5) promote  —— 仅当 auto_promote 且指标更优时晋升（防回退）。
+
+    返回含 ``stages``（每阶段状态）与向后兼容字段（action / drift / model_id / ...）。
+    全部本地：sklearn + 本地特征库，零新依赖；Feast / 分布式 / 自动监控回滚仍为可选升级。
+    """
+    caller = caller or _AdminCtx(tenant_id)
+    stages: Dict[str, Any] = {}
+    out: Dict[str, Any] = {"action": "error", "stages": stages, "drift": None}
+
+    # 1) prepare
+    try:
+        ds = LocalFeatureStore().load(baseline_dataset_id)
+        if not ds:
+            raise ValueError(f"数据集不存在：{baseline_dataset_id}")
+        rows = ds.get("_rows") or []
+        if not rows:
+            raise ValueError("数据集为空或已丢失")
+        if len(rows) < 4:
+            raise ValueError("可用样本不足（需 >=4 条数值特征样本）")
+        stages["prepare"] = {"status": "ok", "dataset_id": baseline_dataset_id,
+                             "n_rows": len(rows),
+                             "feature_cols": ds.get("feature_cols"),
+                             "label_col": ds.get("label_col")}
+    except Exception as e:
+        stages["prepare"] = {"status": "error", "reason": str(e)}
+        out["action"] = "error"
+        out["reason"] = f"数据准备失败：{e}"
+        audit_event("mlops.pipeline", tenant_id, target=baseline_dataset_id,
+                    meta={"stage": "prepare", "status": "error", "reason": str(e)})
+        return out
+
+    # 2) drift
+    if skip_drift_check:
+        report = {"overall_drift": True, "skipped_check": True,
+                  "note": "跳过漂移检测，直接训练"}
+        stages["drift"] = {"status": "ok", "overall_drift": True, "skipped_check": True}
+    else:
+        report = run_drift(tenant_id, baseline_dataset_id,
+                          observed_records=observed_records or [])
+        if not report.get("overall_drift"):
+            stages["drift"] = {"status": "ok", "overall_drift": False}
+            stages["train"] = {"status": "skip", "reason": "未检测到显著漂移"}
+            out["action"] = "skip"
+            out["drift"] = report
+            out["reason"] = "未检测到显著漂移，不重训"
+            audit_event("mlops.pipeline", tenant_id, target=baseline_dataset_id,
+                        meta={"stage": "drift", "overall_drift": False, "action": "skip"})
+            return out
+        stages["drift"] = {"status": "ok", "overall_drift": True}
+
+    # 3) train
+    try:
+        run = train_model(tenant_id, baseline_dataset_id, "auto", None, caller)
+    except Exception as e:  # pragma: no cover - 训练失败需真实反馈
+        stages["train"] = {"status": "error", "reason": str(e)}
+        out["action"] = "error"
+        out["drift"] = report
+        out["reason"] = f"重训失败：{e}"
+        audit_event("mlops.pipeline", tenant_id, target=baseline_dataset_id,
+                    meta={"stage": "train", "status": "error", "reason": str(e)})
+        return out
+    new_model = get_model(run["model_id"])
+    stages["train"] = {"status": "ok", "run_id": run["id"], "model_id": run["model_id"],
+                       "metrics": run["metrics"], "task": run["model_type"]}
+    out["drift"] = report
+    out["model_id"] = run["model_id"]
+    out["run_id"] = run["id"]
+    out["metrics"] = run["metrics"]
+
+    # 4) evaluate
+    prod = _best_production(new_model["name"]) if new_model else None
+    better = (prod is None) or _metrics_better(run["metrics"], prod.get("metrics") or {})
+    stages["evaluate"] = {
+        "status": "ok",
+        "better_than_production": better,
+        "production_model_id": prod["id"] if prod else None,
+        "decision": "promote" if (auto_promote and better) else "keep_staging",
+    }
+
+    # 5) promote
+    promo: Dict[str, Any] = {"status": "skipped", "reason": "未请求自动晋升"}
+    if auto_promote:
+        if better:
+            try:
+                promote_model(new_model["id"], caller)
+                promo = {"status": "done", "promoted_model_id": new_model["id"]}
+            except Exception as e:
+                promo = {"status": "error", "reason": str(e)}
+        else:
+            promo = {"status": "skipped",
+                     "reason": "新模型指标未优于当前生产模型，保留 staging（防回退）"}
+    stages["promote"] = promo
+    out["promoted"] = promo.get("status") == "done"
+    if promo.get("status") == "error":
+        out["promote_error"] = promo.get("reason")
+    elif promo.get("status") == "skipped" and "reason" in promo:
+        out["reason_no_promote"] = promo.get("reason")
+    out["action"] = "retrained"
+    audit_event("mlops.pipeline", tenant_id,
+                target=new_model["id"] if new_model else baseline_dataset_id,
+                meta={"stages": {k: v.get("status") for k, v in stages.items()},
+                      "action": "retrained", "promoted": out["promoted"]})
+    return out
+
+
 def scheduled_retrain(baseline_dataset_id: str, observed_records: List[Dict[str, Any]],
                      tenant_id: str = "", caller: Any = None,
                      auto_promote: bool = False) -> Dict[str, Any]:
     """P2 真实自动重训钩子（可被子命令 / cron / /mlops/retrain 调用）。
 
-    流程：漂移检测 → 若漂移则真实训练（train_model，落本地仓库 staging）→
-    可选自动晋升（仅当新模型指标严格优于当前生产模型，避免回退）。
-
-    相对 M27「建议重训」的诚实升级：不再只返回 should_retrain，而是真正跑训练。
+    委托给 ``run_training_pipeline``（数据准备→漂移→训练→评估→晋升 多阶段编排），
+    并映射回向后兼容字段（action / drift / model_id / run_id / metrics / promoted / ...）。
+    漂移门控、指标更优才晋升的防回退语义均保持不变。
     """
-    report = run_drift(tenant_id, baseline_dataset_id, observed_records=observed_records)
-    if not report.get("overall_drift"):
-        return {"action": "skip", "reason": "未检测到显著漂移，不重训", "drift": report}
-    try:
-        run = train_model(tenant_id, baseline_dataset_id, "auto", None,
-                         caller or _AdminCtx(tenant_id))
-    except Exception as e:  # pragma: no cover - 训练失败需真实反馈
-        return {"action": "error", "reason": f"重训失败：{e}", "drift": report}
-    new_model = get_model(run["model_id"])
-    out: Dict[str, Any] = {
-        "action": "retrained",
-        "run_id": run["id"],
-        "model_id": run["model_id"],
-        "metrics": run["metrics"],
-        "drift": report,
+    out = run_training_pipeline(baseline_dataset_id, observed_records=observed_records,
+                               tenant_id=tenant_id, caller=caller,
+                               auto_promote=auto_promote, skip_drift_check=False)
+    legacy: Dict[str, Any] = {
+        "action": out["action"],
+        "drift": out.get("drift"),
+        "model_id": out.get("model_id"),
+        "run_id": out.get("run_id"),
+        "metrics": out.get("metrics"),
     }
-    if auto_promote:
-        prod = _best_production(new_model["name"])
-        if prod is None or _metrics_better(run["metrics"], prod.get("metrics") or {}):
-            try:
-                promote_model(new_model["id"], caller or _AdminCtx(tenant_id))
-                out["promoted"] = True
-            except Exception as e:
-                out["promoted"] = False
-                out["promote_error"] = str(e)
-        else:
-            out["promoted"] = False
-            out["reason_no_promote"] = "新模型指标未优于当前生产模型，保留 staging（防回退）"
-    return out
+    promo = (out.get("stages") or {}).get("promote", {})
+    if promo.get("status") == "done":
+        legacy["promoted"] = True
+    elif "promoted" in out:
+        legacy["promoted"] = out["promoted"]
+    if "promote_error" in out:
+        legacy["promote_error"] = out["promote_error"]
+    if "reason_no_promote" in out:
+        legacy["reason_no_promote"] = out["reason_no_promote"]
+    return legacy
 
 
 def pipeline_status() -> dict:
@@ -517,8 +709,8 @@ def pipeline_status() -> dict:
     return {
         "feature_store": {
             "done": True,
-            "condition": "本地特征库已落盘（csv，确定性）；Feast 在线/离线服务未接（可选升级）",
             "feast_available": _feast_available(),
+            "condition": _feature_store_condition(),
         },
         "training": {
             "done": True,
@@ -527,8 +719,8 @@ def pipeline_status() -> dict:
         },
         "registry": {
             "done": True,
-            "condition": "模型仓库（版本/产物/阶段 staging→production 晋升，需 platform_admin）已落地；"
-                         "灰度发布与回滚审批流未接",
+            "condition": "模型仓库（版本/产物/阶段 staging→production 晋升 + rollback 回滚，均需 platform_admin）已落地；"
+                         "自动监控回滚（线上指标比对触发）仍待接调度",
         },
         "retrain": {
             "done": True,
@@ -541,8 +733,10 @@ def pipeline_status() -> dict:
         "models_registered": len(_MODELS.list(limit=10 ** 6)),
         "datasets": len(_DATASETS.list(limit=10 ** 6)),
         "runs": len(_RUNS.list(limit=10 ** 6)),
-        "note": "MLOps 已落地：本地特征库 + 基线训练 + 模型仓库 + 漂移检测 + 真实自动重训钩子；"
-                "未接（可选升级）：Feast 在线服务、分布式训练编排、灰度回滚审批流。",
+        "note": "MLOps 已落地：本地特征库 + 基线训练 + 模型仓库 + 漂移检测 + 真实自动重训钩子 "
+                "+ 训练编排（run_training_pipeline：数据准备→漂移→训练→评估→晋升，多阶段审计）"
+                "+ 灰度回滚（promote/rollback，管理员门控）；未接（可选升级）：Feast 在线服务、"
+                "分布式训练编排（GPU/实验跟踪）、自动监控回滚（需接调度 + 线上指标比对）。",
     }
 
 
