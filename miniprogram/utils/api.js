@@ -25,8 +25,32 @@ function req(method, path, data) {
   });
 }
 
+// 微信小程序登录：把 wx.login() 拿到的 code 交给后端换平台 sso 令牌。
+// 后端启用 WX_MINI_LOGIN_ENABLED 后才可用；成功后把 token 存进全局供后续请求带鉴权头。
+function wxLogin() {
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success: (res) => {
+        if (!res.code) {
+          reject(new Error(res.errMsg || 'wx.login 未返回 code'));
+          return;
+        }
+        post('/auth/wx/login', { code: res.code })
+          .then((r) => {
+            const token = r && r.data && r.data.token;
+            if (token && getApp()) getApp().globalData.token = token;
+            resolve(r);
+          })
+          .catch(reject);
+      },
+      fail: (e) => reject(new Error(e.errMsg || 'wx.login 失败'))
+    });
+  });
+}
+
 module.exports = {
   API_BASE,
   get: (p) => req('GET', p),
-  post: (p, d) => req('POST', p, d)
+  post: (p, d) => req('POST', p, d),
+  wxLogin
 };

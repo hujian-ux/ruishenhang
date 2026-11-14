@@ -8,8 +8,13 @@
     <view class="btn ghost" bindtap="devLogin" data-admin="{{true}}">管理员视角（演示）</view>
   </view>
   <view wx:else>
-    <view class="muted">身份已收口，请走企业统一身份（SSO）。生产环境请在后端接入后，
-      于本页改用 wx.login → 后端换码登录。</view>
+    <view class="muted">身份已收口，请走企业统一身份登录。</view>
+    <view style="height:16rpx"></view>
+    <view wx:if="{{wxEnabled}}">
+      <view class="btn" bindtap="wxLogin">微信一键登录</view>
+      <view class="muted" style="margin-top:8rpx">将以微信身份直接登录（无需密码）。</view>
+    </view>
+    <view wx:else class="muted">本端未启用微信身份源，请联系管理员配置 WX_MINI_LOGIN_ENABLED。</view>
   </view>
 
   <view wx:if="{{err}}" class="err">{{err}}</view>

@@ -1,0 +1,524 @@
+{
+  "version": "1.0",
+  "name": "office62",
+  "description": "办公域（Word/Excel/PPT 等办公技能 agent）基线硬规则集。三类：forbid（出现即违规）、must_include（未出现即违规）、format（命中不合规范格式即违规）。scope 为空表示全局适用；非空表示仅对指定办公技能格式场景（office_doc/office_sheet/office_ppt）生效。must_include 进一步按文档子模板条件化：applies_to（子模板标签，由扫描器对文本分类得出；空=不限子模板）+ trigger（可选触发式正则，命中才要求必备项，用于「含数据才要求来源/含风险才要求免责」这类语义门槛）。本文件为「基线草案」，正典清单以业务方核验替换为准。",
+  "rules": [
+    {
+      "id": "O62-001",
+      "kind": "forbid",
+      "pattern": "(?i)\\b(sub|function)\\s+\\w+\\s*\\(|vba|activex|application\\.run|createobject\\s*\\(",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止在办公文档中生成 VBA / 宏代码"
+    },
+    {
+      "id": "O62-002",
+      "kind": "forbid",
+      "pattern": "(?i)\\b(powershell|cmd\\.exe|wscript\\.shell|/bin/sh|bash\\s+-c)\\b",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止在办公文档中生成 shell / powershell 命令"
+    },
+    {
+      "id": "O62-003",
+      "kind": "forbid",
+      "pattern": "(?i)(phishing|钓鱼|社工库|撞库|拖库)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止生成钓鱼 / 社工话术"
+    },
+    {
+      "id": "O62-004",
+      "kind": "forbid",
+      "pattern": "(?i)(伪造|私刻|假章|电子公章|冒用.*章|fake\\s+seal)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止伪造印章 / 签名"
+    },
+    {
+      "id": "O62-005",
+      "kind": "forbid",
+      "pattern": "(?i)(trojan|远控|键盘记录|keylogger|勒索|ransomware|payload\\s+下载)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止生成木马 / 病毒 / 远控代码"
+    },
+    {
+      "id": "O62-006",
+      "kind": "forbid",
+      "pattern": "\\d{17}[\\dXx]",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止输出他人身份证号"
+    },
+    {
+      "id": "O62-007",
+      "kind": "forbid",
+      "pattern": "(?<!\\d)\\d{16,19}(?!\\d)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止输出银行卡号"
+    },
+    {
+      "id": "O62-008",
+      "kind": "forbid",
+      "pattern": "(?<!\\d)1[3-9]\\d{9}(?!\\d)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止输出手机号"
+    },
+    {
+      "id": "O62-009",
+      "kind": "forbid",
+      "pattern": "(?i)(password|passwd|pwd|secret|密钥|api[_-]?key|token)\\s*[:=]\\s*",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止输出明文口令 / 密钥赋值"
+    },
+    {
+      "id": "O62-010",
+      "kind": "forbid",
+      "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止泄露邮箱地址"
+    },
+    {
+      "id": "O62-011",
+      "kind": "forbid",
+      "pattern": "(?i)(\\d+\\s*栋|\\d+\\s*号楼|\\d+\\s*单元\\s*\\d+\\s*室|号别墅)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止输出精确门牌 / 住址"
+    },
+    {
+      "id": "O62-012",
+      "kind": "forbid",
+      "pattern": "(?i)(官方认证|权威背书|国家认可|政府指定|指定供应商)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止虚假权威背书表述"
+    },
+    {
+      "id": "O62-013",
+      "kind": "forbid",
+      "pattern": "(?i)(虚构|编造|捏造|凭空).{0,10}(数据|金额|利润|营收|业绩)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止编造未标注的财务 / 业绩数据"
+    },
+    {
+      "id": "O62-014",
+      "kind": "forbid",
+      "pattern": "(?i)(保本|稳赚|保证收益|零风险|必涨|包赚|guaranteed\\s+return)",
+      "severity": "high",
+      "scope": [],
+      "message": "禁止保收益 / 无风险承诺"
+    },
+    {
+      "id": "O62-015",
+      "kind": "forbid",
+      "pattern": "(?i)(绕过|无视|跳过).{0,6}(审批|权限|鉴权|合规)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止绕过权限 / 审批 / 合规"
+    },
+    {
+      "id": "O62-016",
+      "kind": "forbid",
+      "pattern": "(?i)(通讯录|内部组织架构|员工花名册|薪资明细)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止输出他人内部通讯录 / 薪资"
+    },
+    {
+      "id": "O62-017",
+      "kind": "forbid",
+      "pattern": "(?i)(哥们|兄弟|亲|宝子|老铁|小姐姐)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止在正式办公文档使用非正式 / 不敬称呼"
+    },
+    {
+      "id": "O62-018",
+      "kind": "forbid",
+      "pattern": "(?i)(贪污|行贿|走私|偷税|逃税|洗钱)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止生成违法违规表述"
+    },
+    {
+      "id": "O62-019",
+      "kind": "forbid",
+      "pattern": "(?i)(\\.local|\\.internal|localhost|127\\.0\\.0\\.1|内网地址|内网域名)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止泄露内部接口 / 内网地址"
+    },
+    {
+      "id": "O62-020",
+      "kind": "forbid",
+      "pattern": "(?i)(点击领取|扫码下载|不明链接|可疑链接|免费领取)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止伪造 / 可疑链接诱导"
+    },
+    {
+      "id": "O62-021",
+      "kind": "forbid",
+      "pattern": "(?i)\\b(drop\\s+table|delete\\s+from|truncate\\s+table|drop\\s+database)\\b",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止生成破坏性 SQL"
+    },
+    {
+      "id": "O62-022",
+      "kind": "forbid",
+      "pattern": "(?i)(deepfake|换脸|深度伪造)",
+      "severity": "low",
+      "scope": [],
+      "message": "禁止深度伪造 / 换脸指令"
+    },
+    {
+      "id": "O62-023",
+      "kind": "forbid",
+      "pattern": "(?i)(赌博|博彩|彩票|赌球|投注)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止生成赌博 / 博彩内容"
+    },
+    {
+      "id": "O62-024",
+      "kind": "forbid",
+      "pattern": "(?i)(色情|低俗|性暗示|成人内容)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止生成色情 / 低俗内容"
+    },
+    {
+      "id": "O62-025",
+      "kind": "forbid",
+      "pattern": "(?i)(已获专利|patented|著作权归|版权所有.*原创承诺)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止虚假专利 / 著作权归属"
+    },
+    {
+      "id": "O62-026",
+      "kind": "must_include",
+      "pattern": "(?i)(数据来源|来源说明|出处|source\\s*:)",
+      "severity": "medium",
+      "scope": ["office_doc", "office_sheet", "office_ppt"],
+      "applies_to": [],
+      "trigger": "(?i)(数据|统计|金额|营收|利润|同比|环比|图表|占比|增长率|万元|亿元|百分比|%)",
+      "message": "含数据须标注数据来源"
+    },
+    {
+      "id": "O62-027",
+      "kind": "must_include",
+      "pattern": "(?i)(统计口径|统计期间|时间范围|as\\s+of|截至|报告期)",
+      "severity": "low",
+      "scope": ["office_doc", "office_sheet"],
+      "applies_to": ["financial"],
+      "message": "报表须标注统计口径 / 期间"
+    },
+    {
+      "id": "O62-028",
+      "kind": "must_include",
+      "pattern": "(?i)(甲方|乙方|签署方|合同主体|双方)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["contract"],
+      "message": "合同 / 协议须含双方主体"
+    },
+    {
+      "id": "O62-029",
+      "kind": "must_include",
+      "pattern": "(?i)(项目背景|目标|目的|背景)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["plan", "report"],
+      "message": "方案类须含目标 / 背景"
+    },
+    {
+      "id": "O62-030",
+      "kind": "must_include",
+      "pattern": "(?i)(时间|地点|参会|出席)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["meeting"],
+      "message": "会议纪要须含时间 / 地点 / 参会人"
+    },
+    {
+      "id": "O62-031",
+      "kind": "must_include",
+      "pattern": "(?i)(标题|封面|议题|agenda)",
+      "severity": "low",
+      "scope": ["office_ppt"],
+      "applies_to": [],
+      "message": "演示 / PPT 须含标题页"
+    },
+    {
+      "id": "O62-032",
+      "kind": "must_include",
+      "pattern": "(?i)(假设|前提|测算依据|假设条件)",
+      "severity": "low",
+      "scope": ["office_doc", "office_sheet"],
+      "applies_to": ["financial"],
+      "message": "财务测算须含假设条件"
+    },
+    {
+      "id": "O62-033",
+      "kind": "must_include",
+      "pattern": "(?i)(风险提示|免责|仅供参考|不构成.*建议)",
+      "severity": "medium",
+      "scope": ["office_doc", "office_sheet", "office_ppt"],
+      "applies_to": [],
+      "trigger": "(?i)(风险|收益|投资|预测|建议|杠杆|波动|回报|盈亏)",
+      "message": "风险相关须含提示 / 免责"
+    },
+    {
+      "id": "O62-034",
+      "kind": "must_include",
+      "pattern": "(?i)(第\\s*\\d+\\s*条|法\\s*.*第|条例|规定)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["regulation"],
+      "message": "引用外部法规须含条款出处"
+    },
+    {
+      "id": "O62-035",
+      "kind": "must_include",
+      "pattern": "(?i)(里程碑|时间节点|阶段|排期|deadline)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["plan"],
+      "message": "项目计划须含里程碑 / 时间节点"
+    },
+    {
+      "id": "O62-036",
+      "kind": "must_include",
+      "pattern": "(?i)(对比维度|比较项|指标|口径一致)",
+      "severity": "low",
+      "scope": ["office_doc", "office_sheet"],
+      "applies_to": ["comparison"],
+      "message": "对比分析须含维度说明"
+    },
+    {
+      "id": "O62-037",
+      "kind": "must_include",
+      "pattern": "(?i)(结论|小结|综上所述|建议)",
+      "severity": "low",
+      "scope": ["office_doc", "office_sheet", "office_ppt"],
+      "applies_to": ["report"],
+      "message": "报告 / 总结须含结论"
+    },
+    {
+      "id": "O62-038",
+      "kind": "must_include",
+      "pattern": "(?i)(参考|参见|引用|reference\\s*:)",
+      "severity": "low",
+      "scope": [],
+      "applies_to": ["external_ref"],
+      "message": "外部引用须给可核验出处"
+    },
+    {
+      "id": "O62-039",
+      "kind": "must_include",
+      "pattern": "(?i)(告知|授权|同意|个人信息)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["personal_info"],
+      "message": "处理个人信息须含告知 / 授权"
+    },
+    {
+      "id": "O62-040",
+      "kind": "format",
+      "pattern": "\\n\\s*\\n\\s*\\n",
+      "severity": "low",
+      "scope": [],
+      "message": "避免连续三个及以上空行"
+    },
+    {
+      "id": "O62-041",
+      "kind": "format",
+      "pattern": "[ \\t]+$",
+      "severity": "low",
+      "flags": "m",
+      "message": "清除行尾空白字符"
+    },
+    {
+      "id": "O62-042",
+      "kind": "format",
+      "pattern": "([，。！？；：、])[ \\t]+",
+      "severity": "low",
+      "scope": [],
+      "message": "全角标点后不应有半角空格"
+    },
+    {
+      "id": "O62-043",
+      "kind": "format",
+      "pattern": "([，。！？])\\1+",
+      "severity": "low",
+      "scope": [],
+      "message": "避免重复标点"
+    },
+    {
+      "id": "O62-044",
+      "kind": "format",
+      "pattern": "(?m)^#+(?!\\s|#)",
+      "severity": "low",
+      "scope": [],
+      "message": "Markdown 标题 # 后需空格"
+    },
+    {
+      "id": "O62-045",
+      "kind": "format",
+      "pattern": "[０-９]",
+      "severity": "low",
+      "scope": [],
+      "message": "全角数字应归一化为半角"
+    },
+    {
+      "id": "O62-046",
+      "kind": "format",
+      "pattern": "([\\u4e00-\\u9fa5][a-zA-Z]|[a-zA-Z][\\u4e00-\\u9fa5])",
+      "severity": "low",
+      "flags": "i",
+      "message": "中英文之间建议加空格"
+    },
+    {
+      "id": "O62-047",
+      "kind": "forbid",
+      "pattern": "(?i)(\\[\\s*[^\\]]*\\.xls[a-z]?\\s*\\])",
+      "severity": "medium",
+      "scope": ["office_sheet"],
+      "message": "表格禁止引用外部工作簿链接"
+    },
+    {
+      "id": "O62-048",
+      "kind": "forbid",
+      "pattern": "(?i)(隐藏行|隐藏列|hidden\\s+row|hidden\\s+column)",
+      "severity": "medium",
+      "scope": ["office_sheet"],
+      "message": "表格禁止用隐藏行列藏数据"
+    },
+    {
+      "id": "O62-049",
+      "kind": "must_include",
+      "pattern": "(?i)(单位|元|个|件|人|%|万元|亿元)",
+      "severity": "low",
+      "scope": ["office_sheet"],
+      "applies_to": ["data_rich"],
+      "message": "数值列应标注单位"
+    },
+    {
+      "id": "O62-050",
+      "kind": "format",
+      "pattern": "(?i)\\d\\.\\d+[eE][+-]?\\d+",
+      "severity": "low",
+      "scope": ["office_sheet"],
+      "message": "避免科学计数法导致精度丢失"
+    },
+    {
+      "id": "O62-051",
+      "kind": "forbid",
+      "pattern": "(?i)(logo|商标|®|™)",
+      "severity": "low",
+      "scope": ["office_ppt"],
+      "message": "演示禁止未授权品牌标识"
+    },
+    {
+      "id": "O62-052",
+      "kind": "must_include",
+      "pattern": "(?i)(第\\s*\\d+\\s*页|/\\s*\\d+\\s*页|page\\s*\\d+)",
+      "severity": "low",
+      "scope": ["office_ppt"],
+      "applies_to": [],
+      "message": "演示应标注页码 / 总页数"
+    },
+    {
+      "id": "O62-053",
+      "kind": "must_include",
+      "pattern": "(?i)(备注|speaker\\s*notes|演讲者)",
+      "severity": "low",
+      "scope": ["office_ppt"],
+      "applies_to": [],
+      "message": "演示建议含演讲者备注提示"
+    },
+    {
+      "id": "O62-054",
+      "kind": "must_include",
+      "pattern": "(?i)(目录|章节|第一章|一、)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "applies_to": ["long_doc"],
+      "message": "长篇文档应含目录 / 章节"
+    },
+    {
+      "id": "O62-055",
+      "kind": "forbid",
+      "pattern": "(?i)(mergetield|mail\\s*merge|邮件合并)",
+      "severity": "low",
+      "scope": ["office_doc"],
+      "message": "文档禁止生成邮件合并字段代码"
+    },
+    {
+      "id": "O62-056",
+      "kind": "forbid",
+      "pattern": "(?i)(tenant_id|dept_id|租户编号|部门编号)\\s*[:=]",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止泄露租户 / 部门标识"
+    },
+    {
+      "id": "O62-057",
+      "kind": "forbid",
+      "pattern": "(?i)(bit\\.ly|t\\.cn|dwz\\.cn|短链|短网址)",
+      "severity": "low",
+      "scope": [],
+      "message": "禁止生成未标注短链"
+    },
+    {
+      "id": "O62-058",
+      "kind": "must_include",
+      "pattern": "(?i)(附件|下载|详见|见附件)",
+      "severity": "low",
+      "scope": [],
+      "applies_to": ["download"],
+      "message": "含下载 / 附件须标注来源"
+    },
+    {
+      "id": "O62-059",
+      "kind": "forbid",
+      "pattern": "(?i)(转发朋友圈|集赞|拉人头|裂变|传销)",
+      "severity": "low",
+      "scope": [],
+      "message": "禁止生成诱导分享话术"
+    },
+    {
+      "id": "O62-060",
+      "kind": "forbid",
+      "pattern": "(?i)(包治|根治|100%|治愈率|药到病除)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止医疗 / 药物绝对疗效承诺"
+    },
+    {
+      "id": "O62-061",
+      "kind": "format",
+      "pattern": "(?m)^\\t+",
+      "severity": "low",
+      "scope": [],
+      "message": "避免用制表符做行首缩进"
+    },
+    {
+      "id": "O62-062",
+      "kind": "forbid",
+      "pattern": "(?i)(歧视|种族歧视|地域歧视|性别歧视)",
+      "severity": "medium",
+      "scope": [],
+      "message": "禁止生成歧视性表述"
+    }
+  ]
+}

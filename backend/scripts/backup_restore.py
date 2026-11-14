@@ -112,14 +112,6 @@ def _counts(stores: dict) -> dict:
     return c
 
 
-def _empty_stores(reason: str) -> dict:
-    return {
-        "observability": {"unavailable": reason, "counters": {}, "samples": [],
-                          "by_path": {}, "feedback": []},
-        "events": {"unavailable": reason, "subscriptions": [], "events": []},
-    }
-
-
 def do_backup(out_path: str) -> int:
     mods = _load_services()
     stores = _empty_stores(mods)
