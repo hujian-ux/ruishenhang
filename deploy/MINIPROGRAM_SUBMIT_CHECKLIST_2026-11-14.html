@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>微信小程序提审清单 · 睿深行 AI 工作台</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;margin:0;background:#f5f7fa;color:#1f2937;line-height:1.7}
+  main{max-width:920px;margin:0 auto;padding:32px 24px 64px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:18px;margin:32px 0 10px;padding-left:10px;border-left:4px solid #2563eb}
+  .sub{color:#6b7280;font-size:13px;margin:0 0 18px}
+  .note{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;font-size:13px;color:#9a3412;margin:16px 0}
+  .ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:10px 14px;font-size:13px;margin:14px 0}
+  table{border-collapse:collapse;width:100%;background:#fff;font-size:13px;margin:10px 0}
+  th,td{border:1px solid #e5e7eb;padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f3f4f6;font-weight:600}
+  code{background:#eef2ff;padding:1px 5px;border-radius:4px;font-size:12px;color:#3730a3}
+  .req{color:#dc2626;font-weight:600}
+  .chk{font-family:monospace;color:#6b7280}
+  ul,ol{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>微信小程序提审清单</h1>
+  <p class="sub">— 睿深行 AI 工作台 小程序（<code>miniprogram/</code>）· 对接同一套 <code>/api/v1</code> 后端 —</p>
+
+  <div class="ok"><b>已完成（代码侧，2026-11-14 续补）</b>：骨架就位（app.js/json/wxss、pages/login|chat|outputs）、后端 <code>POST /auth/wx/login</code> 已接线并单测覆盖、<code>pages/login/login.js</code> 已补 wx enforce 分支（收口态自动/按钮触发 <code>wxLogin()</code>）、<code>utils/api.js</code> 已加 <code>wxLogin()</code> 助手。</div>
+
+  <div class="note"><b>本清单为「准备类」交付物</b>：逐项核对后，凡标 <span class="req">【必填】</span> 的均依赖你侧账号 / 备案域名 / 资质等外部输入，非代码缺陷。代码改完即可在开发者工具本地预览（游客模式），但<strong>提审与上架必须填真实 AppID + 已备案 HTTPS 域名</strong>。</div>
+
+  <h2>0. 账号与主体（提审前提）</h2>
+  <table>
+    <tr><th>项</th><th>说明</th><th>状态</th></tr>
+    <tr><td>小程序账号</td><td>微信公众平台注册<strong>企业</strong>小程序（个人主体无法开通部分接口 / 类目）</td><td><span class="req">【必填】</span></td></tr>
+    <tr><td>企业主体认证</td><td>完成微信认证（￥300/年），否则无法提交审核</td><td><span class="req">【必填】</span></td></tr>
+    <tr><td>服务类目</td><td>选「工具 / 效率」或「企业服务」类目；若含 AI 生成内容，按平台要求补充资质</td><td><span class="req">【必填】</span></td></tr>
+    <tr><td>真实 AppID</td><td>公众平台「开发管理 → 开发设置」获取，替换 <code>project.config.json</code> 的 <code>touristappid</code></td><td><span class="req">【必填】</span></td></tr>
+  </table>
+
+  <h2>1. 代码与配置改动</h2>
+  <ol>
+    <li><span class="chk">☐</span> <code>miniprogram/project.config.json</code>：<code>"appid"</code> 由 <code>touristappid</code> 改为真实 AppID <span class="req">【必填】</span>。</li>
+    <li><span class="chk">☐</span> <code>miniprogram/utils/api.js</code>：<code>API_BASE</code> 由 <code>https://ai.your-domain.com</code> 改为<strong>已 ICP 备案的 HTTPS 后端域名</strong> <span class="req">【必填】</span>。</li>
+    <li><span class="chk">☐</span> 微信公众平台 → 开发管理 → 开发设置 → <strong>服务器域名</strong>：request 合法域名加入该 HTTPS 域名（仅 https，需备案）。如用 wx.login 换码，无需 socket/upload/download 额外配置。</li>
+    <li><span class="chk">☐</span> <code>libVersion</code>（当前 3.0.0）保持与基础库兼容即可，无需改。</li>
+    <li><span class="chk">☐</span> 本地联调：开发者工具勾选「不校验合法域名」→ 真机预览先用游客/测试。</li>
+  </ol>
+
+  <h2>2. 后端配套（小程序登录可用）</h2>
+  <ol>
+    <li><span class="chk">☐</span> 后端 <code>.env</code> 设 <code>WX_MINI_LOGIN_ENABLED=1</code> + <code>WX_MINI_APP_ID</code> + <code>WX_MINI_APP_SECRET</code>（与小程序 AppID/AppSecret 一致）。</li>
+    <li><span class="chk">☐</span> 验证 <code>POST /auth/wx/login</code> 用真实 code 返回 token（参考 <code>tests/test_m_auth_wx_login.py</code>）。</li>
+    <li><span class="chk">☐</span> 若同时做身份收口，按 <code>deploy/CASDOOR_CLOSURE_ENV_PATCH.md</code> 启用 OIDC 并验证 SSO。</li>
+  </ol>
+
+  <h2>3. 功能自检</h2>
+  <ol>
+    <li><span class="chk">☐</span> 微信登录全链路：小程序 <code>wx.login()</code> → 后端换码 → 存 token → 跳聊天页。</li>
+    <li><span class="chk">☐</span> 会话：建会话、发消息、看回复；<code>outputs</code> 页能拿到 xlsx/docx/pptx/pdf 下载链接。</li>
+    <li><span class="chk">☐</span> enforce 分支：在 <code>/auth/settings</code> 返回 <code>enforce_oidc=true</code> 时，登录页自动走微信登录、隐藏演示入口。</li>
+    <li><span class="chk">☐</span> 不同机型 / 弱网 / 登录态持久化（重开小程序 token 仍在）。</li>
+  </ol>
+
+  <h2>4. 合规与隐私（审核重点）</h2>
+  <ol>
+    <li><span class="chk">☐</span> 隐私协议：上传《隐私保护指引》并配置隐私协议入口（登录前弹窗授权）。</li>
+    <li><span class="chk">☐</span> 用户授权：<code>wx.login</code> 属获取 openid，须在隐私协议与授权弹窗中明示。</li>
+    <li><span class="chk">☐</span> 内容安全：AI 生成文本/图片接入微信内容安全（msgSecCheck/imgSecCheck）或自有审核，避免违规下架。</li>
+    <li><span class="chk">☐</span> 不得诱导分享、不得强制关注、类目与功能一致。</li>
+  </ol>
+
+  <h2>5. 提审与发布流程</h2>
+  <ol>
+    <li><span class="chk">☐</span> 开发者工具导入 <code>miniprogram/</code> → 上传代码版本（填版本号 + 备注）。</li>
+    <li><span class="chk">☐</span> 公众平台设为「体验版」，内部体验账号先走通。</li>
+    <li><span class="chk">☐</span> 提交审核：填写功能页面路径、测试账号（如有登录态）、类目资质。</li>
+    <li><span class="chk">☐</span> 过审后发布（建议先灰度 10% → 全量）。</li>
+  </ol>
+
+  <h2>6. 验收</h2>
+  <ul>
+    <li>真机预览：iOS / Android 主流机型各一遍。</li>
+    <li>崩溃监控：接入小程序自有异常上报或微信后台「运维中心」。</li>
+    <li>回归：登录 → 建会话 → 产出物下载 全链路。</li>
+  </ul>
+
+  <div class="note"><b>诚实边界</b>：本清单代码侧（骨架 / wx 端点 / login 分支 / api 助手）均已完成并通过静态校验；<strong>AppID、API_BASE HTTPS 域名、微信 AppSecret、备案与类目资质、隐私协议</strong> 为需你侧提供的外部输入，代码无法替代。</div>
+</main>
+</body>
+</html>

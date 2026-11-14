@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkBuddy 逆向对照：企业 AI 智能体中台能力缺口与新增清单（2026-11-12）</title>
+<style>
+  :root{
+    --ink:#16202e; --ink-2:#41546b; --ink-3:#7189a6;
+    --line:#e2e8f0; --line-2:#eef2f7;
+    --bg:#f6f8fb; --card:#ffffff;
+    --brand:#1f4e8c; --brand-2:#2f6fb5; --brand-soft:#eaf1fa;
+    --red:#b5342c; --red-bg:#fdecea;
+    --amber:#8a5a00; --amber-bg:#fff5e0;
+    --green:#1c6b4a; --green-bg:#e8f6ee;
+    --gray:#5b6773; --gray-bg:#eef1f4;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+    font-size:15px; line-height:1.75;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px 80px;}
+  header.doc{
+    background:linear-gradient(135deg,#17314f 0%,#1f4e8c 55%,#2f6fb5 100%);
+    color:#fff; padding:52px 0 44px; margin-bottom:34px;
+  }
+  header.doc .wrap{padding-bottom:0;}
+  .kicker{font-size:12.5px; letter-spacing:.22em; text-transform:uppercase; color:#a9c6e8; margin:0 0 14px;}
+  h1{font-size:31px; line-height:1.35; margin:0 0 16px; font-weight:650; letter-spacing:-.3px;}
+  .sub{font-size:15px; color:#d3e2f3; margin:0; max-width:900px;}
+  .meta{margin-top:24px; display:flex; flex-wrap:wrap; gap:10px 26px; font-size:12.5px; color:#b8d0ea;}
+  .meta b{color:#fff; font-weight:600;}
+
+  .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin:-58px 0 30px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 16px 14px; box-shadow:0 6px 18px rgba(22,32,46,.07);}
+  .kpi .n{font-size:26px; font-weight:700; line-height:1.1; color:var(--brand);}
+  .kpi .n.r{color:var(--red);} .kpi .n.a{color:var(--amber);} .kpi .n.g{color:var(--green);} .kpi .n.k{color:var(--gray);}
+  .kpi .l{font-size:12.5px; color:var(--ink-2); margin-top:6px;}
+
+  section{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:30px 32px; margin-bottom:22px;}
+  h2{font-size:20px; margin:0 0 6px; color:var(--brand); font-weight:650; letter-spacing:-.2px;}
+  h2 .num{display:inline-block; min-width:34px; color:#a8bed7; font-weight:700; margin-right:6px;}
+  .h2sub{font-size:13px; color:var(--ink-3); margin:0 0 22px; padding-bottom:14px; border-bottom:1px solid var(--line-2);}
+  h3{font-size:15.5px; margin:26px 0 10px; color:var(--ink); font-weight:650;}
+  h4{font-size:14px; margin:18px 0 8px; color:var(--ink-2); font-weight:650;}
+  p{margin:0 0 12px;}
+  ul,ol{margin:0 0 14px; padding-left:22px;}
+  li{margin:5px 0;}
+  code{background:#f0f3f8; border:1px solid #e3e9f1; border-radius:4px; padding:1px 5px; font-size:12.5px;
+       font-family:"JetBrains Mono",Consolas,"Courier New",monospace; color:#2b3f57;}
+  .lede{font-size:16px; line-height:1.8; color:var(--ink); background:var(--brand-soft); border-left:4px solid var(--brand-2);
+        padding:16px 20px; border-radius:0 8px 8px 0; margin:0 0 18px;}
+  .lede b{color:var(--brand);}
+
+  table{width:100%; border-collapse:collapse; margin:8px 0 18px; font-size:13px;}
+  th,td{border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top;}
+  th{background:#f2f5f9; color:var(--ink-2); font-weight:650; font-size:12.5px; white-space:nowrap;}
+  tbody tr:nth-child(even){background:#fbfcfe;}
+  td.c{text-align:center; white-space:nowrap;}
+  .tag{display:inline-block; padding:1px 8px; border-radius:20px; font-size:11.5px; font-weight:650; white-space:nowrap;}
+  .t-miss{background:var(--red-bg); color:var(--red); border:1px solid #f3cfcb;}
+  .t-part{background:var(--amber-bg); color:var(--amber); border:1px solid #f0dcb3;}
+  .t-ok{background:var(--green-bg); color:var(--green); border:1px solid #c5e5d3;}
+  .t-no{background:var(--gray-bg); color:var(--gray); border:1px solid #dde2e8;}
+  .domain{background:#edf2f8 !important; font-weight:650; color:var(--brand);}
+
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .box{border:1px solid var(--line); border-radius:8px; padding:16px 18px; background:#fcfdff;}
+  .box h4{margin-top:0;}
+  .box.us{border-left:3px solid var(--brand-2);}
+  .box.them{border-left:3px solid #b0691f;}
+  .box ul{margin-bottom:0; padding-left:18px;}
+  .box li{font-size:13px;}
+
+  .p0{border:1px solid var(--line); border-left:4px solid var(--red); border-radius:8px; padding:18px 20px; margin:16px 0; background:#fffdfd;}
+  .p0 .head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:8px;}
+  .p0 .head .id{font-size:12px; font-weight:700; color:#fff; background:var(--red); border-radius:4px; padding:1px 7px;}
+  .p0 .head .ttl{font-size:16px; font-weight:650; color:var(--ink);}
+  .p0 .head .cost{font-size:12px; color:var(--ink-3); margin-left:auto;}
+  .kv{display:grid; grid-template-columns:86px 1fr; gap:4px 12px; font-size:13px; margin:8px 0 0;}
+  .kv dt{color:var(--ink-3); font-weight:600;}
+  .kv dd{margin:0; color:var(--ink-2);}
+  .kv dd b{color:var(--ink);}
+
+  .note{font-size:12.5px; color:var(--ink-3); border-top:1px dashed var(--line); padding-top:10px; margin-top:14px;}
+  .warn{background:#fff8f2; border:1px solid #f2ddc6; border-radius:8px; padding:14px 18px; font-size:13.5px; color:#7a4a12;}
+  .warn b{color:#a1610e;}
+  .good{background:var(--green-bg); border:1px solid #c5e5d3; border-radius:8px; padding:14px 18px; font-size:13.5px; color:#1a5c40;}
+
+  .toc{display:grid; grid-template-columns:repeat(4,1fr); gap:8px 18px; font-size:13px;}
+  .toc a{color:var(--ink-2); text-decoration:none; border-bottom:1px dotted #cfd9e4; display:inline-block; padding:2px 0;}
+  .toc a:hover{color:var(--brand);}
+  footer{font-size:12px; color:var(--ink-3); text-align:center; padding:10px 0 0;}
+
+  @media (max-width:1000px){
+    .kpis{grid-template-columns:repeat(2,1fr); margin-top:-40px;}
+    .cols{grid-template-columns:1fr;}
+    .toc{grid-template-columns:repeat(2,1fr);}
+    .kv{grid-template-columns:1fr;}
+    h1{font-size:24px;}
+  }
+  @media print{
+    body{background:#fff; font-size:11pt;}
+    header.doc{background:#17314f !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    section{break-inside:auto; border:none; padding:0; margin-bottom:18px;}
+    .kpis{margin-top:0;}
+    .p0{break-inside:avoid;}
+    table{font-size:9.5pt;}
+  }
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="wrap">
+    <p class="kicker">逆向对照报告 · Capability Gap Review</p>
+    <h1>WorkBuddy 逆向对照：企业 AI 智能体中台<br>能力缺口与新增清单</h1>
+    <p class="sub">以 <b>D:\WorkBuddy-RE</b>（腾讯 WorkBuddy 5.11.2 拆解，26 子目录 + 技术蓝图 + 合规评审 + 企业场景库）为参照系，逐项比对 <b>D:\enterprise-ai-platform</b>（M55 / f49cb4b）现有实现，回答一个问题：我们还要添加什么、先加什么、什么不该抄。</p>
+    <div class="meta">
+      <span>报告日期 <b>2026-11-12</b></span>
+      <span>平台基线 <b>M55 · f49cb4b</b></span>
+      <span>对照项 <b>38</b></span>
+      <span>后端测试 <b>672 passed</b></span>
+      <span>OpenAPI <b>141 paths</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="kpis">
+    <div class="kpi"><div class="n k">38</div><div class="l">能力项逐项对照</div></div>
+    <div class="kpi"><div class="n r">13</div><div class="l">完全缺失，需新建</div></div>
+    <div class="kpi"><div class="n a">13</div><div class="l">部分覆盖，需补齐</div></div>
+    <div class="kpi"><div class="n g">9</div><div class="l">已覆盖，无需重做</div></div>
+    <div class="kpi"><div class="n k">3</div><div class="l">明确不照搬</div></div>
+  </div>
+
+  <section id="judgement">
+    <h2><span class="num">01</span>结论：我们缺的不是功能，是运行时工程</h2>
+    <p class="h2sub">先把判断说清楚，后面 38 行矩阵只是这个判断的证据展开。</p>
+
+    <div class="lede">
+      <b>一句话：</b>WorkBuddy 强在「运行时工程」——流式会话、可中断、可插话、进程预热、工具沙箱、可靠投递、automations 调度、插件生态；我们强在「企业治理」——多租户、配额、审批、评测、203 技能包、MLOps、产物生成。<b>所以该补的是运行时那一层，而不是把它的功能清单抄一遍。</b>
+    </div>
+
+    <h3>三条判断依据</h3>
+    <ol>
+      <li><b>我们的 9 项「已覆盖」全在治理与知识侧</b>，13 项「缺失」里 10 项落在同一根脊柱上：<code>会话运行时 → 工具循环 → 执行边界 → 记忆 → 调度投递</code>。这不是五个功能，是一条链。</li>
+      <li><b>我们已有骨架、但执行是「虚」的</b>：<code>workflows.py</code> 有 4 类节点编排，但 llm 节点是 <code>"mode":"dry_run"</code> 占位（<code>backend/app/services/workflows.py:231</code>）；<code>agent_runtime.py</code> 记录 <code>tool_calls</code> 但从不真正执行（<code>:380</code> / <code>:415</code>）；<code>events.py</code> 有订阅总线但没有 outbox、租约与退避。这三处「有壳无核」是投入产出比最高的补齐点。</li>
+      <li><b>它最强的那几条恰恰有合规雷</b>：设备指纹 qimei36、Turing 风控令牌、aegis 遥测被它自己的合规评审定为 P0（<code>30-compliance/COMPLIANCE-RISK-REVIEW.md</code> R01–R03 / R12）；keyblob 自标「静态可解密」。这些属于「看得懂但不学」。</li>
+    </ol>
+
+    <div class="warn">
+      <b>一个反直觉的提醒：</b>如果按「WorkBuddy 有 68 个 CLI 命令、7 个市场源、101 个插件」来排期，我们会做出一堆用不上的东西。它是<b>桌面单机产品</b>，冷启动、离线、插件分发是它的生存问题；我们是<b>企业 B/S 中台</b>，这些问题多数不存在（见 §7 不照搬）。真正要补的只有「会话—工具—边界—记忆—调度」这条链，加上飞书连接器与 MCP 服务端暴露这两个企业集成硬需求。
+    </div>
+  </section>
+
+  <section id="baseline">
+    <h2><span class="num">02</span>对照底数</h2>
+    <p class="h2sub">结论必须建在「今天代码 + 实测」上。以下数字均为本轮实跑或逐文件核对所得，不引用过期缺口文档。</p>
+
+    <div class="cols">
+      <div class="box us">
+        <h4>平台侧（实测 @ 2026-11-12，M55 / f49cb4b）</h4>
+        <ul>
+          <li>后端 <code>pytest -q</code>：<b>672 passed</b>，4 warnings，119.25s</li>
+          <li><code>openapi.yaml</code>：<b>141 paths</b>；<code>routers/</code> <b>23</b> 个；<code>services/</code> <b>55</b> 个 py</li>
+          <li>前端 <code>web/src/pages/</code> <b>16</b> 页（Chat 716 行 / Builder 597 / Skills 589 / Models 567 …）</li>
+          <li>技能库 <b>203</b> 包（沿用 M53 commit 口径，solutions 目录无法复算）</li>
+          <li><code>POST /agent/invoke</code>：<b>同步返回</b>；全仓 <code>StreamingResponse</code> 仅用于 files 下载</li>
+          <li>前端 <code>web/src/api/client.ts:128</code> 单次 POST；全仓 <b>0 处</b> <code>EventSource</code> / <code>AbortController</code> / <code>ReadableStream</code></li>
+          <li>关键词扫描：<code>automation</code> 0、<code>sandbox</code> 0、<code>entitle</code> 0、<code>marketplace</code> 0、<code>connector</code> 0、<code>steer</code> 0、<code>outbox</code> 0、<code>subagent</code> 0</li>
+          <li>已有：多租户 / 配额 / 审批 / 审计 / 评测 / MLOps / MCP 客户端 / 企微+钉钉 IM</li>
+        </ul>
+      </div>
+      <div class="box them">
+        <h4>逆向侧（WorkBuddy 5.11.2 / Electron 37.10.3 / agent-cli v2.176.0）</h4>
+        <ul>
+          <li>三层架构：Electron 壳（零业务）+ Agent CLI 内核（12.8MB 单文件）+ 本地 daemon（JSON-RPC）</li>
+          <li>三大通信面：IPC 67 handle / 30 on / 28 send（66 条静态通道，preload 71 API）、CLI serve JSON-RPC、远端 HTTP 91 域名</li>
+          <li>CLI：<b>68 命令 / 134 option</b>；<code>--serve</code>、<code>--acp</code>；queue 10 方法 + steer + followup</li>
+          <li>提示词：17 个 <code>.tpl</code>，主模板 30,633B / 332 行 / 27 节；身份四件套 SOUL/BOOTSTRAP/IDENTITY/USER</li>
+          <li>DB：<code>workbuddy.db</code> 18 表（sessions 316 / automations 2 / automation_runs 65 / local_skills 91）</li>
+          <li>生态：skills 60+（<code>~/.workbuddy/skills</code>）、插件市场 7 源 101 插件、connector 7 家</li>
+          <li>安全：TSBox 沙箱 44 规则（default=ask）、MCP approvals、keyblob AES-256-GCM+HKDF</li>
+          <li>企业场景库：19 分组（10 行业 + 9 角色）<b>278 个场景</b>，含 Skill 包/数据源/提示词/交付物</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">口径说明：平台侧数字来自本轮 <code>pytest</code> 实跑、<code>openapi.yaml</code> 计数与 <code>services</code>/<code>pages</code> 目录清点；逆向侧数字来自 <code>D:\WorkBuddy-RE</code> 各子目录报告（静态拆解，动态行为未实测）。两侧均为「能力存在性」比对，不比对性能。</p>
+  </section>
+
+  <section id="matrix">
+    <h2><span class="num">03</span>38 项对照矩阵</h2>
+    <p class="h2sub">六域逐行判定。「WorkBuddy 做法」列是它的实现结构（证据在 <code>D:\WorkBuddy-RE</code> 对应子目录），「我们现状」列是今天代码里的真实状态（证据到文件/行）。</p>
+
+    <table>
+      <thead><tr><th style="width:15%">能力项</th><th style="width:33%">WorkBuddy 做法 · 证据</th><th style="width:39%">我们现状 · 证据</th><th style="width:13%">判定</th></tr></thead>
+      <tbody>
+        <tr><td class="domain" colspan="4">A · 会话运行时（8 项）</td></tr>
+        <tr><td>流式输出</td><td><code>response.output_text.delta</code> 事件面 + 前端 streaming 状态（10-js-logic、22-cli-surface §4）</td><td><code>POST /agent/invoke</code> 同步一次性返回（<code>backend/app/routers/invoke.py</code>，231 行）；前端 <code>client.ts:128</code> 单次 POST，无 <code>EventSource</code>/<code>ReadableStream</code></td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>中断 / 取消生成</td><td><code>ConversationEventMachine.cancelPublication</code> + <code>discardedStreamingTimestamps</code> 处理打断乱序</td><td>无后端 cancel 语义；前端无 <code>AbortController</code>；一次请求只能等完</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>会话状态机</td><td><code>RequestAssemblerLifecycle</code>：user echo → assistant placeholder(<code>state:'streaming'</code>) → completed/cancelled/error；<code>protocolRequestIds</code> 映射流式回包</td><td>无状态机；<code>session_store</code> 只做 turns 追加，前端靠请求 Promise 的 pending 态</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>消息队列 / 插话（steer）</td><td><code>session/queue</code> 10 方法：<code>enqueue_message / reorder_queue / send_queue_item_now / pause_queue</code>，另有 steer、followup</td><td>无排队概念；并发提问各自独立打 invoke</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>轮次回滚</td><td><code>_codebuddy.ai/session/rollback</code> + 制品两级变更（blobs → changes-index）可回滚</td><td>只有 <code>DELETE /agent/sessions</code>（整会话删除）；无单轮撤销、无制品版本</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>会话持久化与上下文窗口</td><td>SQLite <code>sessions</code> 含 <code>cwd/model/expert_id/context_window/thought_level/permission_mode/use_sandbox_cli</code></td><td>有 Session 表与 <code>build_context()</code>，但仅按 <code>MAX_CONTEXT_TURNS</code> 尾部截断（<code>session_store.py:115</code>），无摘要压缩、无窗口配置</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>进程预热池</td><td><code>cli-prewarm-pool.js</code>：idle→spawning→warming→warm，poolSize/health probe/stale reap</td><td>单体 FastAPI 常驻，无冷启动问题</td><td class="c"><span class="tag t-no">不照搬</span></td></tr>
+        <tr><td>跨会话长期记忆</td><td>文件化：<code>MEMORY.md / USER.md / SOUL.md / IDENTITY.md</code> + <code>local-memory-write</code> 锁 + <code>buildNameLineMatcher</code> 多写法兼容</td><td><code>memory</code> 关键词 9 处全部指「会话窗口内记忆」；无跨会话事实沉淀、无用户画像、无删除能力</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+
+        <tr><td class="domain" colspan="4">B · 智能体能力（8 项）</td></tr>
+        <tr><td>多轮工具调用循环</td><td><code>agent_loop</code> 8 步 think→tool→observe→…→respond；tool_call / tool_result 事件回流上下文</td><td><code>agent_runtime.py</code> 实为固定 retrieve→generate 管线，<code>tool_calls</code> 只写进返回体不执行（<code>:380</code> / <code>:415</code>）</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>工具注册与权限分级</td><td>六族 option：<code>--tools / --allowedTools / --disallowedTools / --permission-mode</code>，计划前/主代理/子代理三档独立授权（22 §6）</td><td>有 <code>guardrails.guard_tool_call()</code>（<code>guardrails.py:555</code>）作单点护栏，但没有工具注册表、没有工具级白名单</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>子代理 / 专家</td><td><code>agents auto-mode/defaults/config/critique</code>；<code>expert_id</code> 落 sessions；expert 模板 31KB；<code>expert-history.json</code></td><td><code>agents</code> 路由是「业务智能体配置 + RAG」，非执行型子代理；<code>subagent</code> 全仓 0 命中</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>技能体系</td><td><code>local_skills</code> 91 行 + <code>SKILL.md</code> frontmatter（description/_zh/_en 回退）+ enabled/disabled/builtin 三态 + <code>skill_cloud_sync_ledger</code></td><td><b>203 技能包</b> + <code>skill_pack.py</code> + Skills 页 589 行；缺索引台账、缺安装/卸载账本</td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>提示词工程</td><td>17 个外置 <code>.tpl</code>（Nunjucks），27 节 / 六组，模式×场景矩阵拆文件，安全四节在所有模板稳定复现</td><td><code>zh_prompts.py</code> 内嵌 7 个模板 dict + <code>_ZH_OUT_CONSTRAINT</code>；无外置、无模式矩阵、无组装序规范</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>工作流真执行</td><td><code>workflow_run_started</code> 事件 + 节点执行；automations 驱动的长流程</td><td><code>workflows.py</code> 支持 llm/rag/tool/approval 四类节点但线性执行，llm 节点 <code>"mode":"dry_run"</code> 纯占位（<code>:231</code>）</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>多模态（图像理解 / 生成）</td><td><code>--text-to-image-model</code>、visualizer 节、图片类 Skill 包</td><td><code>image_url</code>/<code>vision</code> 仅 auth.py / mlops.py 偶现，非图像理解能力</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>产物呈现与文件交付</td><td><code>sharing_files</code> / <code>file_id</code> 节 + artifact-index；present_files 语义</td><td><code>artifact.py</code>（LLM 答案→xlsx，可溯源）+ <code>/files</code> 上传/预览/下载 + 前端 Outputs 页</td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+
+        <tr><td class="domain" colspan="4">C · 生态与扩展（7 项）</td></tr>
+        <tr><td>MCP 客户端消费</td><td><code>mcp add/remove/list/get</code>；<code>mcpStartupStatus</code> 事件；<code>mcp.json</code> 配置</td><td><code>mcp_client.py</code> + <code>mcp_bridge.py</code> + <code>/mcp/tools|status|reload</code></td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>MCP 服务端暴露</td><td>不做（它是单机客户端，无对外 MCP server）</td><td>也没有：企业客户的 IDE / 自家 Agent 无法把我们的知识库与技能当 MCP 工具调用</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>MCP 工具审批 + 沙箱代理</td><td>MCP approvals + sandbox-proxy iframe CSP</td><td>有 <code>/approval</code> 全链路（decide/pending/detail/assist），但未接 MCP 工具执行</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>插件 SDK / 市场</td><td><code>connector-harness-marketplace.js</code> 762KB 主控；8 类插件模板；<code>trusted-extension-signers.js</code> 签名校验；7 市场源</td><td><code>marketplace</code> 0 命中；无插件模型、无签名、无市场</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>连接器（IM / 办公套件）</td><td><b>7 家</b>：飞书（双区域 open.feishu.cn / open.larksuite.com）、QQ、微信、企微、钉钉、Slack(socket)、Telegram；<code>CredentialFieldCipher</code> 字段级加密</td><td><code>/integrations/im/*</code> 8 端点，仅企微 + 钉钉（含 AES 解密、verify_url/verify_message、replay 校验）；<b>无飞书、无 OAuth 授权流</b></td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>凭据管理</td><td>keyblob：AES-256-GCM + HKDF 字段加密，落 <code>~/.workbuddy/credentials/</code>；但 <code>connector-keys</code> 32B raw 明文（其合规评审 R05 判 P1）</td><td>LLM key 明文落 <code>backend/.env.local</code>；连接器凭据在 DB；无字段级加密、无轮换</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>CLI / ACP 命令面</td><td>68 命令 / 134 option；<code>--serve</code> JSON-RPC；<code>--acp</code> 桥接</td><td>无 CLI；但 <code>openapi.yaml</code> 141 paths + SwaggerUI 已构成完整 API 面，<code>--acp</code> 无企业客户诉求</td><td class="c"><span class="tag t-no">不照搬</span></td></tr>
+
+        <tr><td class="domain" colspan="4">D · 自动化与事件（6 项）</td></tr>
+        <tr><td>任务调度器</td><td><code>LocalAutomationScheduler</code>（tickMs/activeTickMs/missedWindowMs/concurrency）+ <code>automations</code> 表（scheduleType/rrule/scheduledAt/validFrom/validUntil）</td><td><code>automation</code> 0 文件；<code>schedule</code> 3 处均为 mlops 训练钩子，无用户级定时任务</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>可靠投递（outbox）</td><td><code>AutomationDeliveryOutbox</code> Builder / Pusher / SenderFactory，表 <code>automation_delivery_outbox</code></td><td><code>events.py</code> 262 行：webhook 订阅 + 发布，<b>无 outbox、无租约、无退避重试</b>；失败即丢</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>运行记录与终态对账</td><td><code>automation_runs</code> 65 行 + <code>reconcileTerminalRunRecords</code> / <code>pruneOrphanRuntimeStates</code> / <code>restorePersistedQueuedRuns</code></td><td>无运行记录表，无对账与孤儿清理</td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>事件总线</td><td><code>wb:event</code> 订阅模型，多订阅者；daemon ⇄ CLI 事件推送面</td><td><code>/events/{subscribe,subscriptions,publish}</code> + <code>services/events.py</code></td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>调度与审批联动</td><td>automations 长流程可挂 <code>requestSensitiveApproval</code></td><td>审批独立可用，但「定时任务卡在审批 / 失败升级」链路不存在</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>通知渠道</td><td>7 家 connector 统一投递抽象</td><td><code>/integrations/im/send</code> + <code>notify-approval</code>（企微/钉钉），无统一投递抽象、无模板与重试</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+
+        <tr><td class="domain" colspan="4">E · 安全、治理与工程（9 项）</td></tr>
+        <tr><td>工具执行沙箱</td><td>TSBox 独立进程 + <code>tsbx_rules.json</code> 44 规则，<b>default=ask</b>，凭据目录三态禁（read/write/delete=deny）</td><td><code>sandbox</code> 0 命中；当前只有文本级 <code>guardrails</code> 与 <code>core/filter</code> 单点，<b>无路径逃逸校验、无工作区白名单、无执行隔离</b></td><td class="c"><span class="tag t-miss">缺失</span></td></tr>
+        <tr><td>敏感操作审批</td><td>审批进协议层：<code>requestSensitiveApproval</code> / <code>cancelSensitiveApproval</code>，UI 只做展示</td><td><code>/approval</code> + <code>approval_store.py</code> + <code>approval_assistant.py</code> 全链路（人在应用层，非协议层）</td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>内容护栏</td><td><code>content_policy</code>/<code>personal_files_safety</code>/<code>windows_command_safety</code> 四稳定节 + 沙箱</td><td><code>guardrails.py</code> + 第 18 章单一过滤点 <code>core/filter</code> + <code>hard_rules.py</code> + <code>office_hard_rules.py</code>，且有 672 测试守着</td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>多租户 / 配额</td><td>无（个人产品，单机单账号）</td><td><code>tenants</code> 路由 + <code>tenant_store.py</code> + <code>usage_store.py</code> + quota 7 处 + TenantConfig 页</td><td class="c"><span class="tag t-ok">我方领先</span></td></tr>
+        <tr><td>审计日志</td><td>state.json + 按日 jsonl + spool 组成<b>哈希链</b>，防篡改</td><td><code>audit</code> 路由 + <code>audit.py</code> + <code>/ops/audit-export</code>；无哈希链、无完整性校验</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>制品存储与版本</td><td><code>blobs</code>(SHA-256 内容寻址) → <code>artifact-index</code> → <code>changes-index</code> → <code>file-tree-manifests</code>，逐请求快照、可 diff 可回滚</td><td><code>file_store.py</code> + <code>object_store.py</code>(MinIO)，无内容寻址、无版本、无变更 hunk</td><td class="c"><span class="tag t-part">部分</span></td></tr>
+        <tr><td>设备指纹 / 风控遥测</td><td>qimei36 + Turing + aegis/galileo（自评 R01–R03 / R12 为 <b>P0 风险</b>）</td><td>无，也不应做</td><td class="c"><span class="tag t-no">不照搬</span></td></tr>
+        <tr><td>模型路由与回退</td><td><code>ModelResolver</code> primary→fallback；<code>ModelCatalogKey</code> 缓存失效策略；本地 llama.cpp 兜底</td><td><code>model_router.py</code> + <code>model_gateway</code> + <code>LLM_MODEL_CHAIN</code> 5 模型 + <code>ROUTING_ENABLED</code> + Models 页 567 行</td><td class="c"><span class="tag t-ok">已覆盖</span></td></tr>
+        <tr><td>评测与质量</td><td>无（无 eval / golden / judge 体系）</td><td><code>eval.py</code> + <code>quality.py</code> + <code>judge.py</code> + <code>zh_bench.py</code> + <code>golden.jsonl</code>/<code>qa_golden.jsonl</code> + <code>feedback.py</code></td><td class="c"><span class="tag t-ok">我方领先</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">判定口径：<b>已覆盖</b>=今天代码里可用且无需重做；<b>部分</b>=有骨架或半个能力，需补齐语义；<b>缺失</b>=无任何实现；<b>不照搬</b>=形态不匹配我们的部署形态或触碰合规红线。</p>
+  </section>
+
+  <section id="p0">
+    <h2><span class="num">04</span>P0：五项，决定试点「能不能用起来」</h2>
+    <p class="h2sub">排序依据不是「WorkBuddy 有」，而是「没有它，试点用户第一周就会放弃」。五项构成一条链，必须按序做。</p>
+
+    <div class="p0">
+      <div class="head"><span class="id">P0-1</span><span class="ttl">会话流式化：SSE + 中断 + 状态机</span><span class="cost">≈ 6 人日</span></div>
+      <dl class="kv">
+        <dt>补的是</dt><dd>矩阵 A-1 / A-2 / A-3（缺失）</dd>
+        <dt>为什么</dt><dd>今天 <code>/agent/invoke</code> 是同步返回，长答案要等整段生成完；用户点「停」没有语义，只能刷新页面丢上下文。<b>这是体验断崖，也是所有后续能力（工具循环、轮次回滚）的前置。</b></dd>
+        <dt>怎么做</dt><dd>新增 <code>POST /agent/stream</code>（<code>text/event-stream</code>），事件族对齐逆向的最小集：<code>response_started</code> / <code>output_text_delta</code> / <code>tool_call</code> / <code>tool_result</code> / <code>response_done</code> / <code>error</code>；每次请求发一个 <code>request_id</code>，前端按 <code>protocolRequestIds</code> 同思路映射回包；<code>DELETE /agent/stream/{request_id}</code> 做 cancel；前端 <code>Chat.tsx</code> 接 <code>AbortController</code> + 增量渲染。<b>旧的同步端点保留</b>，兼容小程序与外部调用方。</dd>
+        <dt>关键约束</dt><dd>取消必须真正停掉上游 LLM 流（关闭 httpx stream），不能只断前端；落库在 <code>response_done</code> 时统一写，取消的轮次要标记 <code>cancelled</code> 而不是丢弃。</dd>
+        <dt>验收</dt><dd>① 2000 字回答首字节 &lt; 1.5s；② 生成中点停止，后端日志显示上游连接已关闭，会话 turns 状态为 <code>cancelled</code>；③ 断网重连后会话可续；④ 旧同步端点回归测试全绿。</dd>
+      </dl>
+    </div>
+
+    <div class="p0">
+      <div class="head"><span class="id">P0-2</span><span class="ttl">通用工具调用循环（tool registry + 多轮 tool_calls）</span><span class="cost">≈ 10 人日</span></div>
+      <dl class="kv">
+        <dt>补的是</dt><dd>矩阵 B-9 / B-10（缺失 / 部分）</dd>
+        <dt>为什么</dt><dd><code>agent_runtime.py</code> 今天只把 <code>tool_calls</code> 记进返回体（<code>:380</code> / <code>:415</code>），模型说了要查东西、我们并不会去查——「智能体」在客户眼里就退化成「带 RAG 的问答」。<b>这一项不补，Builder 里的 tool 节点、MCP 工具、审批流都只是摆设。</b></dd>
+        <dt>怎么做</dt><dd>① 建工具注册表：<code>name / schema / 权限级别 / 是否需要审批 / 执行器</code>，首批接 <code>web_search</code>、<code>kb_search</code>、<code>mcp_tools</code>、<code>artifact_write</code>；② <code>agent_runtime</code> 改成真循环：<code>think → tool → observe</code> 最多 N 轮（默认 6，可配），每轮工具调用<b>必须</b>过 <code>guardrails.guard_tool_call()</code>（已有 <code>:555</code>），高危工具转 <code>/approval</code> 挂起；③ 流式下把 <code>tool_call</code>/<code>tool_result</code> 作为 SSE 事件回传前端展示。</dd>
+        <dt>关键约束</dt><dd>循环上限必须硬性，防 token 爆炸；工具异常要作为 <code>observe</code> 内容回灌而不是中断整轮；每次工具调用落审计。</dd>
+        <dt>验收</dt><dd>① 「先搜一下最新政策再回答」能观测到 2 轮以上 tool_call 且答案引用了搜索结果；② 触发审批类工具时对话挂起、审批通过后续跑；③ 单轮 token 成本与耗时在 <code>/usage</code> 可见；④ 工具失败注入测试不 panic。</dd>
+      </dl>
+    </div>
+
+    <div class="p0">
+      <div class="head"><span class="id">P0-3</span><span class="ttl">工具执行沙箱边界</span><span class="cost">≈ 8 人日</span></div>
+      <dl class="kv">
+        <dt>补的是</dt><dd>矩阵 E-30（缺失）</dd>
+        <dt>为什么</dt><dd>一旦 P0-2 让模型能真执行工具，<b>风险等级立刻从「说错话」升到「动文件 / 出网 / 读凭据」</b>。先把边界立起来再放工具，否则就是在客户环境里裸奔。</dd>
+        <dt>怎么做</dt><dd>① 工作区白名单：每个 Agent 声明可访问目录，执行前 <code>isInsideRoot</code> 校验（对齐逆向 13-security R3 的自定义协议教训）；② 规则文件外置 <code>sandbox_rules.json</code>，<b>default=ask</b>，凭据类目录三态硬禁（<code>.ssh</code> / <code>.gnupg</code> / <code>.env*</code> / <code>*.key</code> 的 read=deny|write=deny|delete=deny，不允许用户降级）；③ 命令执行走白名单命令 + 超时 + 输出截断；④ 高危动作强制走审批，<b>不提供</b>「跳过审批」开关（逆向 <code>--dangerously-skip-permissions</code> 是明令反例）。</dd>
+        <dt>验收</dt><dd>① 路径逃逸测试集（<code>../</code>、绝对路径、符号链接、UNC、<code>%TEMP%</code> 绕行）全部拒绝；② 凭据目录读写删一律 deny 且不可配置覆盖；③ 规则命中 <code>ask</code> 时审批单里能看到完整命令与目标路径。</dd>
+      </dl>
+    </div>
+
+    <div class="p0">
+      <div class="head"><span class="id">P0-4</span><span class="ttl">跨会话长期记忆</span><span class="cost">≈ 6 人日</span></div>
+      <dl class="kv">
+        <dt>补的是</dt><dd>矩阵 A-8（缺失）</dd>
+        <dt>为什么</dt><dd>用户第二周再进来，系统对他一无所知——这是「智能体」和「聊天窗」最直接的体感差异。<b>投入最小、感知最强的一项。</b></dd>
+        <dt>怎么做</dt><dd>① 表 <code>memory_facts</code>（scope=user/tenant/agent、key、value、source_turn、confidence、created_at、deleted_at）；② 写入时机：显式指令（「记住…」）优先，其次靠每轮结束的抽取器（低频、异步、可关）；③ 注入：会话开始按 scope 取 top-K 拼进 system 段，<b>带来源标注</b>；④ 管理面：Identity 页加「记忆」tab，可查看 / 编辑 / 删除 / 关闭自动抽取。</dd>
+        <dt>关键约束</dt><dd>不做成人格文件那种纯文本堆叠（我们是多租户，需要按租户隔离与可审计）；记忆写入必须可追溯来源轮次，可单条撤销。</dd>
+        <dt>验收</dt><dd>① 会话 A 说「我们公司报销用 XX 系统」，新开会话 B 问报销流程，答案能引用该事实；② 用户在管理面删除后，新会话不再出现；③ 跨租户不串（同 key 不同 tenant 隔离测试）。</dd>
+      </dl>
+    </div>
+
+    <div class="p0">
+      <div class="head"><span class="id">P0-5</span><span class="ttl">任务调度 + 可靠投递</span><span class="cost">≈ 12 人日</span></div>
+      <dl class="kv">
+        <dt>补的是</dt><dd>矩阵 D-24 / D-25 / D-26（全部缺失）</dd>
+        <dt>为什么</dt><dd>客户对中台的第一个付费理由通常是「每天 8 点把日报发我群里」，我们现在连一个可用的定时器都没有。<b>而且这不是加个 cron 就完事——投递失败静默丢失比不做更糟。</b></dd>
+        <dt>怎么做</dt><dd>① 表 <code>automations</code>（schedule_type / cron 或 rrule / timezone / valid_from / valid_until / enabled / owner）+ <code>automation_runs</code> + <code>automation_delivery_outbox</code>；② 调度用 APScheduler（<code>AsyncIOScheduler</code>）或 celery beat，对齐逆向参数：<code>tickMs</code> / <code>missedWindowMs</code>（错过窗口内补跑）/ <code>concurrency</code>；③ 投递走 outbox：先落库再发，<b>指数退避 + 最大重试 + 死信标记</b>，复用现有 <code>events.py</code> 订阅与 <code>im_gateway</code> 发送；④ 运行记录对账：终态回收孤儿 running、崩溃后 <code>restorePersistedQueuedRuns</code> 同思路恢复。</dd>
+        <dt>关键约束</dt><dd>单实例部署也要防重（DB 行锁或 <code>SELECT … FOR UPDATE SKIP LOCKED</code>）；时区必须显式存 UTC 存、本地算；<code>valid_until</code> 到期自动停，不要留着半夜还在跑。</dd>
+        <dt>验收</dt><dd>① 配一个每 5 分钟的定时任务，连续 12 次运行记录齐全；② 停掉 IM 端点再恢复，验证失败 3 次后重试成功且 outbox 无残留；③ 调度进程 kill -9 后重启，排队中的 run 自动续跑；④ 前端能看运行历史和失败原因。</dd>
+      </dl>
+    </div>
+
+    <div class="warn">
+      <b>P0 的执行顺序不能换：</b>P0-1（流式）→ P0-2（工具循环）→ P0-3（沙箱）→ P0-4（记忆）→ P0-5（调度）。理由：P0-2 的事件要挂在 P0-1 的 SSE 上；P0-3 必须在 P0-2 真正放权给模型之前就位；P0-4/P0-5 复用 P0-1 的会话与 P0-2 的工具执行入口。<b>P0-3 若滞后，等于先开门后装锁。</b>
+    </div>
+  </section>
+
+  <section id="p1">
+    <h2><span class="num">05</span>P1：十二项，决定「像不像一个平台」</h2>
+    <p class="h2sub">P0 让试点跑起来，P1 让它能对外交付。以下按优先级排列，前四项是客户会直接问到的。</p>
+
+    <table>
+      <thead><tr><th style="width:5%">#</th><th style="width:22%">事项</th><th style="width:53%">要做什么 / 关键设计</th><th style="width:20%">为什么在这个位置</th></tr></thead>
+      <tbody>
+        <tr><td class="c">P1-1</td><td>飞书连接器 + OAuth 授权流</td><td>补 <code>open.feishu.cn</code> / <code>open.larksuite.com</code> 双区域；<code>/integrations/oauth/{provider}/authorize|callback</code>，token 加密落库 + 刷新；统一成 <code>Connector</code> 抽象（send / notify / 回调验签 / 重试）</td><td>客户群里飞书占比高于企微，现在只能答「暂不支持」</td></tr>
+        <tr><td class="c">P1-2</td><td>MCP 服务端暴露</td><td>把我们包装成 MCP server：<code>/mcp/serve</code> 暴露 <code>kb_search</code> / <code>skill_invoke</code> / <code>artifact_get</code>，带租户级鉴权与配额；配 <code>/.well-known</code> 与示例 <code>mcp.json</code></td><td>企业客户的 IDE / 自有 Agent 想把我们当工具用，这是最轻的集成方式</td></tr>
+        <tr><td class="c">P1-3</td><td>MCP 工具审批 + 沙箱代理</td><td>把 <code>/approval</code> 接进 P0-2 的工具链：MCP 工具声明 <code>requires_approval</code>，命中即挂起；沙箱只放行已声明的 MCP 端点</td><td>外部工具是最大不可控面，没有审批不能开给客户</td></tr>
+        <tr><td class="c">P1-4</td><td>提示词模板外置 + 模式矩阵</td><td>把 <code>zh_prompts.py</code> 的 7 个内嵌 dict 迁到 <code>prompts/*.tpl</code>（Jinja2），按「模式 × 场景」拆文件；固定组装序：主提示 → 系统提醒 → 模式提醒 → 身份/记忆注入 → 历史；安全四节在各模板稳定复现</td><td>现在改一句提示词要发版，运营侧完全没法自己调</td></tr>
+        <tr><td class="c">P1-5</td><td>会话队列 / steer / 轮次回滚</td><td>生成中再提问进队列而非并发打穿；<code>steer</code> 支持中途追加约束；<code>POST /agent/sessions/{id}/rollback?turn=N</code> 用制品版本支撑</td><td>真实用户一定会在生成中改主意，这是高频摩擦</td></tr>
+        <tr><td class="c">P1-6</td><td>工作流真执行</td><td>把 <code>workflows.py</code> 的 llm 节点从 <code>dry_run</code> 换成真调模型（<code>:231</code>）；支持分支、并行、失败重试、节点级超时；<code>workflow_run_started</code> 事件回传前端可视化</td><td>Builder 现在是「能画不能跑」，客户试一次就失去信任</td></tr>
+        <tr><td class="c">P1-7</td><td>制品版本化与回滚</td><td><code>file_store</code> 加 SHA-256 内容寻址 + 版本表 + 变更 hunk（谁在第几轮改了什么），支撑 P1-5 的回滚与差异查看</td><td>审批与审计场景下「这份文件是谁改的」必须能答</td></tr>
+        <tr><td class="c">P1-8</td><td>技能索引台账</td><td>给 203 技能包建台账：<code>skills_index</code>（name/version/hash/source/enabled/installed_at）+ 安装卸载账本；Skills 页加搜索与三态切换</td><td>203 个包无法检索与变更追踪，等于资产不可运营</td></tr>
+        <tr><td class="c">P1-9</td><td>子代理 / 专家执行</td><td>让 <code>agents</code> 从「配置对象」升级为「可委派的执行体」：主代理可 <code>dispatch(agent_id, task)</code>，子代理独立上下文 + 独立工具白名单 + 独立预算</td><td>复杂任务拆分是能力天花板的下一层</td></tr>
+        <tr><td class="c">P1-10</td><td>多模态图像理解</td><td>模型网关接 vision 模型；<code>/files</code> 图片可作为会话输入；抽票/截图/图纸类场景直接受益</td><td>企业场景里一半的输入是图片，现在只能拒</td></tr>
+        <tr><td class="c">P1-11</td><td>审计哈希链</td><td><code>audit.py</code> 写入口加 <code>prev_hash</code>，按日滚动 jsonl + 尾部锚定；导出时附完整性校验</td><td>等保/审计问「日志能不能被改」时要能答</td></tr>
+        <tr><td class="c">P1-12</td><td>上下文压缩与窗口配置</td><td><code>build_context()</code>（<code>session_store.py:115</code>）从尾部截断升级为「摘要 + 关键轮次保留」，窗口大小可按 Agent 配置</td><td>长会话今天会硬切，客户会认为「它忘了前面」</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="p2">
+    <h2><span class="num">06</span>P2：六项，按客户需求触发再做</h2>
+    <p class="h2sub">不是不重要，是现在做没有买家。挂起等触发条件。</p>
+    <table>
+      <thead><tr><th style="width:22%">事项</th><th style="width:52%">内容</th><th style="width:26%">触发条件</th></tr></thead>
+      <tbody>
+        <tr><td>插件 SDK / 市场</td><td>第三方可注册工具与页面、插件清单 + 签名校验 + 权限声明、8 类模板</td><td>有客户要求接入他们自研的工具/系统，且不愿走 MCP</td></tr>
+        <tr><td>人格 / 身份文件化</td><td>SOUL.md / IDENTITY.md / USER.md 三件套 + onboarding 生命周期（BOOTSTRAP.md 学完即删）</td><td>做「数字员工」类产品形态时才需要；现阶段 P0-4 的事实型记忆已够</td></tr>
+        <tr><td>本地 LLM 接入</td><td>llama.cpp / vLLM 端点接入，<code>127.0.0.1</code> 或内网 GPU；<code>D:/models/bge-m3</code> 已存在但未启用</td><td>客户明确要求数据不出内网（同时 <code>USE_LOCAL_EMBEDDING</code> 应先打开）</td></tr>
+        <tr><td>订阅 / entitlement</td><td>套餐、功能开关、用量计费决策机（提示词前守卫）</td><td>进入商业化收费阶段；现有 quota 先撑住</td></tr>
+        <tr><td>云同步账本</td><td>多端增量对账（<code>*_sync_ledger</code> 思路）</td><td>有了桌面端 / 多端形态</td></tr>
+        <tr><td>CLI / ACP</td><td>命令行入口与 Agent Client Protocol 桥</td><td>有客户要把我们嵌进他们的 IDE / 终端工作流</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="no">
+    <h2><span class="num">07</span>明确不照搬的四项</h2>
+    <p class="h2sub">这些是它做得最重、我们最不该学的地方。写下来是为了防止后续排期被「对标」带偏。</p>
+    <table>
+      <thead><tr><th style="width:22%">方向</th><th style="width:44%">它的做法</th><th style="width:34%">我们的处理</th></tr></thead>
+      <tbody>
+        <tr><td>设备指纹 / 风控 / 遥测</td><td>qimei36 指纹 + TuringShield 令牌 + aegis/galileo 事件上报；关闭入口只有环境变量，无 UI（其自评 R01–R03 / R12 为 P0，R16 指出无关闭 UI）</td><td><b>坚决不做。</b>PIPL 最小必要 + 单独同意 + 出境评估三关都过不去，且我们是 B 端私有部署，遥测数据本身就是客户敏感资产。要观测就做自建、可关、去标识的运维指标（<code>/ops/metrics</code> 已有）</td></tr>
+        <tr><td>腾讯 IM 原生 SDK</td><td><code>@genie/im-channels-native</code>（NAPI + ImSDK.dll 8.8.7010）直连腾讯 IM</td><td><b>不走。</b>闭源原生绑定、跨平台成本高、企业客户未必用腾讯 IM。统一走开放平台 HTTP / Webhook（企微、钉钉已有先例，飞书按 P1-1 补齐）</td></tr>
+        <tr><td>双进程壳 + NSIS 更新器</td><td>Electron 壳 + sidecar daemon + 预热池 + 静默安装升级链</td><td><b>形态不匹配。</b>我们是 B/S 中台，Caddy + Docker 部署，冷启动与升级是镜像滚动问题，不需要 IPC 桥、进程池与安装器。真要做桌面端时再单独评估（届时才看 26-architecture-reference）</td></tr>
+        <tr><td>keyblob 静态可解密的凭据链</td><td>AES-256-GCM + HKDF，自标「可逆，非不可破解」；另有 <code>connector-keys</code> 32B raw 明文</td><td><b>学思路不学强度。</b>字段级加密值得做（P1-1 会用到），但主密钥必须绑 OS 密钥库 / KMS / Vault，而不是纯文件派生链。当前最近的动作是把 <code>backend/.env.local</code> 里的明文 LLM key 挪进密钥管理并轮换</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="keep">
+    <h2><span class="num">08</span>对照时容易误伤的自有优势</h2>
+    <p class="h2sub">逆向对照最大的风险是「照着对方的形状改自己」。以下九项是我们的结构性优势，任何补强都不能削弱它们。</p>
+    <div class="cols">
+      <div class="box us">
+        <h4>比它强、且客户会买单的</h4>
+        <ul>
+          <li><b>多租户与配额</b>：<code>tenants</code> + <code>usage_store</code> + TenantConfig 页；它是单机单账号</li>
+          <li><b>评测与质量闭环</b>：<code>eval/quality/judge/zh_bench</code> + golden 集；它没有</li>
+          <li><b>203 技能包 + 领域规范</b>：M55 刚把验收自检与标准范本揉进技能，这是行业纵深</li>
+          <li><b>审批全链路</b>：<code>decide/pending/detail/assist</code> 四段式，比它的协议层审批更适合企业流程</li>
+          <li><b>产物生成</b>：<code>artifact.py</code> 保证「永远有交付物、可溯源、不复制输入」</li>
+          <li><b>MLOps</b>：训练/注册/数据集钩子已有骨架（当前各阶段 done 但无实际 run，属待激活）</li>
+        </ul>
+      </div>
+      <div class="box us">
+        <h4>补强过程中必须守住的约束</h4>
+        <ul>
+          <li><b>672 个测试不能掉</b>：P0-1 改 invoke 链路时新旧端点并行，老端点回归必须全绿</li>
+          <li><b>第 18 章单一过滤点</b>不能被绕过：新增的工具/流式路径全部经 <code>core/filter</code></li>
+          <li><b>X-Caller-Context</b> 上下文要继续统一，工具执行也带调用方身份</li>
+          <li><b>不引入第二套运行时</b>：工具循环、调度、记忆都长在现有 FastAPI 进程里，不要为了对标引入 Electron/Node 侧车</li>
+          <li><b>技能包语义不破坏</b>：M55 的「缺料必拒」逻辑不能被新工具循环的宽松策略冲掉</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="plan">
+    <h2><span class="num">09</span>落地顺序与工期</h2>
+    <p class="h2sub">粗估按 1 名后端 + 0.5 名前端并行；不含测试环境与客户联调时间。</p>
+    <table>
+      <thead><tr><th style="width:14%">阶段</th><th style="width:46%">内容</th><th style="width:14%">工期</th><th style="width:26%">阶段验收（可演示）</th></tr></thead>
+      <tbody>
+        <tr><td><b>第一段</b></td><td>P0-1 流式 + 中断 + 状态机</td><td class="c">6 人日</td><td>长答案逐字出现，随时可停可续</td></tr>
+        <tr><td><b>第二段</b></td><td>P0-2 工具循环 + P0-3 沙箱边界</td><td class="c">18 人日</td><td>「先查再答」跑通，越权路径全拒</td></tr>
+        <tr><td><b>第三段</b></td><td>P0-4 记忆 + P0-5 调度投递</td><td class="c">18 人日</td><td>跨会话记得住；定时任务能发到群里且不丢</td></tr>
+        <tr><td><b>第四段</b></td><td>P1-1 飞书 + P1-2 MCP 服务端 + P1-3 MCP 审批</td><td class="c">16 人日</td><td>外部系统既能连进来、也能调出去</td></tr>
+        <tr><td><b>第五段</b></td><td>P1-4 提示词外置 + P1-6 工作流真执行 + P1-5 队列回滚</td><td class="c">18 人日</td><td>运营能自调提示词；Builder 能真跑</td></tr>
+        <tr><td><b>第六段</b></td><td>P1-7 ~ P1-12 其余六项</td><td class="c">20 人日</td><td>制品可回滚、审计可验、技能可检索</td></tr>
+      </tbody>
+    </table>
+    <p><b>关键路径</b>：P0-1 → P0-2 → P0-3，约 24 人日（含缓冲 ~5 周）。<b>建议先只做前三段</b>（42 人日），跑一轮真实客户试用再决定 P1 的投入顺序——P1 里至少有三项（P1-9 子代理、P1-10 多模态、P1-12 上下文压缩）可能在试用后重新排序。</p>
+    <div class="good">
+      <b>一个更省力的起点：</b>如果只想先拿到最能说服人的效果，做 P0-1 单项（6 人日）就能让 Chat 从「等整段」变成「打字机」。这是投入产出比最高的一步，也是后面四步的地基。
+    </div>
+  </section>
+
+  <section id="risk">
+    <h2><span class="num">10</span>与本次对照无关、但会被顺手问到的三个欠账</h2>
+    <p class="h2sub">写在这里避免下一轮又被重新发现。均来自本轮实测，不属 WorkBuddy 对照范畴。</p>
+    <ul>
+      <li><b>配置假通</b>：根 <code>.env</code> 里的 <code>TAVILY_API_KEY</code> / <code>BOCHA_API_KEY</code> 本地运行<b>不生效</b>——<code>_load_env_files()</code> 只读 <code>backend/.env</code> 与 <code>backend/.env.local</code>。实测这两个键为空、<code>WEB_SEARCH_PROVIDER=auto</code>，即联网检索实际在走免费 HTML 抓取。</li>
+      <li><b>语料空转</b>：<code>corpus_inbox</code> 12 个文件里 8 个是 <code>PLACE_FILES_HERE.txt</code> 占位，仅财务 2 个技能各 1 对 xlsx；<code>SEED_DEMO_CORPUS=True</code> 使「真语料灌库」验收无法成立（<code>readiness()</code> 实测 <code>real_corpus=not_configured</code>）。</li>
+      <li><b>MLOps 空跑</b>：<code>pipeline_status()</code> 各阶段 <code>done=True</code> 但 <code>done_all=False</code>、<code>trained=False</code>、<code>models_registered=0</code>、<code>datasets=0</code>、<code>runs=0</code>——是「形状齐了、没跑过」的状态。</li>
+    </ul>
+    <p class="note">另有一条安全项：LLM key 明文落在 <code>backend/.env.local</code>，且此前明文出现过的硅基流动 / 博查 key 尚未轮换。这与 §7 的 keyblob 判断同源，建议在 P1-1 做凭据加密时一并处理。</p>
+  </section>
+
+  <section id="evidence">
+    <h2><span class="num">11</span>证据索引</h2>
+    <p class="h2sub">所有判定可回溯到下列文件或目录；平台侧以本轮实跑为准，逆向侧为静态拆解证据。</p>
+    <table>
+      <thead><tr><th style="width:26%">结论域</th><th style="width:74%">证据来源</th></tr></thead>
+      <tbody>
+        <tr><td>平台能力底数</td><td><code>backend/app/routers/</code>（23）、<code>backend/app/services/</code>（55）、<code>web/src/pages/</code>（16）、<code>openapi.yaml</code>（141 paths）、<code>pytest -q</code> 实跑 672 passed</td></tr>
+        <tr><td>会话 / 工具 / 工作流现状</td><td><code>routers/invoke.py</code>、<code>services/agent_runtime.py:380/:415</code>、<code>services/workflows.py:231</code>、<code>services/session_store.py:115</code>、<code>services/guardrails.py:555</code>、<code>web/src/api/client.ts:128</code></td></tr>
+        <tr><td>事件 / IM / 制品 / 技能</td><td><code>services/events.py</code>（262 行）、<code>services/im_gateway.py</code>、<code>routers/integrations.py</code>（8 端点）、<code>services/artifact.py</code>、<code>services/file_store.py</code>、<code>services/object_store.py</code>、<code>services/skill_pack.py</code>、<code>services/zh_prompts.py</code></td></tr>
+        <tr><td>可观测 / 配置机制</td><td><code>services/observability.py::readiness</code>、<code>services/runtime_config.py</code>、<code>backend/.env.local</code>（13 键）</td></tr>
+        <tr><td>架构与可借鉴结论</td><td><code>D:\WorkBuddy-RE\TOTAL-REPORT.md</code>、<code>26-architecture-reference\ARCHITECTURE-REFERENCE-REPORT.md</code>、<code>27-technical-blueprint\TECHNICAL-BLUEPRINT-V1.md</code>、<code>27-technical-blueprint\COMPETITIVE-ANALYSIS.md</code></td></tr>
+        <tr><td>会话运行时 / CLI / 提示词</td><td><code>10-js-logic\</code>（6 篇，含 <code>cli-prewarm-pool.js</code>、<code>conversations.js</code>）、<code>22-cli-surface\</code>（68 命令/134 option）、<code>23-prompts-templates\</code>（17 tpl / 27 节 / 四件套）</td></tr>
+        <tr><td>调度 / 沙箱 / 数据模型</td><td><code>11-db-schema\</code>（18 表）、<code>24-im-sandbox-subscription\</code>（44 规则 default=ask）、<code>09-dataflow\</code>、<code>15-model-internals\</code></td></tr>
+        <tr><td>合规红线</td><td><code>30-compliance\COMPLIANCE-RISK-REVIEW.md</code>（R01–R16，含 R07 沙箱 / R09 IPC 暴露面 / R12 出境）</td></tr>
+        <tr><td>企业场景参照</td><td><code>31-enterprise-solutions\README.md</code>（19 分组 278 场景，含 Skill 包 / 数据源 / 提示词 / 交付物样板）</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    <p>平台基线 M55 · f49cb4b ｜ 逆向基线 WorkBuddy 5.11.2（agent-cli v2.176.0，拆解 2026-11-12）｜ 报告日期 2026-11-12<br>
+    平台侧结论均来自本轮实跑与逐文件核对；逆向侧为静态拆解证据，动态行为未实测。工期为粗估，不含联调。</p>
+  </footer>
+
+</div>
+</body>
+</html>

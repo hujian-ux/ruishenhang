@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业 AI 智能体中台 — 本地备份校验报告</title>
+<style>
+  :root{ --bg:#0f172a; --panel:#16213a; --line:#27364f; --txt:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;line-height:1.6;padding:32px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  h1{font-size:24px;margin:0 0 4px;color:#fff;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:24px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin-bottom:20px;}
+  h2{font-size:17px;color:#fff;margin:0 0 14px;padding-left:10px;border-left:3px solid var(--accent);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--muted);font-weight:600;background:rgba(255,255,255,.02);}
+  code{background:rgba(59,130,246,.12);color:#93c5fd;padding:1px 6px;border-radius:5px;font-size:12px;word-break:break-all;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+  .ok{background:rgba(34,197,94,.15);color:var(--ok);}
+  .warn{background:rgba(245,158,11,.15);color:var(--warn);}
+  .bad{background:rgba(239,68,68,.15);color:var(--bad);}
+  ul{margin:8px 0;padding-left:20px;}
+  li{margin:6px 0;font-size:13px;}
+  .path{font-size:12.5px;color:#93c5fd;word-break:break-all;}
+  .note{font-size:12px;color:var(--muted);margin-top:8px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>企业 AI 智能体中台 · 本地备份校验报告</h1>
+  <div class="sub">生成时间：2026-11-15 00:19 (GMT+8) · 备份原因：106 个平台能力文件仅存本机工作区，无任何远端副本，机器故障即零备份</div>
+
+  <div class="card">
+    <h2>一、备份概览</h2>
+    <table>
+      <thead><tr><th>副本</th><th>路径</th><th>规模</th><th>包含内容</th><th>校验</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>完整目录副本</b></td>
+          <td class="path">D:\enterprise-ai-platform_BACKUP_20261115</td>
+          <td>147 MB<br>2559 文件</td>
+          <td>全部源码 / 文档 / HTML 台账 / <code>.git</code> 历史 + 106 个未提交文件（39 修改 + 67 新增）</td>
+          <td><span class="badge ok">通过</span></td>
+        </tr>
+        <tr>
+          <td><b>单文件 bundle</b></td>
+          <td class="path">D:\enterprise-ai-platform_BACKUP_20261115.bundle</td>
+          <td>15 MB</td>
+          <td>完整提交历史（main 分支 4 refs，HEAD=<code>f49cb4b</code>）</td>
+          <td><span class="badge ok">通过</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">目录副本覆盖「工作树 + 未提交改动 + 历史」，是最完整的一份；bundle 仅含已提交历史，便于装进一个文件带走，需与目录副本配合才能恢复 106 个未提交文件。</div>
+  </div>
+
+  <div class="card">
+    <h2>二、校验方法（可复跑）</h2>
+    <ul>
+      <li>文件数：源与备份排除 <code>.venv / node_modules / __pycache__ / *.pyc</code> 等可重建产物后均为 <b>2559</b>（差 0）。</li>
+      <li>未提交文件数：备份内 <code>git status --short | wc -l</code> = <b>106</b>，与源一致。</li>
+      <li>Git HEAD：备份目录 <code>rev-parse HEAD</code> = <code>f49cb4b</code>，与源仓库完全一致。</li>
+      <li>Bundle：<code>git bundle verify</code> 返回 <span class="badge ok">is okay</span>，且克隆测试成功恢复 HEAD。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>三、恢复指引</h2>
+    <div class="grid">
+      <div>
+        <b style="color:#fff;">从目录副本恢复（推荐）</b>
+        <p class="note">直接把 <code>D:\enterprise-ai-platform_BACKUP_20261115</code> 拷回任意位置，<code>cd</code> 进入即为完整工作区（含 .git 与 106 未提交文件），等同于原工作区。</p>
+      </div>
+      <div>
+        <b style="color:#fff;">从 bundle 恢复历史</b>
+        <p class="note"><code>git clone D:\enterprise-ai-platform_BACKUP_20261115.bundle &lt;目标目录&gt;</code> 可重建提交历史；但不含 106 个未提交改动，需另行从目录副本还原工作树。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>四、风险与后续建议</h2>
+    <ul>
+      <li><span class="badge warn">同盘风险</span> 副本在 D 盘，与源同机同盘，<b>不能防整机 / 磁盘故障</b>。建议把 <code>BACKUP_20261115</code> 目录与 <code>.bundle</code> 拷到移动硬盘 / 另一台机器 / U 盘形成异地副本。</li>
+      <li><span class="badge bad">云端不可达</span> GitHub 远端 <code>https://github.com/hujian-ux/ruishenhang.git</code> 当前连接中断（schannel: server closed abruptly，疑似未走代理 / 网络受限）。配置代理或换可达网络后可 <code>git push -u origin main</code> 形成真正的异地云端副本。</li>
+      <li><span class="badge warn">未提交</span> 106 个文件仍未进版本历史。建议本地 <code>git add</code> + 按语义拆 3–5 个 commit（暂不 push），使改动纳入 <code>.git</code> 对象，再重新生成 bundle 即获版本化单文件备份。</li>
+      <li>可通过 <code>deploy/scripts/audit_gap_status.py</code> 持续复验仓库状态，避免快照过时。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>五、关键事实速查</h2>
+    <table>
+      <tbody>
+        <tr><th>源工作区</th><td class="path">D:\enterprise-ai-platform</td></tr>
+        <tr><th>当前 HEAD</th><td><code>f49cb4b</code> — M55 方案库提示词 / 验收清单 / 领域规范揉进技能</td></tr>
+        <tr><th>未提交文件</th><td>106 个（39 修改 + 67 新增）</td></tr>
+        <tr><th>GitHub 远端</th><td><code>origin</code> 已配置但当前不可达（连接中断）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

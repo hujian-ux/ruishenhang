@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D 层 backlog · 现状台账（2026-11-14）</title>
+<style>
+ body{font-family:-apple-system,"Microsoft YaHei",sans-serif;margin:0;background:#f5f7fa;color:#1f2d3d}
+ header{background:#0a2540;color:#fff;padding:22px 28px}
+ header h1{margin:0;font-size:21px}
+ header p{margin:6px 0 0;color:#b9c7d6;font-size:13px}
+ main{max-width:1040px;margin:0 auto;padding:24px 20px 60px}
+ .note{background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:12px 16px;margin:18px 0;font-size:13px;line-height:1.6}
+ h2{font-size:17px;color:#0a2540;margin:28px 0 12px}
+ table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #d7e0ea;border-radius:8px;overflow:hidden}
+ th{background:#1565c0;color:#fff;text-align:left;padding:9px 10px;font-weight:600}
+ td{border-top:1px solid #eef2f7;padding:9px 10px;vertical-align:top}
+ tr:nth-child(even) td{background:#f8fafc}
+ .p0{color:#c62828;font-weight:700}
+ .p1{color:#e65100;font-weight:700}
+ .p2{color:#1565c0;font-weight:700}
+ .p3{color:#555;font-weight:700}
+ .ok{color:#2e7d32;font-weight:700}
+ .warn{color:#e65100;font-weight:700}
+ .bad{color:#c62828;font-weight:700}
+ code{background:#eef3f9;padding:1px 5px;border-radius:4px;font-family:Consolas,monospace;font-size:12px}
+ footer{text-align:center;color:#8a9bad;font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+ <h1>D 层 backlog · 现状台账</h1>
+ <p>企业 AI 智能体中台 ｜ 数据口径：代码实查（2026-11-14）＋ deploy/BLUEPRINT_GAP_REPORT.html（2026-11-08）</p>
+</header>
+<main>
+
+<div class="note">
+ <b>本台账范围</b>：「D 层」= 平台工程类遗留项（对照源 M0–M48 + D层6项 + 下一步清单）。
+ 2026-11-14 已完成 P1-12（上下文窗口+压缩），该项不属于 D 层；本台账仅覆盖 D 层自身。
+ 真模型出网联调、移动端 P3 原生编译见同轮汇报。
+</div>
+
+<div class="note" style="border-color:#2e7d32">
+ <b>P1 状态（2026-11-14 收口）</b>：办公62 专属硬规则集 <span class="ok">✅ 收官</span>（规则文件+扫描器+测试+接线 invoke 主链路+演示环境开拦截 OFFICE62_ENFORCE=1+生产日志实测 #396；62 条基线草案待你核验/替换为正典清单，非代码阻断）。
+ 其余 <b>3 项 P1 缺口待外部输入或演练</b>：① 微信小程序脚手架（待 AppID / 备案 HTTPS 域名 / 隐私协议）；② 193 对 xlsx few-shot（实跑确认 pairs_found=193 / 真实匹配挂载 attached=118，注入抽测通过✅；<b>build_fewshot.py 正式落盘已实跑</b>——118 样例块 + 41 验收清单/领域规范（M55 materials）挂载进运行实例 agent_store，API 复核一致；剩全局开 FEWSHOT_ENABLED=1 的部署决策）；③ 备份演练＋prod 卷（待 restore 演练／隔离环境）。
+</div>
+
+<h2>一、D层6项（平台工程）现状快照</h2>
+<table>
+ <tr><th>项</th><th>现状（代码实查 2026-11-14）</th><th>判定</th></tr>
+ <tr><td>编排画布</td><td>builder/workflows 路由与运行端点在位；前端工作流可视化编辑已交付（M48）</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>MCP Server</td><td><code>/mcp/serve</code>、<code>/mcp/reload</code>、<code>/mcp/status</code>、<code>/mcp/tools</code> 均在 openapi（P1-2 #297 收官）</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>MCP Client</td><td>工具审批 + 沙箱代理（P1-2 #298）已在位</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>LLM-as-Judge REST</td><td>eval/judge* 系列端点与回归门禁在位（M19–M27）</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>集团物理隔离</td><td>多租户按 tenant/dept 隔离 + 审计分链（P1-11 #306）</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>MLOps</td><td><code>mlops.py:pipeline_status()</code> 在位；本地特征库/基线 sklearn/模型仓库/漂移/真实自动重训钩子（<code>scheduled_retrain</code>+<code>/mlops/retrain</code>+<code>scripts/mlops_scheduler.py</code>）/灰度回滚（<code>promote</code>+<code>rollback</code>+<code>/mlops/models/{id}/rollback</code>，平台管理员门控）均已落地；<b>Feast 在线服务已接（适配器 <code>app/services/feast_store.py</code> + 端点 <code>/mlops/feast/*</code> + 测试 6 例全绿，本地 SQLite 在线存储无 Redis）；分布式训练算力编排、自动监控回滚（需接调度+线上指标比对）仍待接</b></td><td><span class="ok">核心闭环已落地</span></td></tr>
+ <tr><td>本地文件网关</td><td>file_store + artifacts 版本化/回滚（P1-5 #302）在位</td><td><span class="ok">已落地</span></td></tr>
+ <tr><td>原生移动端准备</td><td><code>web/capacitor.config.ts</code> 就位；<b>未编译/未上架，P3 后置；本环境 Windows 无法原生编译</b></td><td><span class="warn">配置就绪·未编译</span></td></tr>
+</table>
+
+<h2>二、明确缺口清单（按优先级）</h2>
+<table>
+ <tr><th>优先级</th><th>缺口</th><th>现状（2026-11-14 实查）</th><th>落地动作</th><th>阻塞/前置</th></tr>
+ <tr>
+  <td class="p0">P0</td><td>Casdoor 收口</td>
+  <td>代码确认：<code>config.AUTH_ENFORCE_OIDC</code> 在 <code>APP_ENV=dev</code> 下默认 <b>False</b>（dev_admin 后门仍开）；前端 Login 仍暴露「管理员视角」入口</td>
+  <td>生产部署设 <code>AUTH_ENFORCE_OIDC=1</code> + <code>APP_ENV=prod</code>；前端隐藏/移除 dev_admin 入口，只走真实 SSO</td>
+  <td>上线前必做</td>
+ </tr>
+ <tr>
+  <td class="p1">P1</td><td>微信小程序脚手架</td>
+  <td><b>更正（2026-11-14 实查）</b>：<code>miniprogram/</code> 已有可导入骨架（app.js/json/wxss、pages/login+chat+outputs、utils/api+session、README 写明落地步骤）；后端 wx 登录桥接端点已于 <b>2026-11-14 起草完成</b>（新增 <code>backend/app/services/wx_auth.py</code> + <code>POST /auth/wx/login</code> + <code>WX_MINI_*</code> 配置 + <code>miniprogram/utils/api.js</code> 的 <code>wxLogin</code> 助手，单测 4 例通过、已入 openapi 契约）；剩余外部输入：AppID/API_BASE/request 合法域名/隐私协议；网页版 PWA 已完成</td>
+  <td>① 后端新增 <code>POST /auth/wx/login</code>（code→code2session→租户映射→签发平台 token）；② 改 project.config.json 的 appid、utils/api.js 的 API_BASE；③ 微信后台服务器域名加 request 合法域名；④ 隐私协议合规；⑤ 开发者工具导入→上传审核</td>
+  <td>需小程序账号与已备案 HTTPS 域名</td>
+ </tr>
+ <tr>
+  <td class="p1">P1</td><td>193 对 xlsx few-shot 启用验证（实跑）</td>
+  <td>脚手架已就位：<code>fewshot.py</code> / <code>build_fewshot.py</code> / <code>test_m15c_fewshot.py</code>，针对方案库 xlsx 配对；<b>2026-11-14 实跑 <code>scan_solution_pairs(D:/workbuddy_解决方案)</code> 得 pairs_found=193（含输入 181 / 纯输出 12）</b>，纠正文档旧称"166"；<b>启用验证已实跑 + 注入抽测通过（真实匹配挂载 attached=118）</b>；正式落盘 + 全局开 <code>FEWSHOT_ENABLED=1</code> 属部署决策（影响 118 挂载技能提示词，需灰度评估）</td>
+  <td>方案库已就位（实跑 193 对）→ 跑 <code>build_fewshot.py</code> 得 pairs_found/attached → 开 <code>FEWSHOT_ENABLED=1</code> → 抽测注入效果</td>
+  <td>实跑确认✅（pairs_found=193；真实匹配挂载 attached=118，含验收清单 41 / 领域规范 52）；<b>抽测通过✅</b>（FEWSHOT_ENABLED=1 运行时真实注入、=0 零变更，脚本 <code>scripts/fewshot_spotcheck.py</code> 可复跑）。<b>剩部署决策</b>：正式落盘（build-fewshot.py）+ 全局开 FEWSHOT_ENABLED=1 会影响全部 118 挂载技能提示词，需灰度评估（非外部输入）</td>
+ </tr>
+ <tr>
+  <td class="p1">P1</td><td>办公62 专属硬规则集</td>
+  <td>全局 guardrails 已有 forbid 机制；专属「办公62」硬规则此前未系统落地。<b>2026-11-14 已建成可加载规则文件 + 扫描器 + 测试（62 条基线草案），并接线进 invoke 主链路</b>：由技能 default_format 推断 scope（docx/xlsx/pptx→office_doc/sheet/ppt），默认<b>观测告警</b>（OFFICE62_ENABLED=1），OFFICE62_ENFORCE=1 升级为 high 级违规拦截产出物</td>
+  <td>办公类 agent 产出物强制拦截或仅观测（开关可控）；把 62 条基线草案替换为业务方正典清单</td>
+  <td><span class="ok">✅ 收官</span>（规则文件+扫描器+测试+接线 invoke 主链路+演示环境开拦截 OFFICE62_ENFORCE=1+生产日志实测 #396；62 条基线草案待你核验/替换为正典清单，非代码阻断）</td>
+ </tr>
+ <tr>
+  <td class="p1">P1</td><td>备份演练 + prod 持久卷</td>
+  <td><b>更正（2026-11-14 实查）</b>：基础 <code>docker-compose.yml</code> <b>已含</b> pg/qdrant/minio/redis 四卷，prod 叠加 backend_data+backups，<b>"持久卷不完整"不实</b>；真实缺口为 <code>backup_restore.py</code> 无测试、未演练 restore、且 M27 脚本只覆盖进程内 observability/events/usage_store，<b>不覆盖 PG/MinIO/Qdrant 生产数据</b>；审计调度示例已交付</td>
+  <td>① 给 <code>backup_restore.py</code> 补 tests；② deploy/backup.sh 增 pg_dump/qdrant 快照/minio mc mirror；③ 演练 restore 到隔离环境；④ 审计调度接 cron</td>
+  <td>需演练/隔离环境</td>
+ </tr>
+ <tr>
+  <td class="p2">P2</td><td>MLOps 真实管线</td>
+  <td><b>核心闭环已落地（2026-11-14）</b>：漂移检测（PSI+均值）→ 真实自动重训钩子（<code>scheduled_retrain</code>+<code>/mlops/retrain</code>+<code>scripts/mlops_scheduler.py</code>，指标更优才可选自动晋升）→ <b>训练编排 <code>run_training_pipeline</code>（2026-11-14 续：数据准备→漂移→训练→评估→晋升 多阶段，带阶段状态 + 审计 + <code>/mlops/pipeline/run</code> 端点）</b> → 模型仓库晋升/回滚（<code>promote_model</code>/<code>rollback_model</code> + 端点 <code>/mlops/models/{id}/rollback</code>，平台管理员门控）；灰度回滚审批流已接；<code>pipeline_status()</code> 已标注 <code>registry.condition</code> 含回滚 + 训练编排。</td>
+  <td>按业务节奏接入：<b>Feast 在线特征服务（2026-11-14 续：<span class="ok">已装 feast 0.68.0 + 真实集成测试通过</span>：适配器 <code>app/services/feast_store.py</code> + <code>feast_repo/feature_store.yaml</code> 本地 SQLite 在线存储（无 Redis）+ 端点 <code>/mlops/feast/sync</code>、<code>/mlops/feast/online</code> + 测试 <code>test_p2_feast_store.py</code> 6 例全绿；<code>pipeline_status()</code> 已反映"在线服务已接"）</b>、分布式训练算力编排（GPU/实验跟踪；逻辑多阶段编排已接，仍待接分布式算力）、自动监控回滚（需接调度 + 线上指标比对触发）</td>
+  <td>需求优先级低于上线阻断项；回滚/晋升/重训/训练编排/Feast适配器 已可用，剩为可选升级</td>
+ </tr>
+ <tr>
+  <td class="p3">P3</td><td>原生 App 编译上架</td>
+  <td>Capacitor 配置就绪但未编译/上架；iOS 需 macOS+Xcode+开发者$99；安卓需 Android Studio/SDK；<b>本 Windows 环境编不了</b></td>
+  <td>用户侧 Mac/Studio 执行 <code>MOBILE_BUILD_AND_PUBLISH.md</code> 全流程（cap add → sync → assembleRelease / Xcode archive → 提审）</td>
+  <td>条件达成后（Mac/Studio）</td>
+ </tr>
+</table>
+
+<h2>三、建议执行顺序（更新自 2026-11-08 报告）</h2>
+<ul>
+ <li><b>P0 立即（上线前必做）</b>：Casdoor 收口——启用强制 OIDC + 前端隐藏 dev 入口。</li>
+ <li><b>P1 近期</b>：① 小程序脚手架；② 193 对 xlsx few-shot 数据灌入与启用（实跑）；③ 办公62 硬规则；④ 备份演练 + prod 卷。</li>
+ <li><b>P2 迭代</b>：MLOps 真实管线（Feast/编排/自动重训/灰度）。</li>
+ <li><b>P3 条件达成后</b>：原生 App 编译上架（需 Mac/Studio）。</li>
+</ul>
+
+<h2>四、P0 落地动作明细（子页）</h2>
+<p class="note">以下两份清单原为独立准备文档，现合并为本台账 P0 收口的可执行子页，便于上线前逐项核对。模型 ID / Casdoor 收口均依赖你侧出网 / 生产环境执行；详细版见 <code>SILICONFLOW_FREE_MODEL_CHECKLIST_2026-11-14.html</code> 与 <code>CASDOOR_CLOSURE_CHECKLIST_2026-11-14.html</code>。</p>
+
+<details>
+ <summary><b>子页 1 · 硅基流动免费池模型 ID 核对清单</b></summary>
+ <div style="margin-top:12px">
+  <p><b>结论</b>：<code>LLM_API_KEY</code> 已正确配置（直连通道 <code>_direct_key()</code> 优先读它，<code>SILICONFLOW_API_KEY</code> 仅兜底）；400 是<b>模型 ID 大小写敏感</b>，须用 <code>GET /v1/models</code> 拿精确 ID。</p>
+  <table>
+   <tr><th>根因假设</th><th>概率</th><th>验证</th></tr>
+   <tr><td>模型 ID 大小写敏感（错一字即 400）</td><td class="bad">高</td><td>逐候选跑 chat/completions，200=命中</td></tr>
+   <tr><td>已从免费池移出 / 改名</td><td class="warn">中</td><td>控制台「模型广场」核对免费标签</td></tr>
+   <tr><td>免费额度未激活</td><td>低</td><td><code>GET /v1/user/info</code> 返回 status:normal</td></tr>
+  </table>
+  <p><b>候选免费 ID（联网核验，以控制台为准）</b>：<code>Qwen/Qwen2.5-7B-Instruct</code>、<code>Qwen/Qwen3-8B</code>（推荐）、<code>deepseek-ai/DeepSeek-R1-0528-Qwen3-8B</code>、<code>THUDM/glm-4-9b-chat</code>、<code>Qwen/Qwen2.5-Coder-7B-Instruct</code>。代码预设里 <code>zai-org/GLM-4.6</code>、<code>deepseek-ai/DeepSeek-V3</code>、<code>THUDM/GLM-Z1-9B-0414</code>、<code>Qwen/Qwen3.5-4B</code> 等非免费项勿直接当免费用（已从 free_chain 剔除）。</p>
+  <p><b>权威核验（出网环境）</b></p>
+  <code>export SF_KEY="$(grep '^LLM_API_KEY=' .env | cut -d= -f2)"<br>curl -s https://api.siliconflow.cn/v1/models -H "Authorization: Bearer $SF_KEY" | grep '"id"'<br>curl -s https://api.siliconflow.cn/v1/chat/completions -H "Authorization: Bearer $SF_KEY" -H "Content-Type: application/json" -d '{"model":"Qwen/Qwen3-8B","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'</code>
+  <p><b>修正 .env</b>：第 12 行 <code>LLM_DEFAULT_MODEL=Qwen/Qwen2.5-7B-Instruct</code> → 改为实测 200 的免费 ID（建议 <code>Qwen/Qwen3-8B</code>）。勿动 <code>LLM_API_KEY</code> / <code>LLM_PROVIDER</code> / <code>LLM_VENDOR</code>。改后重跑 <code>backend/scripts/real_e2e_smoke.py</code>，Tier1 应 <code>real=True</code>。</p>
+ </div>
+</details>
+
+<details>
+ <summary><b>子页 2 · Casdoor 身份收口配置改动清单</b></summary>
+ <div style="margin-top:12px">
+  <p><b>结论</b>：前端 <code>Login.tsx</code> 已 fail-closed（<code>/auth/settings</code> 回传 <code>enforce_oidc=true</code> 即自动隐藏演示入口），<b>无需改前端代码</b>；收口本质是后端 <code>.env</code> + Casdoor 侧配置。</p>
+  <div class="note"><b>⚠️ 致命顺序</b>：<code>OIDC_ENABLED</code> 默认 <code>0</code>（未启用，只认 dev token）。须<b>先启用并验证真实 SSO 能登录，再开 <code>AUTH_ENFORCE_OIDC=1</code></b>；否则 dev token 被拒且 OIDC 分支未启用 → 全员锁死。</div>
+  <p><b>.env 改动（均位于 config.py:213-235）</b></p>
+  <table>
+   <tr><th>变量</th><th>目标值</th></tr>
+   <tr><td><code>OIDC_ENABLED</code></td><td><code>1</code>（激活 OIDC 分支，前提）</td></tr>
+   <tr><td><code>OIDC_ISSUER</code></td><td>Casdoor 地址，须与 token 的 iss 一致</td></tr>
+   <tr><td><code>OIDC_AUDIENCE</code> / <code>OIDC_CLIENT_ID</code></td><td>Casdoor 应用 Client ID</td></tr>
+   <tr><td><code>OIDC_REDIRECT_URI</code></td><td>生产前端回跳，须与 Casdoor 登记一致</td></tr>
+   <tr><td><code>OIDC_USER/DEPT/ROLE/TENANT/NAME_CLAIM</code></td><td>先用默认值</td></tr>
+   <tr><td><code>AUTH_ENFORCE_OIDC</code></td><td><code>1</code>（最后一步设；fail-closed 拒 dev token）</td></tr>
+   <tr><td><code>APP_ENV</code></td><td><code>prod</code>（生产部署时）</td></tr>
+  </table>
+  <p><b>6 步严格有序执行</b></p>
+  <ol>
+   <li>改 .env：<code>OIDC_ENABLED=1</code> + issuer/audience/redirect/claims（不动 enforce）→ 重启。</li>
+   <li><code>GET /auth/oidc/health</code> 期望 <code>enabled:true, ok:true</code>。</li>
+   <li>真实 SSO 全流程登录成功（id_token 换身份 200）；<code>/auth/settings</code> 的 <code>oidc_enabled=true</code>。</li>
+   <li>（最后）加 <code>AUTH_ENFORCE_OIDC=1</code>（+ 生产 <code>APP_ENV=prod</code>）→ 重启。</li>
+   <li><code>POST /auth/sso/callback {"code":"dev_admin"}</code> 应 <b>403</b>；<code>/auth/settings</code> 回传 <code>enforce_oidc=true</code>，前端演示入口自动隐藏。</li>
+   <li>建议全量回归（用 <code>EAP_SKIP_ENV_LOCAL=1</code> 隔离或真实 OIDC mock）。</li>
+  </ol>
+  <p><b>Casdoor 侧</b>：部署自托管 Casdoor（8000 端口）→ 注册 Application 拿 Client ID → 登记 Redirect URLs → 接企业微信/钉钉 IdP → 角色按 <code>isGlobalAdmin→platform_admin</code>、<code>isAdmin→dept_admin</code> 推导或 <code>role</code> claim 直接下发。</p>
+  <p><b>回滚</b>：<code>OIDC_ENABLED=0</code> + <code>AUTH_ENFORCE_OIDC=0</code> + <code>APP_ENV=dev</code> → 重启即恢复 dev 入口。</p>
+  <p><b>实际 .env 改动草稿</b>：<code>deploy/CASDOOR_CLOSURE_ENV_PATCH.md</code> 已给出与 <code>config.py</code> 逐行对齐的分阶段追加块（启用 OIDC → 验证 SSO → 再收口）、变量↔行号映射表、核验 curl 与回滚步骤；本环境不直接改活体 <code>.env</code>（避免误锁 dev 入口），请在你的生产环境 <code>.env</code> 上执行。</p>
+ </div>
+</details>
+
+<h2>五、P1 落地动作明细（子页）</h2>
+<p class="note">以下 4 份子页为 P1 缺口的可执行落地动作，均经 2026-11-14 代码实查，落到「改哪行、验什么」。其中小程序已更正为"骨架就位、待收口"，备份卷已更正为"已齐、缺口在演练与 DB 级备份"，与第二节现状表一致。</p>
+
+<details>
+ <summary><b>子页 3 · 微信小程序（脚手架已就位，待收口上架）</b></summary>
+ <div style="margin-top:12px">
+  <p><b>现状（代码实查 2026-11-14）</b></p>
+  <ul>
+   <li><code>miniprogram/</code> 已有可导入骨架：<code>app.js/app.json/app.wxss</code>、<code>pages/login|chat|outputs</code>、<code>utils/api.js|session.js</code>、<code>project.config.json</code>（appid=<code>touristappid</code> 占位）、<code>README.md</code> 写明落地步骤。</li>
+   <li>与 Web 共用 <code>/api/v1</code>（<code>/auth/settings</code>、<code>/auth/sso/callback</code>、<code>/agents</code>、<code>/sessions</code>、<code>/sessions/{id}/messages</code>、<code>/sessions/{id}/outputs</code>），前端容错解析。</li>
+   <li><b>后端 wx 登录桥接端点已起草（2026-11-14）</b>：新增 <code>wx_auth.py</code>（code→code2session→openid 映射平台 sso token），<code>POST /auth/wx/login</code> 已接线、单测覆盖禁用 503/正常 200/失败 502 三态；前端 <code>utils/api.js</code> 已加 <code>wxLogin()</code> 助手（<code>wx.login()</code> 拿 code 调后端、回写 <code>globalData.token</code>）。<b>✅ <code>pages/login/login.js</code> 的 enforce 分支已于 2026-11-14 续补</b>：<code>onLoad</code> 探测 <code>wx_miniapp_enabled</code> + 收口态自动/按钮触发 <code>wxLogin()</code>，<code>login.wxml</code> 已加「微信一键登录」按钮（node --check 语法通过、wxml 标签平衡）。仍差：真实 AppID / <code>API_BASE</code> / request 合法域名等外部输入。</li>
+   <li>外部输入：真实 AppID、<code>utils/api.js</code> 的 <code>API_BASE</code>（指向 HTTPS 后端）、微信后台 request 合法域名白名单（需 ICP 备案）、隐私协议 + 小程序服务条款。</li>
+  </ul>
+  <p><b>落地动作（有序）</b></p>
+  <ol>
+   <li><b>✅ 已完成（2026-11-14）</b> 后端新增 <code>POST /auth/wx/login</code>（<code>backend/app/services/wx_auth.py</code> + <code>auth.py</code>）：入参 <code>{code, encrypted_data?, iv?}</code> → 调微信 <code>code2session</code>（已新增 <code>WX_MINI_APP_ID/WX_MINI_APP_SECRET/WX_MINI_*</code> 到 config.py，参考 FEISHU_* 段）→ openid 映射租户用户 → 复用 <code>security.create_sso_token</code> 自签。前端 <code>utils/api.js</code> 已加 <code>wxLogin()</code>。</li>
+   <li>改 <code>miniprogram/project.config.json</code> 的 <code>appid</code> 为真实小程序 AppID。</li>
+   <li>改 <code>miniprogram/utils/api.js</code> 的 <code>API_BASE</code> 为已备案 HTTPS 后端域名。</li>
+   <li>微信公众平台 → 开发管理 → 开发设置 → 服务器域名：request 合法域名加该 HTTPS 域名（仅 https + 需 ICP 备案）。</li>
+   <li>补齐隐私协议与《小程序服务条款》，提审前合规自检。</li>
+   <li>开发者工具导入 <code>miniprogram/</code> → 真机预览（先勾"不校验合法域名"联调）→ 上传版本 → 提交审核 → 发布。</li>
+  </ol>
+  <p><b>验证</b>：<code>/auth/wx/login</code> 用真实 code 返回 token；小程序登录→建会话→发消息→看回复全链路；outputs 页能拿到 xlsx/docx/pptx/pdf 下载链接。</p>
+  <p><b>阻塞/前置</b>：小程序账号 + 已备案 HTTPS 域名（见 web/DEPLOY.md §7、deploy/mobile/MOBILE_BUILD_AND_PUBLISH.md）。</p>
+ </div>
+</details>
+
+<details>
+ <summary><b>子页 4 · 193 对 xlsx few-shot 启用验证（实跑）</b></summary>
+ <div style="margin-top:12px">
+  <p><b>现状（代码实查 2026-11-14）</b></p>
+  <ul>
+   <li><code>backend/app/services/fewshot.py</code> 完整：<code>scan_solution_pairs</code>（同目录 2 xlsx 按输入/输出配对，单 xlsx→output-only）、<code>build_fewshot_block</code>（用 <code>tabular._parse_xlsx</code> 读表头+≤3 样本行压成紧凑文本）、<code>attach_fewshot</code>（幂等挂 agent+fewshot_version）、<code>compose_with_fewshot</code>（opt-in，<code>FEWSHOT_ENABLED</code> 默认关）。</li>
+   <li><code>backend/scripts/build_fewshot.py</code>：登录（dev_admin）→ <code>POST /api/v1/ops/build-fewshot</code>（ops.py:262，需平台管理员）→ 打印 <code>pairs_found/attached</code>。</li>
+   <li><code>FEWSHOT_ENABLED</code> 默认 <code>0</code>（config.py:97）；<code>SOLUTIONS_ROOT</code> 默认空 → 回退 <code>D:/workbuddy_解决方案</code>（config.py:115-119）。</li>
+   <li><code>D:/workbuddy_解决方案</code> <b>本环境可达，顶层 12 个目录、含文档的 276 个子目录</b>；<b>2026-11-14 实跑 <code>scan_solution_pairs</code> 得 pairs_found=193（输入 181 / 纯输出 12）</b>，已纠正文档旧称"166"（勿硬编码）；<b>同轮实跑按 203 业务包匹配挂载得 attached=118（85 个业务包无方案库样例），其中含验收清单 41 / 领域规范 52</b>；<code>corpus_inbox/fewshot_solutions/</code>（config.py 注释称"2 个验收样例"）<b>实际不存在</b>——目前无仓内样例，全依赖外部方案库。</li>
+   <li><code>backend/tests/test_m15c_fewshot.py</code> 在位（配对→挂载链路单测）。</li>
+  </ul>
+  <p><b>落地动作（有序）</b></p>
+  <ol>
+   <li>确认方案库：<code>D:/workbuddy_解决方案</code> 已就位（实跑 193 对；或 <code>SOLUTIONS_ROOT</code> 指向实际语料目录）。</li>
+   <li>起后端 → 跑 <code>backend/.venv/Scripts/python.exe scripts/build_fewshot.py</code>（dev_admin 或真实管理员 token）→ 读 <code>pairs_found</code> 与 <code>attached</code> 计数（本环境实跑 pairs_found=193，attached=118：203 业务包中 118 命中方案库样例）。</li>
+   <li><b>抽测（2026-11-14 已通过）</b>：新增 <code>scripts/fewshot_spotcheck.py</code> 走与线上一致代码路径（真实 193 对 + 真实 203 业务包匹配 + <code>compose_with_fewshot</code> ON/OFF 双验证），结论 OFF 零变更、ON 真实注入；办公类技能属公共库（build-fewshot 跳过 public，符合预期），抽样改取已挂载业务包验证（样例块 555 字符，首行「【输入样例】」）。</li>
+   <li>回归：<code>pytest backend/tests/test_m15c_fewshot.py -q</code>。</li>
+  </ol>
+  <p><b>验证</b>：<code>pairs_found&gt;0</code>、<code>attached&gt;0</code>；启用前后该技能首轮回复结构更稳定；单测绿。</p>
+  <p><b>正式落盘（2026-11-14 续 · 已完成）</b>：演示后端启动（自动 <code>bootstrap_solutions()</code> 灌 203 业务包）→ 跑 <code>scripts/build_fewshot.py</code>（dev_admin 登录 → <code>POST /api/v1/ops/build-fewshot</code>，平台管理员门控）→ 实跑 <b>pairs_found=193、attached=118</b>（与 193 对计数、118 挂载一致）；端点同时挂载验收清单/领域规范（M55 <code>solution_materials</code>），落盘 <b>带 materials/acceptance 的包 = 41</b>。API 复核：203 业务包中 118 带 <code>fewshot_version</code>、41 带 <code>materials/acceptance</code>，样例块内容正确（如「BOM导入·工程基线核对」输入/交付物双样例）。<b>持久性诚实说明</b>：演示后端无 PG，落盘走 <code>pg_store</code> 内存写穿，<b>本运行实例内已持久；重启会丢</b>（真实 PG 部署即落盘持久）。<code>FEWSHOT_ENABLED</code> 仍按用户"先不输入"暂挂。</p>
+  <p><b>阻塞/前置</b>：方案库 193 对 xlsx 已实跑确认（外部数据）；<code>FEWSHOT_ENABLED</code> 切勿在长期运行后热改（需重启重 bootstrap 才注入，见 MEMORY 的 M15 口径）。<b>余下为部署决策</b>：全局开 <code>FEWSHOT_ENABLED=1</code> 会影响全部 118 挂载技能提示词，需灰度评估与产品确认，非代码阻断（正式落盘本身已完成）。</p>
+ </div>
+</details>
+
+<details>
+ <summary><b>子页 5 · 办公62 专属硬规则集（已实现：规则文件 + 扫描器 + 测试）</b></summary>
+ <div style="margin-top:12px">
+  <p><b>口径澄清</b>：蓝图"办公62"原指 M54 的 <b>62 个 xlsx 配对</b>（few-shot 覆盖），并非 62 条规则。本子页把"办公技能 agent 的专属硬规则"作为一类治理能力落地——仓库此前并无 62 条正典清单，故以下为<b>覆盖办公域的 62 条基线草案</b>，供你核验 / 替换为正式清单。</p>
+  <p><b>已实现（2026-11-14）</b></p>
+  <ul>
+   <li><b>可加载规则文件</b> <code>backend/office62_rules.json</code>：62 条（forbid 34 / must_include 19 / format 9；severity high 11 / medium 20 / low 31）。<b>三轮调优（2026-11-14）</b>：① 收敛 scope——22 条规则显式限定到 <code>office_doc/sheet/ppt</code> 场景（消除「合同要甲方乙方」对报表/PPT 的跨类型误报）；② <b>按文档子模板条件化</b>——每条 <code>must_include</code> 加 <code>applies_to</code>（子模板标签：contract/meeting/report/financial/plan/comparison/external_ref/personal_info/data_rich/long_doc/download，由新增 <code>office62_classify_doc</code> 启发式分类得出；空=不限）与可选 <code>trigger</code>（触发式正则，命中才要求必备项，如"含数据才要求来源 / 含风险才要求免责"）。<code>scan_office62</code> 据此门控：<code>applies_to</code> 非空且不与本文档类型相交 → 该必备项不适用；<code>trigger</code> 非空且未命中文本 → 该必备项不适用；根治空文本 / 非相关子模板误报。③ <b>把"数据来源"(O62-026) 与"风险提示/免责"(O62-033) 由 low 升回 medium</b>——二者带 <code>trigger</code>（O62-026：数据/统计/金额/营收/利润/同比/环比/图表/占比/增长率/万元/亿元/百分比/%；O62-033：风险/收益/投资/预测/建议/杠杆/波动/回报/盈亏），仅当文本进入相应语义语境才校验，升中危也不会误伤合规产出。schema 现含 <code>applies_to / trigger</code> 两字段；路径可被 <code>EAP_OFFICE62_RULES</code> 覆盖。</li>
+   <li><b>扫描器接入护栏</b> <code>guardrails.py</code>：新增 <code>load_office62_rules(path, force)</code>（env 覆盖 + 预编译正则缓存、缺项/异常绝不抛错、<code>trigger</code> 编译失败降级为"无触发门槛"而非丢规则）+ <code>office62_classify_doc(text)</code>（12 标签启发式分类，供 <code>applies_to</code> 门槛）+ <code>scan_office62(text, scope, path, doc_types)</code>（forbid/format 命中即违规、must_include 按 <code>applies_to</code>+<code>trigger</code> 门控、scope 过滤、<code>blocked</code>=存在 high 级违规）+ <code>extract_office_text(data, ext)</code>（懒加载 python-docx/pptx/openpyxl，抽真实办公文件正文）+ <code>scan_office62_blob(texts, scope)</code>（多片段合并去重、按最高严重度合并）；<code>policy()</code> 回显 <code>office62_rules / office62_loaded / office62_error</code>，严守"绝不回显规则内容或密钥"纪律。</li>
+   <li><b>测试</b> <code>backend/tests/test_m_office62_rules.py</code>：19 例全绿——JSON 合法且正好 62 条、正则全编译、forbid 命中（O62-004 伪造公章→blocked）、多片段合并去重（<code>scan_office62_blob</code>）、scope 过滤、format 命中、policy 计数、自定义路径空规则降级、缓存按 path、<code>extract_office_text</code> 优雅降级（缺库/不支持扩展名返回空）。关联 <code>test_m27_guardrails.py</code> 等 55 例无回归（<code>test_e2e_full_loop</code> 为已知 RBAC 检索 flaky，单独重跑通过）。</li>
+  </ul>
+  <p><b>调用约定（已接线 invoke 主链路，含文件正文 + 流式）</b>：<code>invoke.py</code> 新增 <code>_office62_scan(agent, answer, artifact_views, ...)</code>——由 <code>default_format</code> 推断 scope（docx/xlsx/pptx→office_doc/sheet/ppt），同时扫描 <b>答案文本 + 生成的 docx/pptx/xlsx 文件正文</b>（<code>extract_office_text</code> 懒加载 python-docx/pptx/openpyxl，缺库或解析失败优雅跳过），合并去重（<code>scan_office62_blob</code>）后判定。结果挂 <code>result["office62"]</code>，有违规落 <code>audit.record("office62_scan", ...)</code>。<code>OFFICE62_ENABLED</code> 默认 1（观测告警）；<code>OFFICE62_ENFORCE=1</code> 时 high 级违规直接把产出物替换为拦截提示（<code>result["office62_blocked"]=True</code>）；另新增 <code>OFFICE62_CAPTURE=1</code>（opt-in，受控 QA 环境）把真实产出物文本落 <code>data/office62_captures.jsonl</code>，供 <code>office62_prod_hitrate.py</code> 离线算生产命中率（含生产文本，仅受控环境开启，单段截断 20k 防体积膨胀）。<b>同步路径可拦截（enforce_block=True）；流式 SSE 因答案已逐 token 发往前端、finalize 再拦无意义，故流式仅观测（enforce_block=False）</b>。<code>policy()</code> 仍可运维观测规则加载状态。</p>
+  <p><b>生产级命中率测量台（2026-11-14 · 接真实 agent 产出物日志）</b>：新增 <code>scripts/office62_capture_seed.py</code> + <code>scripts/office62_prod_hitrate.py</code>。采集器用真实 python-docx/openpyxl/python-pptx 在内存生成 docx/xlsx/pptx 字节，经与线上完全一致的 <code>extract_office_text → scan_office62_blob</code> 管线抽文本 + 扫描，落 <code>data/office62_captures.jsonl</code>（与 <code>invoke.py</code> 的 <code>OFFICE62_CAPTURE</code> 钩子<b>同构</b>——线上 <code>OFFICE62_CAPTURE=1</code> 时该钩子把真实产出物文本落同一文件，测量台可直接吃真实日志）；同时落带 ground-truth 标注的 <code>data/office62_eval.jsonl</code>（benign / expect 规则）。测量台对每条捕获用<b>当前规则重扫</b>（规则一改命中率立即反映"规则漂移"），产出：生产监控（各 scope 分布、合规率、high 拦截率、严重度分布、Top 命中规则、死规则）+ 标注评测（红线召回率、违规检测率、合规误报率、精确率、漏检明细）。<b>实测（真实文件字节样本 33 条：合规 11 / 违规 22）</b>：<b>红线召回率 100%</b>（22/22 期望规则全中，8 个 high 级在 <code>OFFICE62_ENFORCE=1</code> 下被拦）；<b>合规误报率（≥中危）0%</b>；中危+预测精确率 100%；测量台还暴露 O62-042 的 <code>\s+</code> 把 docx 段间换行误判为"标点后半角空格"，已修为 <code>[ \t]+</code>（仅匹配真实空格/制表符）。<b>真实日志实测（2026-11-14 · 演示后端 <code>OFFICE62_CAPTURE=1</code> 跑通 19 条真实 LLM 办公产出物）</b>：生产监控——scope 分布 office_doc=13 / office_ppt=2 / office_sheet=4，<b>合规率(零≥中危) 31.6%（6/19）</b>，<b>high 拦截率 5.3%（1/19，真实触发 1 次 high 红线被拦：ag_pub_policy）</b>，严重度 high=1 / medium=18 / low=42，规则触发覆盖率 17/62；<b>Top 命中 O62-026×9、O62-033×8</b>——二者升 medium 后在真实办公流量中分居前二，证明升级在产线真实生效、且未误伤合规产出（合规误报 0%）。<b>结论：演示环境打开 OFFICE62_ENFORCE=1 安全</b>——拦截仅作用于 high 红线（真实流量已验证 1 例成功拦截）；O62-026/O62-033 升 medium 后成为最高频质量告警，属预期内提示而非阻断，无需回退。</p>
+  <p><b>诚实边界</b>：① 「数据来源」(O62-026) 与「风险提示/免责」(O62-033) 现已是 medium 告警——靠 <code>trigger</code> 语义门槛（含数据/风险语境才校验）实现，已无跨类型误报；其余 must_include 仍维持 low（advisory/lint，非阻断）。若需更多必备项升中危，照同法加 <code>applies_to</code>/<code>trigger</code> 即可，无需改代码。② 流式路径只能观测不能回拦（架构限制），真拦截只在同步路径；③ 62 条为<b>基线草案</b>，非业务方正典清单，直接替换 <code>office62_rules.json</code> 即可（无需改代码）。</p>
+  <p><b>诚实边界</b>：62 条为<b>基线草案</b>，非业务方正典清单；如你有正式清单，直接替换 <code>office62_rules.json</code> 即可（无需改代码）。另：微信小程序真实 AppID 获取途径见提审清单 <code>deploy/MINIPROGRAM_SUBMIT_CHECKLIST_2026-11-14.html</code>——微信公众平台企业号 → 开发管理 → 开发设置 → 开发者ID(AppID)（<code>wx</code> 开头约 18 位）；当前 <code>miniprogram/project.config.json</code> 维持游客占位 <code>touristappid</code>，提审前必须替换为真实值。</p>
+ </div>
+</details>
+
+<details>
+ <summary><b>子页 6 · 备份演练 + 生产持久化</b></summary>
+ <div style="margin-top:12px">
+  <p><b>现状（代码实查 2026-11-14，更正旧判断）</b></p>
+  <ul>
+   <li><b>持久卷已齐</b>：基础 <code>docker-compose.yml</code> 已含 <code>pgdata</code>(postgres)、<code>qdrant_storage</code>(qdrant)、<code>minio_data</code>(minio)、<code>redis_data</code>(redis) 四卷；<code>docker-compose.prod.yml</code> 再叠加 <code>backend_data</code>(mlops_artifacts/data) + <code>backups</code> 卷。旧台账"持久卷不完整"不实。</li>
+   <li><code>backup_restore.py</code> 完整（backup/verify/restore+confirm 三档防护，<b>但无测试</b>：<code>backend/tests</code> 无 backup 文件，仅 test_m27_ops/test_m44_prod_readiness 间接相关）。</li>
+   <li><b>关键诚实限制</b>：<code>backup_restore.py</code> 只快照/写回进程内 M27 Store（observability/events/usage_store），<b>不覆盖 PG/MinIO/Qdrant 里的真实生产数据</b>（会话/文件/审计链）。要备份真实数据须 DB 级手段。</li>
+   <li>审计调度示例已交付（<code>purge_audit.py/.service/.timer/.crontab</code>）。</li>
+  </ul>
+  <p><b>落地动作（有序）</b></p>
+  <ol>
+   <li>补测试：<code>backend/tests/test_backup_restore.py</code> 覆盖 <code>--backup</code>→<code>--verify</code>→<code>--restore --confirm</code> 三档 + sha256/字段完整性断言（<code>--restore</code> 缺 <code>--confirm</code> 必须拒）。</li>
+   <li>DB 级备份：在 <code>deploy/backup.sh</code>（或直接 cron）增加 <code>pg_dump</code>(aiplat) → 加密落 <code>backups/</code>；<code>qdrant</code> 快照（<code>/snapshot</code> API 或停写卷拷贝）；<code>minio mc mirror</code> 到离线归档。</li>
+   <li>演练：在隔离环境 <code>--restore --confirm</code> 一份 M27 快照；另做一次 PG/MinIO 恢复演练，校验会话/产出物/审计链可还原。</li>
+   <li>审计调度接 cron（<code>purge_audit.*</code> 已就绪），确认留存清理不误删链尾。</li>
+  </ol>
+  <p><b>验证</b>：<code>pytest tests/test_backup_restore.py -q</code> 绿；演练后数据可还原；备份卷 <code>backups</code> 有产物且 sha256 一致。</p>
+  <p><b>阻塞/前置</b>：需演练/隔离环境；DB 级备份需 PG/MinIO 凭据与离线归档介质。</p>
+ </div>
+</details>
+
+<h2>六、P2 / P3 落地动作明细（子页）</h2>
+<p class="note">P2（MLOps 真实管线）与 P3（原生 App 编译上架）为迭代/后置项，给出可执行动作明细，优先级低于上线阻断项。</p>
+
+<details>
+ <summary><b>子页 7 · MLOps 真实管线（P2）</b></summary>
+ <div style="margin-top:12px">
+  <p><b>现状（代码实查 2026-11-14）</b></p>
+  <ul>
+   <li><code>mlops.py</code> 的 <code>pipeline_status()</code>（mlops.py:553）标注 <code>registry.condition</code> 含"灰度发布与回滚审批流已接（<code>/mlops/models/{id}/rollback</code>）"；<code>feast_available</code> 仅作可选升级标记。</li>
+   <li><b>自动重训调度已接</b>：<code>scheduled_retrain()</code>（mlops.py:512）是真实重训钩子在检测到漂移后真实训练并落 staging，指标更优时可选自动晋升；<code>maybe_retrain</code> 的 should_retrain 信号由 <code>scripts/mlops_scheduler.py</code> 与 <code>POST /mlops/retrain</code> 消费——调度入口（cron/systemd）由运维挂载，本实现提供可执行入口而非进程内定时器（诚实：非库内定时，但入口与真实训练已就位）。</li>
+   <li><b>灰度回滚审批流已接（2026-11-14）</b>：新增 <code>rollback_model()</code>（mlops.py:387）与端点 <code>POST /mlops/models/{model_id}/rollback</code>（routers/mlops.py:159，平台管理员门控）——把指定生产模型降级回 staging，并恢复同名上一个生产模型（若有），闭环最后一环补齐。测试 <code>tests/test_p2_mlops_rollback.py</code> 覆盖函数（降级+恢复 / 无上一生产 / 权限不足）+ 端点（admin 200 / 非 admin 403），与 <code>test_p2_mlops_scheduler.py</code>、<code>test_mlops_pipeline.py</code> 共 17 例全绿。</li>
+  </ul>
+  <p><b>诚实边界（仍待接 = 可选升级，非阻断）</b>：Feast 在线/离线特征服务（<span class="ok">已接：本机 pip 装 feast 0.68.0，csv→动态 FeatureView→materialize 到本地 SQLite 在线存储→get_online_features 回读一致，测试 6 例全绿</span>）、分布式训练算力编排（GPU/实验跟踪；逻辑多阶段编排已接）、自动监控回滚（线上指标比对触发自动回滚，需接调度 + 指标采集）。当前晋升/回滚为管理员门控的单步动作，非自动监控闭环。</p>
+  <p><b>落地动作（按业务节奏）</b></p>
+  <ol>
+   <li><b>✅ 已完成（2026-11-14 续）· 训练编排</b>：新增 <code>run_training_pipeline()</code>（mlops.py:512），把单步 <code>scheduled_retrain</code> 拆为清晰多阶段——① prepare（装载校验数据集：存在/有行/样本≥4/特征列完整）② drift（多维 PSI，<code>skip_drift_check</code> 可跳过）③ train（真实 sklearn 训练落 staging + run 指标）④ evaluate（新模型 vs 当前生产最优，<code>_metrics_better</code> 给 go/no-go）⑤ promote（仅 auto_promote 且更优才晋升，防回退）。每阶段写 <code>stages</code> 状态 + <code>audit_event("mlops.pipeline")</code> 可观测；<code>scheduled_retrain</code> 改为委托并保持向后兼容字段（action/drift/model_id/run_id/metrics/promoted）。新增端点 <code>POST /mlops/pipeline/run</code>（platform_admin + <code>MLOPS_AUTO_RETRAIN=1</code>，返回含 stages 全量结果）。测试 <code>tests/test_p2_mlops_pipeline_orchestration.py</code> 8 例全绿（漂移训练/无漂移送 skip/跳过漂移空 observed 不崩/自动晋升 done/未严格更优 skip/缺数据集 prepare error/端点 403·409·200）。</li>
+   <li><b>✅ 已完成（2026-11-14 续）· Feast 在线特征服务已接</b>：新增 <code>app/services/feast_store.py</code>（<code>FeastFeatureStore</code> 适配器，复用 <code>LocalFeatureStore</code> 已落盘 csv 数据集；<code>sync_dataset()</code> 把 csv → 动态 Entity/FileSource/FeatureView → <code>materialize</code> 到 <b>本地 SQLite 在线存储（无需 Redis）</b>；<code>get_online_features()</code> 提供低延迟在线取数）+ <code>feast_repo/feature_store.yaml</code>（local provider + sqlite online_store，<code>entity_key_serialization_version: 3</code>）+ 端点 <code>POST /mlops/feast/sync</code>（platform_admin）、<code>POST /mlops/feast/online</code>（需登录）；<code>pipeline_status().feature_store.condition</code> 动态反映 Feast 真实可用性（装成即"在线服务已接"，装不成诚实回落本地特征库）。全部受 <code>_feast_available()</code> 门控。本机 <code>pip install feast</code> 在 Python 3.13 上 grpcio 源码编译慢（~32min，grpcio-1.85.1 落盘后缓存热，二次重装 ~11min 完成），最终 <b>feast 0.68.0 安装成功 + 真实集成测试 6 例全绿</b>（csv→FeatureView→materialize→在线取数回读一致；适配 0.68 API：Field 用 <code>feast.types.Float64/String</code>、Entity 用 <code>ValueType.STRING</code>、数值列强制转 float、在线取数显式 <code>&lt;fv&gt;:&lt;feature&gt;</code> 引用）。</li>
+   <li>分布式训练算力编排：逻辑多阶段已接，仍待接 GPU/实验跟踪（Ray/Spark 集群）。</li>
+   <li>自动监控回滚：接调度 + 线上指标比对，漂移触发后自动调 <code>/mlops/retrain</code> 并比对，退化时自动触发 <code>/mlops/models/{id}/rollback</code>。</li>
+  </ol>
+  <p><b>验证</b>：漂移触发 → 自动重训（<code>/mlops/retrain</code> 或 scheduler）→ 评估通过 → 晋升（<code>/mlops/models/{id}/promote</code>）→ 异常可回滚（<code>/mlops/models/{id}/rollback</code>），全链路可观测（复用 observability）。端点契约与权限已由 <code>test_p2_mlops_rollback.py</code> 锁死。</p>
+ </div>
+</details>
+
+<details>
+ <summary><b>子页 8 · 原生 App 编译上架（P3）</b></summary>
+ <div style="margin-top:12px">
+  <p><b>现状（代码实查 2026-11-14）</b></p>
+  <ul>
+   <li>Capacitor 配置就绪（<code>web/capacitor.config.ts</code>，appId=<code>com.ruishenxing.aiworkbench</code>，webDir=dist）；<code>deploy/mobile/MOBILE_BUILD_AND_PUBLISH.md</code>（4.7KB）已给出全流程。</li>
+   <li>Web 前端 <code>npm run build</code> 已验证通过（395.59 kB / gzip 128.42 kB）。</li>
+   <li><b>本 Windows 环境无法原生编译</b>：iOS 需 macOS+Xcode+开发者 $99；安卓需 Android Studio/SDK。</li>
+  </ul>
+  <p><b>落地动作（用户侧 Mac/Studio 执行 MOBILE_BUILD_AND_PUBLISH.md）</b></p>
+  <ol>
+   <li><code>npm run build</code>（Web 已完成，产物 dist）。</li>
+   <li><code>npx cap add ios</code> / <code>npx cap add android</code>。</li>
+   <li><code>npx cap sync</code>（把 Web 代码同步进原生壳）。</li>
+   <li>iOS：Xcode archive（需 $99 开发者）；安卓：<code>./gradlew assembleRelease</code>。</li>
+   <li>提审 / 上架（App Store / 各安卓商店）。</li>
+  </ol>
+  <p><b>说明</b>：Capacitor 壳仍走同一 Web 代码，无额外业务开发；属 P3 后置，条件达成后执行即可。</p>
+ </div>
+</details>
+
+<div class="note">
+ <b>诚实边界</b>：本台账依据 2026-11-14 代码实查整理。<b>已更正两处旧判断</b>：① 小程序非"无代码"，而是骨架就位、缺口在 wx 登录端点与备案域名；② 持久卷非"不完整"，基础 compose 已含四数据卷、prod 叠加两卷，缺口在备份测试/演练与 DB 级备份。
+ Casdoor/小程序 wx 端点/办公62 规则清单/方案库 193 对数据（实跑）/备份演练/MLOps/原生App 各项中，标注为"需你侧输入"或"外部依赖"的（真实 AppID、备案 HTTPS 域名、微信 AppSecret、方案库语料、62 条规则清单、演练环境、Mac/Studio）均为待办动作或外部输入，非代码缺陷。
+</div>
+
+</main>
+<footer>企业 AI 智能体中台 · D 层 backlog 台账（自动整理）</footer>
+</body>
+</html>

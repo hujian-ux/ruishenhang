@@ -40,6 +40,11 @@ backend/reports/
 # 运行时数据（embedding 缓存 sqlite / qdrant 本地文件）
 backend/data/
 
+# Feast 在线特征服务运行时产物（本地 SQLite 在线存储 / 注册表 / 同步 parquet）
+backend/feast_repo/registry.db
+backend/feast_repo/online_store.db
+backend/feast_repo/data/
+
 # M17 离线装包缓存（pip 走代理取不到 index 时的轮子暂存目录）
 backend/wheels/
 
@@ -59,3 +64,10 @@ corpus_inbox/converted/**
 
 # MLOps 训练产物（数据集 csv / 模型 joblib）——运行时生成，不入库
 mlops_artifacts/
+
+# 临时/工具状态目录（不入库）
+.tmp/
+.dumate/
+
+# 自动生成的 OpenAPI 文档（FastAPI 重跑即变，勿入仓库）
+openapi.yaml

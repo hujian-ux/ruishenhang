@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>硅基流动免费池模型 ID 核对清单 · 2026-11-14</title>
+<style>
+  :root { --bg:#0b1020; --card:#141b2e; --line:#26304a; --txt:#e6ecf5; --mut:#9aa7bd; --acc:#4f8cff; --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --code:#0f1626; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.65 -apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; padding:28px; }
+  h1 { font-size:24px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:28px 0 10px; border-left:4px solid var(--acc); padding-left:10px; }
+  .sub { color:var(--mut); margin:0 0 18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  .kv { color:var(--mut); }
+  .ok { color:var(--ok); } .warn{color:var(--warn);} .bad{color:var(--bad);}
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:14px; }
+  th,td { border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:#1b2438; color:var(--txt); }
+  code, pre { font-family:"SFMono-Regular",Consolas,Menlo,monospace; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:8px; padding:12px 14px; overflow:auto; color:#cfe0ff; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  .p0 { background:#3a1414; color:#ff9a9a; } .p1 { background:#3a2f14; color:#ffd479; } .done{background:#10331f;color:#7ff0b0;}
+  .note { border-left:3px solid var(--warn); background:#1c1a10; padding:10px 14px; border-radius:0 8px 8px 0; margin:10px 0; color:#f3e2b8; }
+  .crit { border-left:3px solid var(--bad); background:#1f1212; padding:10px 14px; border-radius:0 8px 8px 0; margin:10px 0; color:#ffc9c9; }
+  ol li, ul li { margin:5px 0; }
+</style>
+</head>
+<body>
+<h1>硅基流动（SiliconFlow）免费池可用模型 ID 核对清单</h1>
+<p class="sub">产出日期 2026-11-14 · 关联 <code>backend/scripts/real_e2e_smoke.py</code> 真模型联调 · 针对 <code>.env</code> 的 <code>LLM_DEFAULT_MODEL=Qwen/Qwen2.5-7B-Instruct</code> 实测返回 HTTP 400「Model does not exist」</p>
+
+<div class="card">
+  <h2 style="margin-top:0">结论先行（一句话）</h2>
+  <p><b>密钥没问题，是模型 ID 大小写敏感导致 400。</b> 直连通道 <code>_direct_key()</code> 优先读 <code>LLM_API_KEY</code>（你的 <code>.env</code> 已正确配置），<code>SILICONFLOW_API_KEY</code> 只是兜底。唯一可靠做法：<b>用你的 key 调 <code>GET /v1/models</code> 拿精确（大小写敏感）的模型 ID</b>，再回填 <code>LLM_DEFAULT_MODEL</code>。</p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">P0 · 根因分析（三个假设，按优先级）</h2>
+  <table>
+    <tr><th>序号</th><th>假设</th><th>概率</th><th>验证方式</th></tr>
+    <tr><td>1</td><td><b>模型 ID 大小写敏感</b>。<code>Qwen/Qwen2.5-7B-Instruct</code> 与实际免费池 ID 仅大小写不同（例如控制台实为 <code>qwen/qwen2.5-7b-instruct</code> 或带别的前缀/后缀）。SiliconFlow 模型 ID 区分大小写，错一个字符即 400。</td><td class="warn">高</td><td>见下方「P1 权威核验」命令，逐候选跑 chat/completions，返回 200 即命中。</td></tr>
+    <tr><td>2</td><td><b>该模型已从免费池移出 / 改名</b>。免费池名单会随运营调整，<code>Qwen2.5-7B-Instruct</code> 可能已转为付费或并入新代号。</td><td class="p1">中</td><td>登录硅基流动控制台「模型广场」核对「免费」标签；或用 <code>/v1/models</code> 看当前可用列表。</td></tr>
+    <tr><td>3</td><td><b>免费池区域/额度未激活</b>。账号未领取免费额度、或该模型仅在特定区域免费。</td><td>低</td><td>控制台账户页确认免费额度为 <code>normal</code>；<code>GET /v1/user/info</code> 返回 <code>status:normal</code>。</td></tr>
+  </table>
+  <div class="note"><b>已排除：密钥失效。</b> <code>llm_available()</code> 在 direct 通道只校验 <code>LLM_API_KEY</code> 是否非空；且 400 是「模型不存在」而非 401「未授权」，说明鉴权已通过、请求已到达硅基流动，只是模型名对不上。</div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">P1 · 候选免费模型 ID（联网核验，仍需控制台最终确认）</h2>
+  <p class="kv">来源：2026-11 多份独立第三方文档一致列出的 SiliconFlow 免费（无限使用）模型。⚠️ 仅作起点，<b>最终以你控制台 <code>/v1/models</code> 返回的精确 ID 为准</b>。</p>
+  <table>
+    <tr><th>候选 ID</th><th>说明</th><th>推荐度</th><th>在本平台角色</th></tr>
+    <tr><td><code>Qwen/Qwen2.5-7B-Instruct</code></td><td>Qwen2.5 7B（你现用的，但实测 400 → 重点核对大小写）</td><td class="warn">优先核对</td><td>默认主模型 / small_model</td></tr>
+    <tr><td><code>Qwen/Qwen3-8B</code></td><td>通义千问 3 代 8B，综合能力强，免费池常驻</td><td class="ok">高</td><td>主模型备选</td></tr>
+    <tr><td><code>deepseek-ai/DeepSeek-R1-0528-Qwen3-8B</code></td><td>DeepSeek R1 推理蒸馏版，免费</td><td class="ok">高</td><td>推理类技能包</td></tr>
+    <tr><td><code>THUDM/glm-4-9b-chat</code></td><td>智谱 GLM-4 9B 免费版（注意与代码预设 <code>THUDM/GLM-4-9B-0414</code> 可能不同）</td><td class="p1">中</td><td>备选</td></tr>
+    <tr><td><code>Qwen/Qwen2.5-Coder-7B-Instruct</code></td><td>Qwen2.5 编码专用，免费</td><td class="p1">中</td><td>代码类技能包</td></tr>
+  </table>
+  <div class="crit"><b>代码预设里的非免费项（勿直接当免费用）：</b> <code>model_gateway.PROVIDER_PRESETS["siliconflow"]["models"]</code> 含 <code>zai-org/GLM-4.6</code>、<code>deepseek-ai/DeepSeek-V3</code>、<code>THUDM/GLM-Z1-9B-0414</code> 等，部分为付费模型，放进 <code>LLM_DEFAULT_MODEL</code> 同样会 400。免费池请以控制台为准。</div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">P1 · 权威核验命令（在你的出网环境执行）</h2>
+  <p class="kv">前置：已配置 <code>LLM_API_KEY</code>。沙箱出网被拦截，以下命令须在本机/服务器出网环境跑。</p>
+
+  <p><b>① 拉取你账号下全部模型（拿精确 ID，大小写敏感）</b></p>
+  <pre># Windows PowerShell / bash 通用：先取 key
+export SF_KEY="$(grep '^LLM_API_KEY=' D:/enterprise-ai-platform/.env | cut -d= -f2)"
+curl -s https://api.siliconflow.cn/v1/models \
+  -H "Authorization: Bearer $SF_KEY" | python -m json.tool | grep '"id"'</pre>
+
+  <p><b>② 单模型冒烟（返回 200=可用；400=ID 对不上）</b></p>
+  <pre>curl -s https://api.siliconflow.cn/v1/chat/completions \
+  -H "Authorization: Bearer $SF_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"Qwen/Qwen2.5-7B-Instruct","messages":[{"role":"user","content":"你好"}],"max_tokens":16}'</pre>
+  <p class="kv">把上面 <code>model</code> 依次换成候选表中的 ID，谁返回 200 就用谁。这是判断「免费且对你的 key 可用」的最直接证据。</p>
+
+  <p><b>③ 确认 key 状态正常</b></p>
+  <pre>curl -s https://api.siliconflow.cn/v1/user/info -H "Authorization: Bearer $SF_KEY" | python -m json.tool</pre>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">P1 · 修正 <code>.env</code> 步骤</h2>
+  <ol>
+    <li>用上面命令②确认某个候选 ID 返回 <b>200</b>（建议首选 <code>Qwen/Qwen3-8B</code>，免费池常驻且稳定）。</li>
+    <li>打开 <code>D:/enterprise-ai-platform/.env</code>，把第 12 行：
+      <pre>LLM_DEFAULT_MODEL=Qwen/Qwen2.5-7B-Instruct</pre>
+      改为（示例，以你实测 200 的 ID 为准）：
+      <pre>LLM_DEFAULT_MODEL=Qwen/Qwen3-8B</pre></li>
+    <li><b>不要动</b> <code>LLM_API_KEY</code>、<code>LLM_PROVIDER=direct</code>、<code>LLM_VENDOR=siliconflow</code>、<code>LLM_BASE_URL</code> —— 它们是对的。</li>
+    <li>重跑 <code>backend/scripts/real_e2e_smoke.py</code>，Tier1 裸模型调用应返回 <code>real=True</code> 而非 400。</li>
+  </ol>
+  <div class="note"><b>key_env 陷阱：</b> <code>PROVIDER_PRESETS["siliconflow"]["key_env"]</code> 写的是 <code>SILICONFLOW_API_KEY</code>，但 <code>_direct_key()</code> 优先返回 <code>settings.LLM_API_KEY</code>。你的 key 配在 <code>LLM_API_KEY</code> 下，所以<b>无需</b>新增 <code>SILICONFLOW_API_KEY</code>。若有人按 PRESETS 去设 <code>SILICONFLOW_API_KEY</code> 却留空 <code>LLM_API_KEY</code>，反而会落到兜底读不到 key。</div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">P2 · 与 <code>real_e2e_smoke.py</code> 的衔接</h2>
+  <ul>
+    <li>该脚本已写「已知坑」：<code>LLM_DEFAULT_MODEL</code> 在免费池可能 400，须核对。</li>
+    <li>修对模型 ID 后，在出网环境：<code>cd backend &amp;&amp; ./.venv/Scripts/python.exe scripts/real_e2e_smoke.py</code>（勿带 <code>EAP_SKIP_ENV_LOCAL=1</code>）。</li>
+    <li>预期：Tier1 输出 <code>real=True</code>；Tier2 <code>run_agent</code> 全链路含 P1-12 压缩观测 <code>context.window_turns/dropped_turns/summary.provider</code> 有值。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">收口检查清单（打勾）</h2>
+  <table>
+    <tr><th>☐</th><th>动作</th><th>负责</th></tr>
+    <tr><td>☐</td><td>出网环境跑 <code>GET /v1/models</code> 拿到精确 ID 列表</td><td>你</td></tr>
+    <tr><td>☐</td><td>逐候选跑 chat/completions，确认 ≥1 个返回 200</td><td>你</td></tr>
+    <tr><td>☐</td><td><code>.env</code> 改 <code>LLM_DEFAULT_MODEL</code> 为实测 200 的免费 ID</td><td>你</td></tr>
+    <tr><td>☐</td><td>重跑 <code>real_e2e_smoke.py</code>，Tier1 <code>real=True</code></td><td>你</td></tr>
+    <tr><td>☐</td><td>（可选）把代码预设里非免费项从 <code>free_chain</code> 移除，避免他人误选</td><td>待定</td></tr>
+  </table>
+</div>
+
+<p class="sub">— 本清单为「准备类」交付物，不修改任何源码；执行动作均在你侧出网环境完成。—</p>
+<p class="sub">📌 已合并进 <code>deploy/D_LAYER_BACKLOG_2026-11-14.html</code> 第四节「P0 落地动作明细 · 子页 1」，作为 D 层台账 P0 收口的可执行子页。</p>
+</body>
+</html>

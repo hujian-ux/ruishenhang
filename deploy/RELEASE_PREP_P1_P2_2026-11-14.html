@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>P1 / P2 收尾 · 发布准备清单（2026-11-14）</title>
+<style>
+  :root{--ok:#1a7f37;--warn:#bf8700;--bad:#cf222e;--ink:#1f2328;--muted:#57606a;--bg:#f6f8fa;--card:#fff;--line:#d0d7de;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;padding:28px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .card h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;background:#fafbfc}
+  .ok{color:var(--ok);font-weight:600}
+  .warn{color:var(--warn);font-weight:600}
+  .bad{color:var(--bad);font-weight:600}
+  code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.ok{background:#dafbe1;color:var(--ok)} .pill.warn{background:#fff5d6;color:var(--warn)} .pill.bad{background:#ffebe9;color:var(--bad)}
+  ul{margin:6px 0;padding-left:20px} li{margin:3px 0}
+  .foot{color:var(--muted);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>P1 / P2 收尾 · 发布准备清单</h1>
+<div class="sub">企业 AI 智能体中台 · 2026-11-14 · 本清单汇总代码完成度、测试状态、待部署决策与外部依赖，供上线前核对。</div>
+
+<div class="card">
+  <h2>① P1 收官状态 <span class="pill ok">可上线代码已就绪</span></h2>
+  <table>
+    <tr><th>模块</th><th>本地代码/测试</th><th>状态</th><th>剩余（非代码阻断）</th></tr>
+    <tr><td>办公62 硬规则集</td><td>19 条 must_include + 条件化双机制（applies_to + trigger）+ 扫描/测试/接线 + 演示拦截 + 真实日志实测 19 条</td><td><span class="ok">✅ 收官</span></td><td>—</td></tr>
+    <tr><td>193 对 few-shot</td><td>实跑 pairs_found=193、attached=118（业务包）+ 41（M55 materials）；API 复核一致；样例块已落 agent_store</td><td><span class="ok">✅ 落盘完成</span></td><td><code>FEWSHOT_ENABLED=1</code> 全局开关（灰度评估决策，暂挂）</td></tr>
+    <tr><td>P0 Casdoor</td><td>身份 RS256+JWKS 已接</td><td><span class="warn">⏳ 待生产 .env</span></td><td>生产 Casdoor 实例 / 密钥 / 租户配置（外部输入）</td></tr>
+    <tr><td>微信小程序</td><td><code>capacitor.config.ts</code> + 指南 <code>MOBILE_BUILD_AND_PUBLISH.md</code> 就绪</td><td><span class="warn">⏳ 待外部</span></td><td>AppID / 备案 HTTPS 域名 / 隐私协议（外部输入）</td></tr>
+    <tr><td>备份演练</td><td>outbox / 审计 / 数据落盘机制已就位</td><td><span class="warn">⏳ 待演练</span></td><td>restore 演练 + prod 卷隔离（运维环境）</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>② P2 · MLOps 真实管线 <span class="pill ok">核心闭环已落地</span></h2>
+  <table>
+    <tr><th>环节</th><th>实现</th><th>状态</th></tr>
+    <tr><td>特征库</td><td>本地 csv 落盘（确定性）+ Feast 适配器（见③）</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>漂移检测</td><td><code>run_drift</code> 多维 PSI + 均值漂移</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>自动重训</td><td><code>scheduled_retrain</code> + <code>/mlops/retrain</code> + <code>scripts/mlops_scheduler.py</code>（指标更优才可选晋升）</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>训练编排</td><td><code>run_training_pipeline</code> 多阶段（准备→漂移→训练→评估→晋升）+ 审计 + <code>/mlops/pipeline/run</code></td><td><span class="ok">✅</span></td></tr>
+    <tr><td>模型仓库</td><td><code>promote_model</code> / <code>rollback_model</code> + 端点 <code>/mlops/models/{id}/rollback</code>（platform_admin 门控）</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>灰度回滚</td><td>坏生产模型降级 staging + 恢复同名上一生产模型</td><td><span class="ok">✅</span></td></tr>
+  </table>
+  <p class="foot">测试：<code>test_p2_mlops_rollback.py</code>(4) + <code>test_p2_mlops_scheduler.py</code> + <code>test_mlops_pipeline.py</code> + <code>test_p2_mlops_pipeline_orchestration.py</code>(8) = 25 passed（回归验证）。</p>
+</div>
+
+<div class="card">
+  <h2>③ P2 · Feast 在线特征服务 <span class="pill ok">已接 · 0.68 装成 + 6 例全绿</span></h2>
+  <ul>
+    <li><b>已落地</b>：<code>app/services/feast_store.py</code>（<code>FeastFeatureStore</code> 适配器，复用 <code>LocalFeatureStore</code> csv → 动态 Entity/FileSource/FeatureView → <code>materialize</code> 到 <b>本地 SQLite 在线存储（无 Redis）</b>；<code>get_online_features()</code> 在线取数）。</li>
+    <li><b>已落地</b>：<code>feast_repo/feature_store.yaml</code>（local provider + sqlite online_store）+ 端点 <code>POST /mlops/feast/sync</code>（admin）、<code>POST /mlops/feast/online</code>（登录）。</li>
+    <li><b>已落地</b>：<code>pipeline_status().feature_store.condition</code> 改为反映 Feast 真实可用性；全部受 <code>_feast_available()</code> 门控，未装时零行为变化、绝不报错。</li>
+    <li><b>测试</b>：<code>test_p2_feast_store.py</code>（降级路径始终跑 + 真实集成 6 例全绿：csv→动态 FeatureView→materialize 到本地 SQLite 在线存储→<code>get_online_features</code> 回读一致）。</li>
+    <li><span class="ok">已验证</span>：本机 <code>pip install feast</code> 在 Python 3.13 上 grpcio 源码编译较慢（首装 ~32min；缓存热后二次重装 ~11min），最终 <b>feast 0.68.0 安装成功</b>，在线服务真通（local provider + SQLite 在线存储，无 Redis）。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>④ 整体回归（发布前必跑）</h2>
+  <ul>
+    <li>范围建议：<code>office62 / guardrails / fewshot / mlops 全量</code> + 新增 <code>test_p2_feast_store.py</code>。</li>
+    <li>命令：<code>cd backend &amp;&amp; .venv/Scripts/python.exe -m pytest tests/ -q</code>（或按模块分批，规避环境退出码钩子干扰，建议用 <code>--junitxml</code> 解析判绿）。</li>
+    <li>已知环境坑：全量退出码偶被 <code>SAFE_DELETE_BULK_CONFIRM_REQUIRED</code> 钩子干扰 → 判绿以 pytest 解析为准；Windows 下 pkill 无效、沙箱代理劫持 localhost → 用 <code>NO_PROXY</code> + <code>trust_env=False</code>。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>⑤ 上线前决策清单（非代码，需你确认）</h2>
+  <table>
+    <tr><th>决策项</th><th>影响</th><th>建议</th></tr>
+    <tr><td><code>FEWSHOT_ENABLED=1</code></td><td>118 个挂载技能提示词都会带上样例块，影响全量首轮回复结构</td><td>先灰度（单租户/单技能）评估，再全量</td></tr>
+    <tr><td>生产 Casdoor .env</td><td>P0 身份收口</td><td>提供生产 Casdoor 实例与密钥后写入</td></tr>
+    <tr><td>小程序 AppID / 域名 / 隐私</td><td>P1 小程序脚手架激活</td><td>外部提供后跑 <code>MOBILE_BUILD_AND_PUBLISH.md</code></td></tr>
+    <tr><td>备份 restore 演练</td><td>数据可靠性验收</td><td>隔离环境跑一次 restore + 校验</td></tr>
+    <tr><td>Feast 启用到生产</td><td>在线特征服务从"本地 Store"升级为 Feast 在线/离线（本机 py3.13 已装成 0.68.0，grpcio 源码编译较慢，缓存热后约 11min）</td><td>生产环境装 feast + 启用 <code>/mlops/feast/*</code> 端点即可；非兼容性问题（已在当前 3.13 验证通过）</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>⑥ P3 原生 App <span class="pill warn">条件达成后执行</span></h2>
+  <ul>
+    <li><code>web/capacitor.config.ts</code> + <code>@capacitor/cli</code>/<code>@capacitor/core</code> v8 已就位；但 <code>ios/</code> <code>android/</code> 原生平台目录未生成（<code>npx cap add</code> 未执行）。</li>
+    <li>硬约束：iOS 需 macOS+Xcode+开发者 $99，安卓需 Android Studio/SDK → <b>本 Windows 环境无法编译</b>。</li>
+    <li>指南 <code>deploy/mobile/MOBILE_BUILD_AND_PUBLISH.md</code> + <code>store-listing/</code> 已备，待 Mac/Studio 执行全流程。</li>
+  </ul>
+</div>
+
+<p class="foot">关联台账：<code>deploy/D_LAYER_BACKLOG_2026-11-14.html</code> · 当日日志：<code>.workbuddy/memory/2026-11-14.md</code></p>
+</body>
+</html>
