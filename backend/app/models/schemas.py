@@ -73,6 +73,29 @@ class AgentInvokeRequest(BaseModel):
     # 不重复调模型）。不传 = html（平台优先 HTML，对方要其它格式再显式传）。
     output_formats: List[str] = Field(default_factory=list,
                                       description="html|xlsx|docx|pptx|pdf|auto，可多选")
+    # P0-2 真工具循环：置 true 走 think→tool→observe（≤6 轮）。默认 False 保持向后兼容。
+    # 也可在智能体配置里设 tools_enabled=1 永久开启，请求级开关优先级更高。
+    enable_tools: bool = Field(False, description="是否启用真工具调用循环（P0-2）")
+    # P1-5 中途追加约束（steer）：生成中用户追加要求，后端取消当前流并用
+    # 「上一轮用户问题 + 补充要求」重新生成助手答案（不新增 user 轮，上下文更干净）。
+    # 仅对流式端点 /agent/stream 生效；同步 /agent/invoke 忽略此字段。
+    steer: bool = Field(False, description="是否作为中途补充要求重新生成（P1-5）")
+    steer_input: Optional[str] = Field(None, description="补充要求文本；缺省回退到 input")
+    # P1-12 请求级上下文窗口覆盖：不传 = 用 CTX_RUNTIME_TURNS（默认 2）；
+    # 传入后由 session_store.resolve_runtime_turns 夹取到 [CTX_MIN_TURNS, CTX_MAX_TURNS]。
+    # 同步 /agent/invoke 与流式 /agent/stream 同口径。
+    context_window: Optional[int] = Field(
+        None, ge=0, le=10000,
+        description="本次生成注入的近窗轮数覆盖（不传则用全局 CTX_RUNTIME_TURNS）")
+
+
+class ContextPreviewRequest(BaseModel):
+    """P1-12 离线试算：传自定义轮次预览窗口与压缩效果，不读写任何会话。"""
+    turns: List[dict] = Field(default_factory=list)
+    context_window: Optional[int] = Field(None, ge=0, le=10000)
+    compress: Optional[bool] = None
+    runtime: bool = False
+
 
 class Citation(BaseModel):
     doc_id: str

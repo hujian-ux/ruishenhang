@@ -2,20 +2,32 @@
 import os
 import pathlib
 
-def _load_env_files():
-    """启动期把 .env / .env.local 注入 os.environ。
-    .env.local 优先级最高（覆盖 .env 与已存在的变量），用于平台运营台在线配置入口
-    落盘后重启仍生效。本函数仅影响 os.environ；Settings 在下方类定义时读取快照。
+def _load_env_files(root_dir: pathlib.Path | None = None):
+    """启动期把 .env 注入 os.environ。三层优先级（低 → 高）：
+    1) 仓库根 .env          —— 项目级基础配置（含联网搜索等密钥）。历史版本只读了
+                              backend/.env 与 backend/.env.local，导致根 .env 的
+                              TAVILY/BOCHA/WEB_SEARCH 等密钥实际不生效（"配置假通"）。
+    2) backend/.env         —— 后端级覆盖（通常不存在）。
+    3) backend/.env.local   —— 平台运营台在线配置落盘，优先级最高。
+    EAP_SKIP_ENV_LOCAL=1 时跳过 backend/.env.local（测试隔离真实厂商 key）。
+    空值（KEY=）不注入，避免空串覆盖默认值。
 
-    EAP_SKIP_ENV_LOCAL=1 时跳过 .env.local（仍读仓库级 .env）：
-    测试必须这样做——否则开发机配了真实厂商 key，用例里"无模型应诚实降级"的断言
-    会真的去联网调一次，表现为"同一份代码本机挂、CI 过"。"""
+    root_dir 默认取本文件上溯 4 级（enterprise-ai-platform/）；单测可传临时目录。
+    """
+    if root_dir is None:
+        here = pathlib.Path(__file__).resolve()
+        root_dir = here.parents[3]   # backend/app/core/config.py → 上溯 4 级 = 仓库根
+    backend_dir = root_dir / "backend"
+    # (path, is_local) —— is_local=True 的层始终覆盖（最高优先级）
+    layers = [
+        (root_dir / ".env", False),
+        (backend_dir / ".env", False),
+        (backend_dir / ".env.local", True),
+    ]
     skip_local = os.environ.get("EAP_SKIP_ENV_LOCAL") == "1"
-    base = pathlib.Path(__file__).resolve().parents[2]  # backend/（app/core/config.py → 上溯 3 级）
-    for name in (".env", ".env.local"):
-        if name == ".env.local" and skip_local:
+    for p, is_local in layers:
+        if is_local and skip_local:
             continue
-        p = base / name
         if not p.exists():
             continue
         for line in p.read_text(encoding="utf-8").splitlines():
@@ -24,7 +36,9 @@ def _load_env_files():
                 continue
             k, v = line.split("=", 1)
             k, v = k.strip(), v.strip().strip('"').strip("'")
-            if name == ".env.local" or k not in os.environ:
+            if not v:
+                continue  # 空值不注入，避免空串覆盖默认值
+            if is_local or k not in os.environ:
                 os.environ[k] = v
 
 _load_env_files()
@@ -85,6 +99,19 @@ class Settings:
     # 运行时把验收标准（自检清单）与标准模板参考（格式范本，非数据）拼进命中技能的
     # system_prompt，出活更稳、可验收、可校验用户上传格式。置 1 才生效。
     MATERIALS_ENABLED = _env("MATERIALS_ENABLED", "0") == "1"
+    # P0-4 跨会话长期记忆：默认开。开启后从每轮对话抽取持久事实（偏好/事实/约束），
+    # 注入后续对话的 system_prompt，实现跨会话记忆。抽取走一次轻量 LLM 调用，
+    # 模型不可用时（llm_available()=False）安全跳过，绝不报错也不阻塞响应。
+    MEMORY_ENABLED = _env("MEMORY_ENABLED", "1") == "1"
+    # 注入 system 的持久事实上限（超出按最近使用排序截断）
+    MEMORY_MAX_FACTS_INJECT = int(_env("MEMORY_MAX_FACTS_INJECT", "8"))
+    # P0-5 调度服务：默认开。开启后在 lifespan 启动 APScheduler 后台线程，
+    # 注册所有 enabled 的自动化任务；模型/PG 不可用时降级为内存运行不阻塞启动。
+    SCHEDULER_ENABLED = _env("SCHEDULER_ENABLED", "1") == "1"
+    # 可靠投递 worker 轮询间隔（秒）；outbox 里 pending/failed 条目由它最终送达。
+    OUTBOX_INTERVAL_SEC = int(_env("OUTBOX_INTERVAL_SEC", "15"))
+    # outbox 单条最大重试次数（超过标记 dead，保留台账供人工重投）
+    OUTBOX_MAX_ATTEMPTS = int(_env("OUTBOX_MAX_ATTEMPTS", "10"))
     # few-shot 方案库根目录（存放「原始数据 ↔ 交付物」成对 xlsx）。为空时
     # /ops/build-fewshot 回退到 os.environ 或默认 D:/workbuddy_解决方案。
     # 真实启用：指向实际 166 包语料目录；本仓附带示例语料见
@@ -207,6 +234,34 @@ class Settings:
     OIDC_TENANT_CLAIM = _env("OIDC_TENANT_CLAIM", "")
     OIDC_NAME_CLAIM = _env("OIDC_NAME_CLAIM", "name")
 
+    # ── P1-1 飞书身份源（授权码 → access_token → user_info → 平台自签 sso 令牌）──
+    # 飞书不发 OIDC id_token，故不走 JWKS 验签；改为后端换码后取 user_info 验明身份，
+    # 再由平台用 HMAC 自签 `sso` 会话令牌（前缀 sso，区别于 dev）。
+    # sso 代表「已通过真实企业身份核验」，生产/收口态放行（属真实 SSO，非本地 dev 后门）。
+    FEISHU_ENABLED = _env("FEISHU_ENABLED", "0") == "1"
+    FEISHU_APP_ID = _env("FEISHU_APP_ID", "")
+    FEISHU_APP_SECRET = _env("FEISHU_APP_SECRET", "")
+    FEISHU_REDIRECT_URI = _env("FEISHU_REDIRECT_URI", "http://127.0.0.1:5173/callback/feishu")
+    # 飞书双区域：国内 open.feishu.cn / 海外 open.larksuite.com（连接器部分复用此 BASE_URL）
+    FEISHU_BASE_URL = _env("FEISHU_BASE_URL", "https://open.feishu.cn")
+    # 飞书用户默认归属的租户/部门/角色（可按需落地租户映射，本期先固定 + 配置覆盖）
+    FEISHU_TENANT_ID = _env("FEISHU_TENANT_ID", "")
+    FEISHU_DEFAULT_ROLE = _env("FEISHU_DEFAULT_ROLE", "employee")
+    FEISHU_DEFAULT_DEPT = _env("FEISHU_DEFAULT_DEPT", "d_feishu")
+
+    # ── 微信小程序身份源（wx.login code → code2Session → 平台自签 sso 令牌）──
+    # 与飞书同源：微信不发 OIDC id_token，改由后端用 code 调 code2Session 换 openid，
+    # 再由平台 HMAC 自签 `sso` 会话令牌（生产/收口态放行，非 dev 后门）。
+    # 默认关闭；启用需在微信公众平台拿到 AppID/AppSecret，并把后端 HTTPS 域名加入
+    # 小程序后台「request 合法域名」白名单。
+    WX_MINI_LOGIN_ENABLED = _env("WX_MINI_LOGIN_ENABLED", "0") == "1"
+    WX_MINI_APP_ID = _env("WX_MINI_APP_ID", "")
+    WX_MINI_APP_SECRET = _env("WX_MINI_APP_SECRET", "")
+    WX_MINI_BASE_URL = _env("WX_MINI_BASE_URL", "https://api.weixin.qq.com")
+    WX_MINI_TENANT_ID = _env("WX_MINI_TENANT_ID", "")
+    WX_MINI_DEFAULT_ROLE = _env("WX_MINI_DEFAULT_ROLE", "employee")
+    WX_MINI_DEFAULT_DEPT = _env("WX_MINI_DEFAULT_DEPT", "d_wx_mp")
+
     # P1-173 身份收口：显式置 1 时任何环境都拒绝 dev token（不止 prod），且
     # /auth/sso/callback 不再接受 dev_admin 捷径，必须走真实 SSO（带 id_token 验签）。
     # 收口默认（fail-closed）：生产环境（APP_ENV=prod）若未显式设 AUTH_ENFORCE_OIDC=0，
@@ -230,6 +285,17 @@ class Settings:
     GUARDRAILS_OUTPUT_ENFORCE = _env("GUARDRAILS_OUTPUT_ENFORCE", "0") == "1"
     GUARDRAILS_MAX_INJECTION_HITS = int(_env("GUARDRAILS_MAX_INJECTION_HITS", "3"))
 
+    # ── 办公62 硬规则（M27 办公域治理）──
+    # 默认开启观测告警（OFFICE62_ENABLED=1）；OFFICE62_ENFORCE=1 时 high 级违规
+    # 直接拦截办公类 agent 产出物（与 GUARDRAILS_OUTPUT_ENFORCE 一致的 opt-in 取向）。
+    # 演示环境可在 .env 设 OFFICE62_ENFORCE=1 实测拦截（见 deploy/D_LAYER_BACKLOG 子页5）。
+    OFFICE62_ENABLED = _env("OFFICE62_ENABLED", "1") == "1"
+    OFFICE62_ENFORCE = _env("OFFICE62_ENFORCE", "0") == "1"
+    # 生产级命中率采集（opt-in，默认关）：开启后把真实 agent 产出物（答案 + 文件正文）
+    # 落 data/office62_captures.jsonl，供测量台离线重扫统计生产命中率。含生产文本，
+    # 仅受控 QA 环境开启，注意数据留存合规。
+    OFFICE62_CAPTURE = _env("OFFICE62_CAPTURE", "0") == "1"
+
     # ── MCP 方向2：平台消费外部 MCP 工具 ──
     # MCP_SERVERS：JSON（数组或对象）。每个 server：{name, transport(stdio|http|sse),
     #   command/args/env 或 url/headers, timeout}。留空则不连接任何外部 MCP。
@@ -237,6 +303,13 @@ class Settings:
     MCP_SERVERS = _env("MCP_SERVERS", "")
     # 外部 MCP 工具白名单（默认全拒）。支持 mcp__server__tool / mcp__server__* / *。
     MCP_TOOL_ALLOW = _env("MCP_TOOL_ALLOW", "")
+
+    # ── P1-2 MCP 服务端暴露（把平台当 MCP Server 暴露给客户 IDE/自有 Agent）──
+    # HTTP 传输（streamable-http，JSON-RPC 2.0）：/api/v1/mcp/serve 暴露
+    # kb_search / skill_invoke / artifact_get / list_skills。租户级鉴权复用网关
+    # decode_token（含 dev / JWT / 新增 sso 前缀）；配额按租户 + 分钟桶限速。
+    MCP_SERVE_ENABLED = _env("MCP_SERVE_ENABLED", "1") == "1"
+    MCP_QUOTA_PER_MIN = int(_env("MCP_QUOTA_PER_MIN", "60"))  # 每租户每分钟最大工具调用次数
 
     FEEDBACK_ENABLED = _env("FEEDBACK_ENABLED", "1") == "1"
     EVOLUTION_REQUIRE_APPROVAL = _env("EVOLUTION_REQUIRE_APPROVAL", "1") == "1"
@@ -249,6 +322,15 @@ class Settings:
     AUDIT_LEGAL_HOLD_ACTIONS = _env("AUDIT_LEGAL_HOLD_ACTIONS", "approval,download,handoff")
     # 审计只读加密导出的 Fernet 密钥（base64 urlsafe 32 字节）。留空则导出为明文 CSV（并告警）。
     AUDIT_EXPORT_KEY = _env("AUDIT_EXPORT_KEY", "")
+
+    # ── P1-11 审计哈希链（tamper-evident，非 tamper-proof）──
+    # 默认开：record() 单点为每条审计写入 chain_seq / prev_hash / record_hash，
+    # 旧数据（无链字段）视为 legacy 不判失败；设 0 则完全回到 M13 写入行为。
+    AUDIT_CHAIN_ENABLED = _env("AUDIT_CHAIN_ENABLED", "1") == "1"
+    # 留空用 SHA-256（可检测篡改，但持有 DB 权限者可离线重算整条链）；
+    # 配置后用 HMAC-SHA256，密钥不入库，可把检测能力提升为「需持密钥才能伪造」。
+    AUDIT_CHAIN_KEY = _env("AUDIT_CHAIN_KEY", "")
+    AUDIT_CHAIN_VERIFY_MAX = int(_env("AUDIT_CHAIN_VERIFY_MAX", "20000"))
 
     # ── MLOps 自动重训调度（P2 真实管线）──
     # 默认关：漂移检测 + 重训建议钩子始终可用；仅当显式开 MLOPS_AUTO_RETRAIN=1 时，
@@ -323,6 +405,54 @@ class Settings:
     # 企微/钉钉卡片里的「点击处理」必须是可被员工浏览器打开的公网/内网地址；
     # 留空则卡片只带摘要、不带跳转链接（适合仅查看场景）。
     APPROVAL_UI_BASE_URL = _env("APPROVAL_UI_BASE_URL", "")
+
+    # P1-9 子代理 / 专家执行：委派深度上限（防递归）、单次并发上限、任务/上下文字长上限。
+    # 深度 2 表示「顶层委派(depth=0) → 工具内委派(depth=1)」两层；再深直接拒。
+    SUBAGENT_MAX_DEPTH = int(_env("SUBAGENT_MAX_DEPTH", "2"))
+    SUBAGENT_MAX_BATCH = int(_env("SUBAGENT_MAX_BATCH", "6"))
+    SUBAGENT_MAX_TASK_CHARS = int(_env("SUBAGENT_MAX_TASK_CHARS", "4000"))
+    SUBAGENT_MAX_CONTEXT_CHARS = int(_env("SUBAGENT_MAX_CONTEXT_CHARS", "6000"))
+
+    # ── P1-10 多模态图像理解（可插拔通道 + 配置开关）──────────────────────────
+    # 默认全关：不读图片、不联网、不改 messages，与 P1-9 之前的行为逐字节一致。
+    # 开启方式（示例）：
+    #   VISION_ENABLED=1 VISION_PROVIDER=openai_compatible \
+    #   VISION_MODEL=glm-4v-flash VISION_BASE_URL=https://open.bigmodel.cn/api/paas/v4 \
+    #   VISION_API_KEY=<key>
+    # VISION_BASE_URL / VISION_API_KEY 留空时回落直连 LLM 通道的同名配置，
+    # 这样「同一个厂商同时提供文本与视觉模型」时不必重复配两遍。
+    VISION_ENABLED = _env("VISION_ENABLED", "0") == "1"
+    VISION_PROVIDER = _env("VISION_PROVIDER", "stub").strip().lower()
+    VISION_MODEL = _env("VISION_MODEL", "").strip()
+    VISION_BASE_URL = _env("VISION_BASE_URL", "").strip()
+    VISION_API_KEY = _env("VISION_API_KEY", "").strip()
+    VISION_MAX_IMAGES = int(_env("VISION_MAX_IMAGES", "4"))
+    VISION_MAX_IMAGE_BYTES = int(_env("VISION_MAX_IMAGE_BYTES", str(5 * 1024 * 1024)))
+    VISION_MAX_PROMPT_CHARS = int(_env("VISION_MAX_PROMPT_CHARS", "2000"))
+    VISION_MAX_TOKENS = int(_env("VISION_MAX_TOKENS", "1200"))
+    VISION_TIMEOUT_S = float(_env("VISION_TIMEOUT_S", "60"))
+
+    # ── P1-12 上下文窗口配置 + 压缩（默认逐字节零行为变更）────────────────────
+    # 窗口口径统一到此处，取代散落在 session_store / agent_runtime 的硬编码：
+    #   CTX_SESSION_TURNS  会话内最多保留多少轮（滑动窗口，超出丢最早）
+    #   CTX_WINDOW_TURNS   会话详情 / 无覆盖时注入生成器的近窗轮数
+    #   CTX_RUNTIME_TURNS  生成器（5 条路径）实际注入的近窗轮数
+    # 默认值逐一对齐改动前的 40 / 6 / 2，开关全关时输出逐字节一致。
+    CTX_SESSION_TURNS = int(_env("CTX_SESSION_TURNS", "40"))
+    CTX_WINDOW_TURNS = int(_env("CTX_WINDOW_TURNS", "6"))
+    CTX_RUNTIME_TURNS = int(_env("CTX_RUNTIME_TURNS", "2"))
+    # 请求级 context_window 覆盖的夹取上下限（防止一次请求把上下文撑爆）
+    CTX_MIN_TURNS = int(_env("CTX_MIN_TURNS", "1"))
+    CTX_MAX_TURNS = int(_env("CTX_MAX_TURNS", "40"))
+    # 压缩：默认关。开启后被窗口截掉的早期轮次不再彻底丢失，而是压成摘要注入。
+    #   extractive = 纯确定性抽取（零依赖 / 零成本 / 零外部调用）
+    #   llm        = 调模型网关，失败或无真模型一律回落 extractive 并标注 fallback，
+    #                绝不把 stub 文本当摘要（M55 缺料必拒）
+    CTX_COMPRESS_ENABLED = _env("CTX_COMPRESS_ENABLED", "0") == "1"
+    CTX_COMPRESS_PROVIDER = _env("CTX_COMPRESS_PROVIDER", "extractive").strip().lower()
+    CTX_COMPRESS_MAX_CHARS = int(_env("CTX_COMPRESS_MAX_CHARS", "1200"))
+    CTX_COMPRESS_TURN_CHARS = int(_env("CTX_COMPRESS_TURN_CHARS", "160"))
+    CTX_COMPRESS_MAX_TOKENS = int(_env("CTX_COMPRESS_MAX_TOKENS", "300"))
 
 
 settings = Settings()

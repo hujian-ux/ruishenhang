@@ -119,6 +119,25 @@ def _ensure_tables() -> None:
                 payload JSONB NOT NULL,
                 updated_at TIMESTAMPTZ DEFAULT now()
             );
+            -- P0-4 跨会话长期记忆：用户偏好/事实/约束，跨会话、跨智能体保留。
+            -- tenant 隔离是红线：同 userId 跨租户不得串记忆（与 session_store 一致）。
+            CREATE TABLE IF NOT EXISTS memory_facts (
+                fact_id TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            -- P0-5 调度：自动化任务（定时/周期触发一个智能体）。tenant 隔离。
+            CREATE TABLE IF NOT EXISTS automations (
+                automation_id TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            -- P0-5 可靠投递：outbox 模式，确保任务执行结果至少一次投递（崩溃/重启不丢）。
+            CREATE TABLE IF NOT EXISTS outbox (
+                outbox_id TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
         """)
 
 
@@ -157,6 +176,9 @@ _KEY_COL = {
     "agent_files": "file_id",
     "tenants": "tenant_id",
     "app_state": "state_key",
+    "memory_facts": "fact_id",
+    "automations": "automation_id",
+    "outbox": "outbox_id",
 }
 
 

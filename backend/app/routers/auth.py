@@ -3,6 +3,7 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 from app.core.config import settings
 from app.core.security import (
@@ -15,7 +16,7 @@ from app.core.security import (
 from app.deps import get_caller
 from app.models.caller import CallerContext
 from app.models.schemas import SsoCallbackRequest, SsoCallbackResponse
-from app.services import tenant_store
+from app.services import feishu_auth, tenant_store, wx_auth
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -97,10 +98,106 @@ async def auth_settings():
         "data": {
             "oidc_enabled": settings.OIDC_ENABLED,
             "enforce_oidc": settings.AUTH_ENFORCE_OIDC,
+            "feishu_enabled": settings.FEISHU_ENABLED
+            and bool(settings.FEISHU_APP_ID and settings.FEISHU_APP_SECRET),
+            "wx_miniapp_enabled": settings.WX_MINI_LOGIN_ENABLED
+            and bool(settings.WX_MINI_APP_ID and settings.WX_MINI_APP_SECRET),
             "issuer_masked": _mask(issuer) if issuer else "",
             "client_id_masked": _mask(client_id) if client_id else "",
             "platform_branding": tenant_store.get_branding(None),
             "note": "AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，必须走真实企业 SSO。",
+        },
+    }
+
+
+# ── P1-1 飞书身份源（授权码 → access_token → user_info → 平台自签 sso 令牌）──────
+class FeishuCallbackRequest(BaseModel):
+    code: str
+    state: Optional[str] = None
+    redirect_uri: str = ""
+
+
+@router.get("/feishu/authorize")
+async def feishu_authorize(state: str = "", redirect_uri: str = ""):
+    """前端「使用飞书登录」按钮预留：返回飞书授权页 URL（无需登录）。
+
+    飞书不发 OIDC id_token，故授权码流由前端跳转到飞书授权页、回跳本地后
+    把 code 交给 POST /auth/feishu/callback 后端换身份。本端点只负责吐 URL。
+    redirect_uri 由前端传入当前站点回调地址（须与飞书应用登记的回跳一致）。
+    """
+    if not settings.FEISHU_ENABLED or not (settings.FEISHU_APP_ID and settings.FEISHU_APP_SECRET):
+        raise HTTPException(503, "飞书身份源未启用（FEISHU_ENABLED=1 且配置 APP_ID/APP_SECRET）")
+    return {
+        "code": 0,
+        "data": {
+            "enabled": True,
+            "authorize_url": feishu_auth.build_authorize_url(state=state, redirect_uri=redirect_uri),
+            "redirect_uri": redirect_uri or settings.FEISHU_REDIRECT_URI,
+        },
+    }
+
+
+@router.post("/feishu/callback", response_model=SsoCallbackResponse)
+async def feishu_callback(req: FeishuCallbackRequest):
+    """飞书授权码回调：换码 → user_info 验明身份 → 平台自签 sso 会话令牌。
+
+    飞书不发 OIDC id_token，故不走 JWKS 验签；身份真实性由「后端持有 app_secret
+    换码 + 取 user_info」保证（飞书担保该 access_token 对应用户）。
+    """
+    if not settings.FEISHU_ENABLED or not (settings.FEISHU_APP_ID and settings.FEISHU_APP_SECRET):
+        raise HTTPException(503, "飞书身份源未启用（FEISHU_ENABLED=1 且配置 APP_ID/APP_SECRET）")
+    try:
+        caller, sso_token = feishu_auth.authenticate(req.code, req.redirect_uri)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e)) from e
+    return {
+        "code": 0,
+        "data": {
+            "token": sso_token,
+            "expires_in": settings.DEV_TOKEN_TTL_S,
+            "tenant_id": caller.tenantId,
+            "user": {"userId": caller.userId, "name": caller.userId,
+                     "deptId": caller.deptId, "role": caller.role},
+            "device_bound": False,
+            "need_stepup": False,
+            "provider": "feishu",
+        },
+    }
+
+
+# ── 微信小程序身份源（wx.login code → code2Session → 平台自签 sso 令牌）──────
+class WxLoginRequest(BaseModel):
+    code: str
+    # 可选：小程序可将加密的用户信息（encrypted_data/iv）一并上送，后端用
+    # session_key 解密。本期仅签发登录态，不强制解密，故为可选占位（待接入）。
+    encrypted_data: Optional[str] = ""
+    iv: Optional[str] = ""
+
+
+@router.post("/wx/login", response_model=SsoCallbackResponse)
+async def wx_login(req: WxLoginRequest):
+    """微信小程序登录：code → code2Session → 平台自签 sso 会话令牌。
+
+    与飞书同源：微信不发 OIDC id_token，由后端换码验明 openid 后自签 sso token。
+    未启用或 AppID/AppSecret 缺失时返回 503（避免误放行）。
+    """
+    if not settings.WX_MINI_LOGIN_ENABLED or not (settings.WX_MINI_APP_ID and settings.WX_MINI_APP_SECRET):
+        raise HTTPException(503, "微信小程序登录未启用（WX_MINI_LOGIN_ENABLED=1 且配置 APP_ID/APP_SECRET）")
+    try:
+        caller, sso_token = wx_auth.authenticate(req.code)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e)) from e
+    return {
+        "code": 0,
+        "data": {
+            "token": sso_token,
+            "expires_in": settings.DEV_TOKEN_TTL_S,
+            "tenant_id": caller.tenantId,
+            "user": {"userId": caller.userId, "name": caller.userId,
+                     "deptId": caller.deptId, "role": caller.role},
+            "device_bound": False,
+            "need_stepup": False,
+            "provider": "wechat",
         },
     }
 

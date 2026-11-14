@@ -6,9 +6,11 @@
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.deps import get_caller
@@ -49,6 +51,7 @@ class WorkflowUpdateRequest(BaseModel):
 
 class WorkflowRunRequest(BaseModel):
     input: str = ""
+    agent_id: str | None = None
 
 
 @router.get("/templates")
@@ -130,3 +133,23 @@ async def get_workflows(caller: CallerContext = Depends(get_caller)):
 async def post_workflow_run(wid: str, req: WorkflowRunRequest,
                             caller: CallerContext = Depends(get_caller)):
     return {"code": 0, "data": workflows.run_workflow(wid, req.input, caller)}
+
+
+@router.post("/workflows/{wid}/execute")
+async def post_workflow_execute(wid: str, req: WorkflowRunRequest,
+                               caller: CallerContext = Depends(get_caller)):
+    """工作流真执行（P1-6）：llm 节点真实调模型，前序输出贯穿后续节点；
+    可选 agent_id 绑定智能体人设。返回完整执行结果（dry_run=False）。"""
+    return {"code": 0, "data": workflows.run_workflow_real(
+        wid, req.input, caller, agent_id=req.agent_id)}
+
+
+@router.post("/workflows/{wid}/execute-stream")
+async def post_workflow_execute_stream(wid: str, req: WorkflowRunRequest,
+                                      caller: CallerContext = Depends(get_caller)):
+    """工作流真执行 SSE：逐步下发 meta/node_start/node_result/done 事件。"""
+    async def _gen():
+        async for ev in workflows.arun_workflow_stream(
+                wid, req.input, caller, agent_id=req.agent_id):
+            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+    return StreamingResponse(_gen(), media_type="text/event-stream")

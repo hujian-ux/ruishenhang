@@ -59,6 +59,41 @@ def _verify_dev_token(token: str) -> CallerContext | None:
         return None
 
 
+def create_sso_token(user_id: str, dept_id: str, role: str, tenant_id: str = "") -> str:
+    """飞书等真实 SSO 身份源通过后，平台用 HMAC 自签的会话令牌（前缀 sso）。
+
+    区别于 dev（本地/CI 专用）：sso 代表「已通过真实企业身份核验」，生产/收口态放行
+    （属真实 SSO，非本地 dev 后门）。与 dev 同一套载荷结构与签名密钥，仅前缀不同，
+    便于网关层按前缀分派、统一放行真实身份。
+    """
+    tenant_id = tenant_id or settings.DEFAULT_TENANT
+    payload = {"u": user_id, "d": dept_id, "r": role, "t": tenant_id,
+               "exp": int(time.time()) + settings.DEV_TOKEN_TTL_S}
+    raw = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
+    sig = hmac.new(_SECRET, raw.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"sso {raw}.{sig}"
+
+
+def _verify_sso_token(token: str) -> CallerContext | None:
+    """校验平台自签的 sso 会话令牌（飞书等真实 SSO 身份源）。成功返回 CallerContext。"""
+    if not token.startswith("sso "):
+        return None
+    try:
+        raw, sig = token[4:].split(".", 1)
+        expect = hmac.new(_SECRET, raw.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expect, sig):
+            return None
+        payload = json.loads(base64.urlsafe_b64decode(raw.encode("ascii")).decode("utf-8"))
+        if payload.get("exp", 0) < int(time.time()):
+            return None
+        return CallerContext(
+            userId=payload["u"], deptId=payload["d"],
+            role=payload["r"], tenantId=payload.get("t", settings.DEFAULT_TENANT),
+        )
+    except Exception:
+        return None
+
+
 # ---- OIDC / JWT（生产身份源） -------------------------------------------------
 
 def _fetch_jwks(issuer: str) -> dict:
@@ -162,6 +197,10 @@ def decode_token(authorization: str | None) -> CallerContext | None:
     # dev token 优先（本地/CI 仍是主力，且与 OIDC 分支解耦）
     if token.startswith("dev "):
         return _verify_dev_token(token)
+    # 真实 SSO 会话令牌（飞书等）：前缀 sso，代表已通过企业身份核验，
+    # 生产/收口态均放行（属真实身份，区别于本地 dev 后门）。
+    if token.startswith("sso "):
+        return _verify_sso_token(token)
     # 真实身份源：非 dev 的 JWT 一律尝试验签。
     # 已设 OIDC_ISSUER 即「固定 issuer」加固模式；未设则按 token 自带 iss 拉 JWKS（自服务）。
     if token.count(".") == 2:  # JWS compact 形态才验，避免对任意字符串做网络 discovery

@@ -10,9 +10,10 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 from app.models.caller import CallerContext
 from app.services import knowledge, model_gateway, session_store, web_search, guardrails
-from app.services import agent_store, fewshot
+from app.services import agent_store, fewshot, memory_store
 from app.services import solution_materials
 from app.core.config import settings
+from app.tools import loop as tool_loop, registry as tool_registry  # P0-2 / P0-3 工具运行时
 
 
 class _AgentState(TypedDict, total=False):
@@ -74,6 +75,24 @@ def _call_llm(prompt: str, system_prompt: str | None = None,
         "rotated": out.get("rotated", False),
         "attempts": out.get("attempts") or [],
         "prompt_text": prompt,          # 无 usage 时供估算兜底
+        "completion_text": out["text"],
+    }
+
+
+def _call_llm_messages(messages: list, system_prompt: str | None = None,
+                       user_input: str = "", agent: dict | None = None,
+                       tenant_id: str | None = None) -> Dict[str, Any]:
+    """P0-2 工具循环用的底层 LLM 调用：直接吃 messages 列表（而非单 prompt），
+    返回与 _call_llm 同结构的 dict（loop 只取 text / usage）。"""
+    out = model_gateway.chat_sync_ex(None, messages, user_input=user_input,
+                                     agent=agent, tenant_id=tenant_id)
+    return {
+        "text": out["text"], "real": out["real"], "model_id": out["model_id"],
+        "routed_tier": out.get("routed_tier"), "routed_model": out.get("routed_model"),
+        "usage": out["usage"], "latency_ms": out["latency_ms"],
+        "error": out.get("error") or "", "throttled": out.get("throttled", False),
+        "rotated": out.get("rotated", False), "attempts": out.get("attempts") or [],
+        "prompt_text": "\n".join(m.get("content", "") for m in messages),
         "completion_text": out["text"],
     }
 
@@ -201,6 +220,18 @@ def _compose_prompt(user_input: str, ctx: str, mem: str, skill: bool,
             + f"用户问题：{user_input}")
 
 
+def _mem(history: List[Dict[str, Any]], context_window: Optional[int] = None) -> str:
+    """P1-12：生成器 5 条路径的会话记忆单一入口。
+
+    以前 5 处各自写死窗口轮数，改窗口要改 5 个地方、还容易改漏。现统一走
+    resolve_runtime_turns（默认仍是 2），请求级 context_window 可覆盖并自动夹取。
+    """
+    return session_store.build_context(
+        {"turns": history},
+        context_window=session_store.resolve_runtime_turns(context_window),
+    )
+
+
 def run_web_search(query: str, fetch_top: int = 0):
     """M26：统一的公网检索入口。**任何异常都不外抛**，返回空证据 + 明确原因。
 
@@ -228,7 +259,8 @@ def run_web_search(query: str, fetch_top: int = 0):
 def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
                 grounded: bool = False, use_web: bool = False,
                 web_grounded: bool = False, web_fetch_top: int = 0,
-                agent_meta: dict | None = None):
+                agent_meta: dict | None = None,
+                context_window: Optional[int] = None):
     """构造 LangGraph 状态图（retrieve -> generate，含会话记忆状态）。
 
     M15：system_prompt / use_retrieval 由图构造参数注入，不再全局写死；
@@ -271,7 +303,7 @@ def build_graph(system_prompt: str | None = None, use_retrieval: bool = True,
                    if use_web else "")
         turn_no = 1 + sum(1 for t in state.get("history") or [] if t["role"] == "user")
         # 会话记忆：最近 N 轮对话摘要进生成上下文
-        mem = session_store.build_context({"turns": state.get("history") or []}, max_turns=2)
+        mem = _mem(state.get("history") or [], context_window)
         # M6：真实 LLM 生成（LiteLLM 探活通过时），否则确定性 stub
         prompt = _compose_prompt(state["input"], ctx, mem, skill,
                                  state.get("file_ctx") or "", grounded=grounded,
@@ -314,7 +346,10 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
               system_prompt: Optional[str] = None,
               adapter_type: str = "",
               file_context: str = "",
-              web_fetch_top: int = 0) -> Dict[str, Any]:
+              web_fetch_top: int = 0,
+              enable_tools: Optional[bool] = None,
+              session_id: str = "",
+              context_window: Optional[int] = None) -> Dict[str, Any]:
     """运行智能体：多轮编排（记忆可选）。history 为该会话既有轮次。
 
     M15：system_prompt 为该智能体（技能包）的执行提示词；adapter_type 决定是否检索。
@@ -322,6 +357,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     M16：file_context 为附件解析后的结构化上下文（tabular.to_prompt_context 产出）。
     M26：adapter_type ∈ WEB_ADAPTERS 时走公网检索；双通道类型同时也查内部库。
           web_fetch_top 由技能定义透传（竞品调研需要看原文，其余只要摘要）。
+    P1-12：context_window 为请求级近窗轮数覆盖（None→CTX_RUNTIME_TURNS），
+           不传时行为与改动前逐字节一致。
     """
     history = history or []
     use_retrieval = adapter_type in RETRIEVAL_ADAPTERS if adapter_type else True
@@ -346,8 +383,72 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         if _ag:
             system_prompt = solution_materials.compose_materials(system_prompt, _ag)
             skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    # P0-4 跨会话长期记忆：把该 caller 的历史持久事实注入 system_prompt 末尾
+    # （在 fewshot/materials 之后，确保记忆位于提示词末端、作为稳定上下文）
+    if memory_store.enabled() and agent_id:
+        _mem_block = memory_store.relevant_facts(caller, agent_id)
+        if _mem_block:
+            system_prompt = (system_prompt or SYSTEM_PROMPT) + "\n\n" + _mem_block
     # P2-40：把适配器类型 + 是否需引用透给模型网关做路由（检索/引用类倾向大模型保质量）
     agent_meta = {"adapter_type": adapter_type, "require_citation": grounded or use_web}
+
+    # P0-2：enable_tools 解析（None → 读智能体配置 tools_enabled；默认 False，保持向后兼容）
+    if enable_tools is None:
+        enable_tools = bool((agent_store.get(agent_id) or {}).get("tools_enabled")) if agent_id else False
+
+    # ── P0-2 真工具循环：enable_tools 时走此分支，旁路 LangGraph / stub 单轮生成 ──
+    if enable_tools:
+        query = session_store.rewritten_query(user_input, history) if use_retrieval else user_input
+        hits, filtered, web_hits, web_meta = [], 0, [], {}
+        if use_retrieval:
+            tc = guardrails.guard_tool_call("rag_retrieve", {}, caller=caller)
+            if tc["allowed"]:
+                hits, filtered = knowledge.retrieve(query, caller, top_k=6)
+        if use_web:
+            web_hits, web_meta, _ = run_web_search(query, web_fetch_top)
+        ctx = compose_evidence(hits) if use_retrieval else ""
+        web_ctx = compose_web_evidence(web_hits, web_meta) if use_web else ""
+        mem = _mem(history, context_window)
+        prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
+                                 grounded=grounded, web_ctx=web_ctx, web_grounded=web_grounded)
+        sys_for_loop = (system_prompt or SYSTEM_PROMPT) + "\n\n" + tool_registry.manifest_prompt()
+        loop_res = tool_loop.run_tool_loop(
+            prompt, sys_for_loop, caller,
+            lambda msgs: _call_llm_messages(msgs, user_input=user_input,
+                                            agent=agent_meta, tenant_id=caller.tenantId),
+            max_rounds=int(getattr(settings, "TOOL_LOOP_MAX_ROUNDS", 6)),
+            agent_id=agent_id, session_id=session_id,
+        )
+        turn_no = 1 + sum(1 for t in history if t["role"] == "user")
+        answer = loop_res["answer"]
+        if not answer.startswith("[stub") and not skill:
+            answer = f"[第{turn_no}轮|LLM生成] {answer}"
+        citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]} for h in hits]
+        web_sources = _public_sources(web_hits)
+        tool_list = ([{"tool": "rag_retrieve", "authorized": True}] if use_retrieval else [])
+        if use_web:
+            tool_list.append({"tool": "web_search", "authorized": True,
+                              "provider": web_meta.get("provider", ""),
+                              "mode": web_meta.get("mode", ""),
+                              "degraded": bool(web_meta.get("degraded")),
+                              "hits": len(web_hits)})
+        tool_list.append({"tool": "session_memory", "authorized": True})
+        return {
+            "answer": answer,
+            "citations": citations,
+            "web_sources": web_sources,
+            "web_search": {k: v for k, v in web_meta.items() if k != "_hits"} if use_web else None,
+            "query_rewritten": query != user_input,
+            "turn_no": turn_no,
+            "usage": loop_res.get("usage") or {},
+            "routed_tier": None, "routed_model": None,
+            "tool_calls": tool_list,
+            "tool_invocations": loop_res["tool_calls"],
+            "approval_required": loop_res.get("approval_required", False),
+            "approval": loop_res.get("approval"),
+            "approval_ticket_id": (loop_res.get("approval") or {}).get("ticket_id"),
+            "skill_applied": skill,
+        }
 
     def tools(web_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
         out = ([{"tool": "rag_retrieve", "authorized": True}] if use_retrieval else [])
@@ -362,7 +463,8 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
     try:
         app = build_graph(system_prompt, use_retrieval, grounded=grounded,
                           use_web=use_web, web_grounded=web_grounded,
-                          web_fetch_top=web_fetch_top, agent_meta=agent_meta)
+                          web_fetch_top=web_fetch_top, agent_meta=agent_meta,
+                          context_window=context_window)
         result = app.invoke({"input": user_input, "caller": caller, "history": history,
                              "file_ctx": file_context})
         citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]}
@@ -391,7 +493,7 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
         web_hits, web_meta, _ = (run_web_search(query, web_fetch_top) if use_web else ([], {}, {}))
         web_ctx = compose_web_evidence(web_hits, web_meta) if use_web else ""
         turn_no = 1 + sum(1 for t in history if t["role"] == "user")
-        mem = session_store.build_context({"turns": history}, max_turns=2)
+        mem = _mem(history, context_window)
         prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
                                  grounded=grounded, web_ctx=web_ctx,
                                  web_grounded=web_grounded)
@@ -414,3 +516,163 @@ def run_agent(agent_id: str, user_input: str, caller: CallerContext,
                 "routed_model": llm.get("routed_model"),
                 "tool_calls": tools(meta),
                 "skill_applied": skill}
+
+
+async def run_agent_stream(agent_id: str, user_input: str, caller: CallerContext,
+                          history: Optional[List[Dict[str, Any]]] = None,
+                          system_prompt: Optional[str] = None,
+                          adapter_type: str = "", file_context: str = "",
+                          web_fetch_top: int = 0, should_cancel: Any = None,
+                          enable_tools: Optional[bool] = None,
+                          session_id: str = "",
+                          context_window: Optional[int] = None):
+    """P0-1 流式运行时：与 run_agent 同口径（检索/公网/提示词合成），
+    但 LLM 调用改为 token 增量流。依次 yield SSE 就绪的事件 dict：
+      {"type": "meta",  "citations":..., "web_sources":..., "web_search":..., "tool_calls":..., "query_rewritten": bool}
+      {"type": "token", "text": <增量>}
+      {"type": "done",  "result": <与 run_agent 同结构的结果 dict>}
+    检索/公网证据在流式前已确定，故先发 meta 让前端可即时渲染来源；
+    token 增量来自 model_gateway.chat_stream_ex；最终 done 携带完整 usage/成本。
+
+    P0-2：enable_tools=True 时，工具循环以同步方式跑完（think→tool→observe），
+    最终答案作为单个 token 下发（v1 不在工具执行阶段做增量流；如需更细粒度流式，
+    后续可在 loop 内逐轮 chat_stream_ex）。
+    """
+    history = history or []
+    if enable_tools is None:
+        enable_tools = bool((agent_store.get(agent_id) or {}).get("tools_enabled")) if agent_id else False
+    if enable_tools:
+        # P0 收尾1：工具循环改为流式，逐 token 增量 + 工具调用 / 结果中间事件，
+        # 不再把整个工具阶段压缩成单个 token（原 v1 限制）。
+        use_retrieval = adapter_type in RETRIEVAL_ADAPTERS if adapter_type else True
+        use_web = adapter_type in WEB_ADAPTERS
+        skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+        grounded = skill and adapter_type in RETRIEVAL_ADAPTERS
+        web_grounded = skill and use_web
+        query = session_store.rewritten_query(user_input, history) if use_retrieval else user_input
+        hits, filtered, web_hits, web_meta = [], 0, [], {}
+        if use_retrieval:
+            tc = guardrails.guard_tool_call("rag_retrieve", {}, caller=caller)
+            if tc["allowed"]:
+                hits, filtered = knowledge.retrieve(query, caller, top_k=6)
+        if use_web:
+            web_hits, web_meta, _ = run_web_search(query, web_fetch_top)
+        ctx = compose_evidence(hits) if use_retrieval else ""
+        web_ctx = compose_web_evidence(web_hits, web_meta) if use_web else ""
+        mem = _mem(history, context_window)
+        prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
+                                 grounded=grounded, web_ctx=web_ctx, web_grounded=web_grounded)
+        sys_for_loop = (system_prompt or SYSTEM_PROMPT) + "\n\n" + tool_registry.manifest_prompt()
+        agent_meta = {"adapter_type": adapter_type, "require_citation": grounded or use_web}
+        yield {"type": "meta", "citations": [], "web_sources": [],
+               "web_search": None, "tool_calls": [{"tool": "session_memory", "authorized": True}],
+               "query_rewritten": query != user_input}
+        async for ev in tool_loop.run_tool_loop_stream(
+                prompt, sys_for_loop, caller,
+                lambda msgs: model_gateway.chat_stream_ex(
+                    None, msgs, user_input=user_input, agent=agent_meta,
+                    tenant_id=caller.tenantId, should_cancel=should_cancel),
+                max_rounds=int(getattr(settings, "TOOL_LOOP_MAX_ROUNDS", 6)),
+                agent_id=agent_id, session_id=session_id, should_cancel=should_cancel):
+            t = ev["type"]
+            if t == "token":
+                yield {"type": "token", "text": ev["text"]}
+            elif t == "tool_call":
+                yield {"type": "tool_call", "tool": ev["tool"], "args": ev.get("args")}
+            elif t == "tool_result":
+                yield {"type": "tool_result", "tool": ev["tool"],
+                       "ok": ev.get("ok"), "content": ev.get("content")}
+            elif t == "tool_escalated":
+                yield {"type": "tool_escalated", "tool": ev["tool"],
+                       "args": ev.get("args"), "ticket_id": ev["ticket_id"]}
+            elif t == "cancelled":
+                yield {"type": "cancelled", "session_id": session_id or ""}
+            elif t == "done":
+                yield {"type": "done", "result": ev["result"]}
+        return
+    use_retrieval = adapter_type in RETRIEVAL_ADAPTERS if adapter_type else True
+    use_web = adapter_type in WEB_ADAPTERS
+    skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    grounded = skill and adapter_type in RETRIEVAL_ADAPTERS
+    web_grounded = skill and use_web
+    # M15/M17 opt-in：方案库样例 / 验收标准（默认关，同 run_agent）
+    if settings.FEWSHOT_ENABLED and agent_id:
+        _ag = agent_store.get(agent_id)
+        if _ag and _ag.get("fewshot"):
+            system_prompt = fewshot.compose_with_fewshot(system_prompt, _ag)
+            skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    if settings.MATERIALS_ENABLED and agent_id:
+        _ag = agent_store.get(agent_id)
+        if _ag:
+            system_prompt = solution_materials.compose_materials(system_prompt, _ag)
+            skill = bool(system_prompt) and system_prompt != SYSTEM_PROMPT
+    # P0-4 跨会话长期记忆：注入 system_prompt 末尾（enable_tools 分支走 run_agent 已含）
+    if memory_store.enabled() and agent_id:
+        _mem_block = memory_store.relevant_facts(caller, agent_id)
+        if _mem_block:
+            system_prompt = (system_prompt or SYSTEM_PROMPT) + "\n\n" + _mem_block
+    agent_meta = {"adapter_type": adapter_type, "require_citation": grounded or use_web}
+
+    query = session_store.rewritten_query(user_input, history) if use_retrieval else user_input
+    hits, filtered, web_hits, web_meta = [], 0, [], {}
+    if use_retrieval:
+        tc = guardrails.guard_tool_call("rag_retrieve", {}, caller=caller)
+        if tc["allowed"]:
+            hits, filtered = knowledge.retrieve(query, caller, top_k=6)
+    if use_web:
+        web_hits, web_meta, _ = run_web_search(query, web_fetch_top)
+    ctx = compose_evidence(hits) if use_retrieval else ""
+    web_ctx = compose_web_evidence(web_hits, web_meta) if use_web else ""
+    mem = _mem(history, context_window)
+    prompt = _compose_prompt(user_input, ctx, mem, skill, file_context,
+                             grounded=grounded, web_ctx=web_ctx, web_grounded=web_grounded)
+
+    citations = [{"doc_id": h["doc_id"], "title": h["title"], "scope": h["scope"]} for h in hits]
+    web_sources = _public_sources(web_hits)
+    tool_list = ([{"tool": "rag_retrieve", "authorized": True}] if use_retrieval else [])
+    if use_web:
+        tool_list.append({"tool": "web_search", "authorized": True,
+                          "provider": web_meta.get("provider", ""),
+                          "mode": web_meta.get("mode", ""),
+                          "degraded": bool(web_meta.get("degraded")),
+                          "hits": len(web_hits)})
+    tool_list.append({"tool": "session_memory", "authorized": True})
+    web_search_block = {k: v for k, v in web_meta.items() if k != "_hits"} if use_web else None
+
+    yield {"type": "meta", "citations": citations, "web_sources": web_sources,
+           "web_search": web_search_block, "tool_calls": tool_list,
+           "query_rewritten": query != user_input}
+
+    full: list[str] = []
+    turn_no = 1 + sum(1 for t in history if t["role"] == "user")
+    async for ev in model_gateway.chat_stream_ex(
+            None,
+            [{"role": "system", "content": system_prompt or SYSTEM_PROMPT},
+             {"role": "user", "content": prompt}],
+            user_input=user_input, agent=agent_meta, tenant_id=caller.tenantId,
+            should_cancel=should_cancel):
+        if ev["t"] == "delta":
+            full.append(ev["text"])
+            yield {"type": "token", "text": ev["text"]}
+            continue
+        # ev["t"] == "end"
+        answer = "".join(full)
+        if not answer.startswith("[stub") and not skill:
+            answer = f"[第{turn_no}轮|LLM生成] {answer}"
+        result = {
+            "answer": answer,
+            "citations": citations,
+            "web_sources": web_sources,
+            "web_search": web_search_block,
+            "query_rewritten": query != user_input,
+            "turn_no": turn_no,
+            "usage": {"model_id": ev.get("model_id"), "real": ev.get("real"),
+                      "usage": ev.get("usage") or {}, "error": ev.get("error"),
+                      "routed_tier": ev.get("routed_tier"),
+                      "routed_model": ev.get("routed_model"),
+                      "latency_ms": ev.get("latency_ms"),
+                      "throttled": ev.get("throttled", False)},
+            "tool_calls": tool_list,
+            "skill_applied": skill,
+        }
+        yield {"type": "done", "result": result}

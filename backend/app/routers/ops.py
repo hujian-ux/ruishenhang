@@ -4,13 +4,21 @@
 /ops/metrics 例外：text/plain 的 Prometheus 文本。
 /ops/audit-export 与 /ops/me/data 的结果按 caller 收敛（复用既有 RBAC / userId）。
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
+import json
 import os
 
 from app.core.config import settings
 from app.deps import get_caller
 from app.models.caller import CallerContext
+from app.prompts.loader import (
+    available_modes,
+    available_scenes,
+    matrix as prompts_matrix,
+    render as prompts_render,
+    template_source,
+)
 from app.services import agent_store, fewshot, observability, office_hard_rules, runtime_config
 
 router = APIRouter(prefix="/ops", tags=["ops"])
@@ -45,6 +53,49 @@ def get_alerts(caller: CallerContext = Depends(get_caller)):
 @router.get("/readiness")
 def readiness(caller: CallerContext = Depends(get_caller)):
     return {"code": 0, "data": observability.readiness()}
+
+
+@router.get("/prompts")
+def prompts_matrix(caller: CallerContext = Depends(get_caller)):
+    """P1-4 · 暴露「模式 × 场景」提示词矩阵，便于运营检视覆盖情况。"""
+    return {
+        "code": 0,
+        "data": {
+            "modes": available_modes(),
+            "scenes": available_scenes(),
+            "matrix": prompts_matrix()["matrix"],
+        },
+    }
+
+
+@router.get("/prompts/render")
+def prompts_render_preview(
+    caller: CallerContext = Depends(get_caller),
+    scene: str = Query(..., description="场景：summarize/extract/classify/qa/rewrite/compliance/table"),
+    mode: str = Query("default", description="模式：default/strict"),
+    source: bool = Query(False, description="为 true 时返回模板源码而非渲染结果"),
+    var_json: str = Query("", description="变量 JSON，如 {\"context\":\"...\",\"input\":\"...\"}"),
+):
+    """P1-4 · 渲染预览（或源码预览），运营调提示词不用发版即可看到效果。
+
+    render 未知场景/模式/缺变量会抛 KeyError，这里转成 code=2 友好返回。
+    """
+    if source:
+        try:
+            src = template_source(scene, mode)
+        except KeyError as exc:
+            return {"code": 2, "msg": str(exc)}
+        return {"code": 0, "data": {"scene": scene, "mode": mode, "source": src}}
+    try:
+        vars = json.loads(var_json) if var_json else {}
+        if not isinstance(vars, dict):
+            return {"code": 2, "msg": "var_json 必须是 JSON 对象"}
+        rendered = prompts_render(scene, mode, **vars)
+    except KeyError as exc:
+        return {"code": 2, "msg": str(exc)}
+    except (json.JSONDecodeError, TypeError) as exc:
+        return {"code": 2, "msg": f"var_json 解析失败：{exc}"}
+    return {"code": 0, "data": {"scene": scene, "mode": mode, "rendered": rendered}}
 
 
 def _apply_env(updates: dict):

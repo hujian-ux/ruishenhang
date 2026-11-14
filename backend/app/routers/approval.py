@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from app.deps import get_caller, get_trace_id
 from app.models.caller import CallerContext
 from app.models.schemas import ApprovalDecisionRequest, ApprovalDecisionResponse
-from app.services import agent_store, approval_store, audit, approval_assistant, im_gateway
+from app.services import agent_store, approval_store, audit, approval_assistant, im_gateway, session_store
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -17,6 +17,34 @@ router = APIRouter(prefix="/approval", tags=["approval"])
 def _require_admin(caller: CallerContext) -> None:
     if caller.role not in ("platform_admin", "dept_admin"):
         raise HTTPException(status_code=403, detail="forbidden: 无审批权限")
+
+
+def _backfill_session(session_id: str, ticket: dict, execution: dict, decider_id: str,
+                      status: str = "approved") -> None:
+    """P0 收尾2 / P1-3：工具审批落定后，把结果作为 assistant 轮次回灌原会话；
+    用户在对话历史里即可看到「已审批执行 + 结果」或「已驳回未执行」，不必另查审批台。
+    会话不存在 / 已删则安全跳过（append_turn 静默返回）。任何异常不阻断审批返回。"""
+    if not session_id:
+        return
+    try:
+        tool = (ticket.get("payload") or {}).get("tool")
+        if status == "approved":
+            ok = bool((execution or {}).get("ok"))
+            content = (execution or {}).get("content") or (execution or {}).get("error") or ""
+            text = (
+                f"【操作已审批执行】工具：{tool}\n"
+                f"审批结果：已通过（审批人 {decider_id}）\n"
+                f"执行结果：{'成功' if ok else '失败'}\n"
+                f"{content[:4000]}"
+            )
+        else:
+            text = (
+                f"【操作已驳回】工具：{tool}\n"
+                f"审批结果：已驳回（审批人 {decider_id}），该操作未被执行。"
+            )
+        session_store.append_turn(session_id, "assistant", text)
+    except Exception:
+        pass
 
 
 @router.post("/{approval_id}/decide", response_model=ApprovalDecisionResponse)
@@ -42,7 +70,51 @@ async def decide(
     except approval_store.ForbiddenDecider:
         audit.record("approval", caller, target=approval_id, result="error:forbidden", trace_id=trace_id)
         raise HTTPException(status_code=403, detail="dept_admin 仅可审批本部门发起的单据")
-    # 智能体状态同步迁移（第35章红线：评审通过才发布）
+    # ── 工具执行审批（P0-2 收尾 / P1-3）：通过即真正执行工具，不迁移智能体状态 ──
+    # 执行入口按工具类型分发：内置/注册工具走 registry，外部 MCP 工具（mcp__ 前缀）
+    # 走 mcp_client.call_mcp_tool（经沙箱硬闸 + 护栏授权）。驳回则不执行。
+    if ticket.get("ticket_type") == "tool_execution":
+        payload = ticket.get("payload") or {}
+        tool = payload.get("tool", "")
+        targs = payload.get("args", {}) or {}
+        execution = None
+        if ticket["status"] == "approved":
+            tcaller = CallerContext(userId=ticket["requester_id"], deptId=ticket["dept_id"],
+                                    role="user", tenantId=ticket.get("tenant_id") or "")
+            try:
+                if tool.startswith("mcp__"):
+                    from app.services import mcp_client
+                    res = mcp_client.call_mcp_tool(tool, targs)
+                    execution = {
+                        "ok": not bool(res.get("is_error")),
+                        "content": res.get("content", ""),
+                        "error": "" if not res.get("is_error") else res.get("content", ""),
+                    }
+                else:
+                    from app.tools import registry as tool_registry
+                    execution = tool_registry.execute(tool, targs, tcaller)
+            except Exception as exc:
+                execution = {"ok": False, "content": "", "error": f"exec_error:{exc}"}
+            approval_store.record_execution(approval_id, execution)
+        # P0 收尾2 / P1-3：审批落定后把执行结果（或驳回说明）回灌原会话轮次
+        _backfill_session(payload.get("session_id"), ticket, execution, caller.userId,
+                          status=ticket["status"])
+        audit.record("approval", caller, target=approval_id, result=ticket["status"],
+                     meta={"ticket_type": "tool_execution", "tool": tool,
+                           "executed": ticket["status"] == "approved"},
+                     trace_id=trace_id)
+        return {
+            "code": 0,
+            "data": {
+                "approval_id": approval_id,
+                "ticket_type": "tool_execution",
+                "status": ticket["status"],
+                "tool": tool,
+                "execution": execution,
+            },
+        }
+
+    # ── 智能体发布审批（M5/M15/M46）：评审通过才发布 ──
     # M15：批次单一次决策整批迁移，避免 115 个技能包逐个点。
     target_ids = ticket.get("agent_ids") or [ticket["agent_id"]]
     new_status = "published" if ticket["status"] == "approved" else "rejected"

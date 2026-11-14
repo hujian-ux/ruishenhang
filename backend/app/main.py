@@ -13,10 +13,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.middleware import AuditTraceMiddleware, GatewayMiddleware, RateLimitMiddleware
 from app.routers import (agents, approval, audit, auth, builder, eval as eval_router,
-                        events, feedback, files, guardrails, integrations, invoke, kb,
-                        mcp, mlops, models, ops, quality, rag, search, selection, tenants, usage)
+                        events, experts, feedback, files, guardrails, integrations, invoke, kb,
+                        mcp, mlops, models, ops, quality, rag, scheduler, search,
+                        selection, skills, tenants, usage, vision as vision_router)
 from app.services import (agent_store, approval_store, file_store, kb_store,
-                          observability, pg_store, session_store, usage_store)
+                          memory_store, observability, outbox, pg_store,
+                          scheduler_service, session_store, usage_store)
+from app.services import mcp_server as mcp_server_svc
 
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
@@ -96,13 +99,24 @@ async def lifespan(app: FastAPI):
     agent_store.ensure_approval_assistant()  # M46 平台级审批助手（辅助层，只建议不落账）
     agent_store.ensure_public_skills()      # 公共库：文案/PPT/表格等办公基础技能（9 条，不进 115 口径）
     file_store.load_from_pg()    # M16：上传件与产出物重启后仍可下载
+    memory_store.load_from_pg()  # P0-4：跨会话长期记忆重启不丢
+    # P0-5：调度任务 + outbox 可靠投递台账重启不丢
+    scheduler_service.load_from_pg()
+    outbox.load_from_pg()
     pg_store._connect()  # 触发建表/探活（一次性）
+    # P0-5：启动后台调度（非 test 环境真正 start APScheduler）+ 启动 outbox 投递 worker
+    scheduler_service.init_scheduler()
+    if settings.SCHEDULER_ENABLED and settings.APP_ENV != "test":
+        outbox.start_worker()
     # MCP 方向2：若配置了外部 MCP Server，启动时连接并枚举工具（缺省不连接，零副作用）。
     if settings.MCP_SERVERS:
         from app.services import mcp_client
         mcp_client.configure_manager(settings.MCP_SERVERS)
         mcp_client.ensure_connected()
     yield
+    # P0-5：停掉后台资源（outbox worker 线程 + APScheduler）
+    outbox.stop_worker()
+    scheduler_service.shutdown_scheduler()
 
 
 app = FastAPI(title="企业 AI 智能体中台", version="0.8.0", lifespan=lifespan)
@@ -154,11 +168,21 @@ app.include_router(integrations.router, prefix=settings.API_PREFIX)  # P1-173：
 app.include_router(tenants.router, prefix=settings.API_PREFIX)        # M43：多企业租户开通
 app.include_router(mcp.router, prefix=settings.API_PREFIX)             # MCP 方向2：消费外部工具
 app.include_router(mlops.router, prefix=settings.API_PREFIX)            # MLOps 训练流水线
+app.include_router(scheduler.router, prefix=settings.API_PREFIX)         # P0-5 调度 + 可靠投递
+app.include_router(skills.router, prefix=settings.API_PREFIX)             # P1-8 技能索引台账
+app.include_router(experts.router, prefix=settings.API_PREFIX)            # P1-9 子代理/专家执行
+app.include_router(vision_router.router, prefix=settings.API_PREFIX)      # P1-10 多模态图像理解
 
 
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok", "env": settings.APP_ENV}
+
+
+@app.get("/.well-known/mcp")
+async def well_known_mcp():
+    """MCP Server 发现端点（well-known）：客户端配置本平台为 MCP Server 时读取。"""
+    return mcp_server_svc.discovery()
 
 
 if __name__ == "__main__":

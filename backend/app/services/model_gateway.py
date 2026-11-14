@@ -151,6 +151,7 @@ PROVIDER_PRESETS = {
     # 硅基流动：一家聚合国内外主流开源模型（含 zai-org/GLM-*、deepseek-ai/*、Qwen/*），
     # 一个 key 跑多模型，适合做「同一技能包换模型比效果」的横向评测。
     # free_chain：官方免费额度池（每模型独立 RPM/TPM），按此顺序轮换最省钱。
+    # 仅放已核验免费模型；模型 ID 大小写敏感，新增前请用 GET /v1/models 核验（详见 D_LAYER_BACKLOG 第四节子页）。
     "siliconflow": {"base_url": "https://api.siliconflow.cn/v1",
                     "key_env": "SILICONFLOW_API_KEY", "label": "硅基流动（聚合）",
                     "models": ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen3-8B",
@@ -160,9 +161,7 @@ PROVIDER_PRESETS = {
                                "zai-org/GLM-4.6", "deepseek-ai/DeepSeek-V3"],
                     "small_model": "Qwen/Qwen2.5-7B-Instruct",
                     "free_chain": ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen3-8B",
-                                   "THUDM/GLM-4-9B-0414", "Qwen/Qwen3.5-4B",
-                                   "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
-                                   "THUDM/GLM-Z1-9B-0414"]},
+                                   "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"]},
     # 私有化 / 自建 OpenAI 兼容服务（vLLM、Ollama、一体机）：base_url 由用户填
     "custom": {"base_url": "", "key_env": "LLM_API_KEY", "label": "自建 / 私有化",
                "models": [], "small_model": ""},
@@ -383,6 +382,128 @@ async def chat(model_id: str, messages: list[dict]) -> str:
         if settings.LLM_STRICT:
             raise LLMUnavailable(f"模型调用失败：{type(exc).__name__}: {exc}") from exc
         return f"[stub:{model_id}] 回复内容（真模型未连接时为骨架回退）"
+
+
+# ── M55b/P0-1：流式调用（SSE token 增量）─────────────────────────────────────
+def _usage_from(u: dict) -> dict:
+    return {"prompt_tokens": int((u or {}).get("prompt_tokens") or 0),
+            "completion_tokens": int((u or {}).get("completion_tokens") or 0)}
+
+
+async def chat_stream_ex(model_id: str | None, messages: list[dict], timeout: float = 0,
+                         max_tokens: int | None = None, temperature: float | None = None,
+                         user_input: str = "", agent: dict | None = None,
+                         tenant_id: str | None = None,
+                         should_cancel=None):
+    """异步流式调用，依次 yield 事件 dict：
+       ``{"t": "delta", "text": <增量>}``  —— 每个 token 增量
+       ``{"t": "end", "usage": {...}, "model_id":..., "real": bool, "error": str,
+         "routed_tier":..., "routed_model":..., "latency_ms":...}``
+    无模型/失败：按 LLM_STRICT 抛错，否则 yield 一个 stub delta + end(real=False)。
+    与 chat_sync_ex 共用路由/节流/探活逻辑，保证计量与降级语义一致。
+    """
+    import json as _json
+    t0 = time.time()
+    effective_model, route_decision = resolve_model(user_input, agent, model_id, tenant_id)
+    routed_tier = (route_decision or {}).get("tier") if route_decision else None
+    routed_model = effective_model if route_decision else None
+    kw = {}
+    if max_tokens:
+        kw["max_tokens"] = max_tokens
+    if temperature is not None:
+        kw["temperature"] = temperature
+    to = timeout or settings.LLM_TIMEOUT_S
+
+    def _end(real: bool, error: str, usage: dict | None = None, throttled: bool = False):
+        return {"t": "end", "usage": usage or {},
+                "model_id": effective_model, "routed_tier": routed_tier,
+                "routed_model": routed_model, "real": real, "error": error,
+                "throttled": throttled, "latency_ms": int((time.time() - t0) * 1000)}
+
+    try:
+        apply_throttle()
+    except RateLimited as exc:
+        yield _end(False, f"rate_limited: {exc}", throttled=True)
+        return
+
+    if not llm_available():
+        err = ("未配置模型密钥（LLM_API_KEY / 厂商环境变量）" if settings.LLM_PROVIDER == "direct"
+               else "LiteLLM 代理不可达")
+        if settings.LLM_STRICT:
+            raise LLMUnavailable(err)
+        yield {"t": "delta", "text": _stub_answer(effective_model, messages)}
+        yield _end(False, err)
+        return
+
+    if settings.LLM_PROVIDER == "direct":
+        body = _payload(effective_model, messages, **kw)
+        body["stream"] = True
+        body["stream_options"] = {"include_usage": True}
+        try:
+            async with httpx.AsyncClient(timeout=to) as c:
+                async with c.stream("POST", _endpoint(), json=body, headers=_headers()) as r:
+                    r.raise_for_status()
+                    final_usage: dict = {}
+                    async for line in r.aiter_lines():
+                        line = (line or "").strip()
+                        if not line or not line.startswith("data:"):
+                            continue
+                        data = line[len("data:"):].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            obj = _json.loads(data)
+                        except Exception:
+                            continue
+                        if obj.get("error"):
+                            raise LLMUnavailable(f"上游错误：{obj['error']}")
+                        ch = (obj.get("choices") or [{}])[0]
+                        delta = (ch.get("delta") or {}).get("content") or ""
+                        if delta:
+                            yield {"t": "delta", "text": delta}
+                            if should_cancel and should_cancel():
+                                break
+                        if obj.get("usage"):
+                            final_usage = _usage_from(obj["usage"])
+            yield _end(True, "", final_usage)
+            return
+        except LLMUnavailable:
+            raise
+        except Exception as exc:
+            if settings.LLM_STRICT:
+                raise LLMUnavailable(f"模型调用失败：{type(exc).__name__}: {exc}") from exc
+            yield {"t": "delta", "text": _stub_answer(effective_model, messages)}
+            yield _end(False, f"{type(exc).__name__}: {exc}")
+            return
+
+    # litellm 通道：优先真流式，不可用时（未装/报错）整段回退，保证可用
+    try:
+        import litellm  # type: ignore
+        resp = await litellm.acompletion(
+            model=effective_model, messages=messages, stream=True,
+            api_base=settings.LITELLM_BASE_URL,
+            api_key=getattr(settings, "LITELLM_MASTER_KEY", ""), **kw)
+        async for chunk in resp:
+            delta = (((chunk.choices[0].delta or {}) if chunk.choices else [{}])[0].get("content")) or ""
+            if delta:
+                yield {"t": "delta", "text": delta}
+                if should_cancel and should_cancel():
+                    break
+        yield _end(True, "")
+        return
+    except ImportError:
+        text = await chat(effective_model, messages)
+        yield {"t": "delta", "text": text}
+        yield _end(True, "")
+        return
+    except LLMUnavailable:
+        raise
+    except Exception as exc:
+        if settings.LLM_STRICT:
+            raise LLMUnavailable(f"模型调用失败：{type(exc).__name__}: {exc}") from exc
+        yield {"t": "delta", "text": _stub_answer(effective_model, messages)}
+        yield _end(False, f"{type(exc).__name__}: {exc}")
+        return
 
 
 # ── M51：模型轮换链 ──────────────────────────────────────────────────────────

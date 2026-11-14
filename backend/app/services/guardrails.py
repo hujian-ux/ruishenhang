@@ -16,8 +16,11 @@
 from __future__ import annotations
 
 import ipaddress
+import json
+import os
 import re
 import threading
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -230,7 +233,11 @@ def _norm(s: str) -> str:
 
 
 # ==================================================================== 工具常量
-_ALLOWED_TOOLS = {"rag_retrieve", "web_search", "file_read", "file_write", "kb_write"}
+# P1-9：delegate_expert 是平台一等委派能力（只读推理、不落库、自带台账与审计），
+# 纳入白名单走正常放行；否则 loop 虽会以 custom_tool_ok 特判放行，但每次调用都会先写
+# 一条 allowed=False 的 tool_check 审计噪声，污染审计链。
+_ALLOWED_TOOLS = {"rag_retrieve", "web_search", "file_read", "file_write", "kb_write",
+                  "delegate_expert"}
 _MASK_ARG_KEYS = ("url", "text", "query", "content", "snippet", "payload")
 _VIS_KEYS = ("scope", "owner", "dept_id", "dept", "tenant_id")
 _URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
@@ -472,7 +479,10 @@ def grounding_check(answer: str, evidence: str) -> dict:
 
 # ==================================================================== 5. 工具侧
 def _mcp_allow_set() -> set[str]:
-    raw = (getattr(settings, "MCP_TOOL_ALLOW", "") or "").strip()
+    # 动态取 settings：config 模块可能被 importlib.reload 重绑 settings 对象，
+    # 模块顶层 import 会拿到旧对象；此处实时读取，避免重绑后 staleness（见 test_p0_casdoor_consolidation）。
+    from app.core.config import settings as _live_settings
+    raw = (getattr(_live_settings, "MCP_TOOL_ALLOW", "") or "").strip()
     if not raw:
         return set()
     return {a.strip() for a in raw.split(",") if a.strip()}
@@ -493,7 +503,7 @@ def _guard_mcp_tool(tool: str, args: dict, caller) -> dict:
     """外部 MCP 工具守门：显式授权 + 经 mcp_client 调用，结果原样回传。"""
     if not _tool_auth():
         return {"allowed": False, "reason": "GUARDRAILS_TOOL_AUTH=0"}
-    if not _mcp_tool_allowed(tool, _mcp_allow_set()):
+    if not mcp_tool_declared(tool):
         return {"allowed": False,
                 "reason": f"mcp_tool_not_allowed: {tool}（请在 MCP_TOOL_ALLOW 显式放行）"}
     try:
@@ -505,6 +515,18 @@ def _guard_mcp_tool(tool: str, args: dict, caller) -> dict:
         return {"allowed": False,
                 "reason": f"mcp_tool_error: {str(res.get('content', ''))[:200]}"}
     return {"allowed": True, "result": {"content": res.get("content", "")}}
+
+
+def mcp_tool_declared(tool: str) -> bool:
+    """P1-3 单一真源：外部 MCP 端点是否已在 MCP_TOOL_ALLOW 显式声明放行。
+
+    沙箱硬闸（sandbox.check）与执行授权（_guard_mcp_tool）共用此判定，
+    避免两处各自实现 allow 解析导致行为漂移。支持 mcp__server__tool /
+    mcp__server__* / * 三种写法；空白名单一律拒（默认安全）。
+    """
+    if not isinstance(tool, str) or not tool.startswith("mcp__"):
+        return False
+    return _mcp_tool_allowed(tool, _mcp_allow_set())
 
 
 def _is_private_url(url: str) -> bool:
@@ -610,6 +632,273 @@ def guard_tool_call(tool: str, args: dict, caller) -> dict:
             "args": masked_args, "scopes": scopes}
 
 
+# ==================================================================== 办公62 硬规则（可加载）
+# 办公域（Word/Excel/PPT 等办公技能 agent）基线硬规则：forbid / must_include /
+# format 三类。规则来自 backend/office62_rules.json（路径可被 EAP_OFFICE62_RULES
+# 覆盖）。纯函数 + 模块级缓存；policy() 只回显规则数量与加载状态，绝不回显
+# 规则内容或任何密钥（与全局安全内核的回显纪律一致）。
+#
+# 语义：
+#   forbid / format  —— pattern 命中即违规（文本里出现/出现了不合规范的格式）。
+#   must_include     —— pattern 未命中即违规（文本必须包含该内容却缺失）。
+#   scope 为空 = 全局适用；非空 = 仅当请求 scope 与规则 scope 有交集成效。
+def _office62_default_path() -> Path:
+    env = (getattr(settings, "EAP_OFFICE62_RULES", "")
+           or os.environ.get("EAP_OFFICE62_RULES", ""))
+    if env:
+        return Path(env)
+    # 本文件位于 backend/app/services/guardrails.py → parents[2] 即 backend/
+    return Path(__file__).resolve().parents[2] / "office62_rules.json"
+
+
+_OFFICE62_CACHE: dict[str, Any] = {
+    "path": None, "rules": [], "loaded": False, "error": "",
+}
+
+_FLAG_MAP = {"i": re.IGNORECASE, "m": re.MULTILINE, "s": re.DOTALL}
+
+
+def load_office62_rules(path=None, force: bool = False) -> dict:
+    """读取并预编译办公62规则；缺项/异常绝不抛错（配置容错约定）。
+
+    缓存按 path 命中，重复调用不重复 IO；force=True 强制重载（测试/热改用）。
+    """
+    p = Path(path) if path else _office62_default_path()
+    cache = _OFFICE62_CACHE
+    if not force and cache["path"] == str(p) and cache["loaded"]:
+        return {"rules": cache["rules"], "loaded": True,
+                "error": cache["error"], "path": str(p)}
+    rules: list[dict[str, Any]] = []
+    err = ""
+    try:
+        data = json.loads(Path(p).read_text(encoding="utf-8"))
+        raw = data.get("rules", []) if isinstance(data, dict) else []
+        for r in raw:
+            if not isinstance(r, dict):
+                continue
+            kind = r.get("kind")
+            pat = r.get("pattern")
+            if kind not in ("forbid", "must_include", "format") or not pat:
+                continue
+            flags = 0
+            for c in str(r.get("flags", "")):
+                flags |= _FLAG_MAP.get(c, 0)
+            try:
+                rx = re.compile(pat, flags)
+            except re.error as e:
+                err = f"regex_compile_error:{r.get('id')}:{e}"
+                continue
+            # applies_to：子模板标签（由 office62_classify_doc 分类得出）；空=不限子模板
+            applies_to = list(r.get("applies_to", []) or [])
+            # trigger：可选触发式正则，命中才要求必备项（用于「含数据才要求来源 /
+            # 含风险才要求免责」等语义门槛）。编译失败则降级为「无触发门槛」而非丢弃规则。
+            trigger = r.get("trigger") or ""
+            trig_re = None
+            if trigger:
+                try:
+                    trig_re = re.compile(trigger, re.IGNORECASE)
+                except re.error as e:
+                    err = f"trigger_compile_error:{r.get('id')}:{e}"
+                    trig_re = None
+            rules.append({
+                "id": r.get("id", ""),
+                "kind": kind,
+                "pattern": pat,
+                "severity": r.get("severity", "medium"),
+                "scope": list(r.get("scope", []) or []),
+                "applies_to": applies_to,
+                "trigger": trigger,
+                "message": r.get("message", ""),
+                "_re": rx,
+                "_trigger_re": trig_re,
+            })
+    except Exception as e:  # 文件缺失/损坏 → 空规则集，不阻断主链路
+        err = f"load_error:{e}"
+    cache.update(path=str(p), rules=rules, loaded=True, error=err)
+    return {"rules": rules, "loaded": True, "error": err, "path": str(p)}
+
+
+def scan_office62(text: str, scope=None, path=None, doc_types=None) -> dict:
+    """办公域硬规则扫描。
+
+    返回 {violations, blocked, severity_counts, count, rules_loaded, load_error}。
+    blocked = 存在 high 级违规（业务方可据此拦下办公技能产出物）。
+    scope：None/"" 表示全局（仅命中 GLOBAL 规则）；字符串或列表表示办公技能场景，
+           会同时匹配 GLOBAL 规则与 scope 有交集的规则。
+    path：可选，指定规则文件（覆盖默认/环境变量路径），用于测试或按租户加载。
+    doc_types：可选，显式传入文档子模板标签集合（跳过自动分类）；未传则按文本自动
+           分类（office62_classify_doc）。must_include 规则仅在「applies_to 为空 或 与
+           doc_types 有交集」且「trigger 为空 或 命中文本」时才被要求，缺项才算违规。
+    """
+    body = text if isinstance(text, str) else str(text or "")
+    if scope is None or scope == "":
+        scope_set: set[str] = set()
+    elif isinstance(scope, str):
+        scope_set = {scope}
+    else:
+        scope_set = set(scope)
+    if doc_types is None:
+        doc_types = office62_classify_doc(body)
+    doc_types_set = set(doc_types) if doc_types else set()
+    info = load_office62_rules(path=path)
+    rules = info["rules"]
+    violations: list[dict[str, str]] = []
+    for r in rules:
+        r_scope = set(r["scope"])
+        if r_scope and not (r_scope & scope_set):
+            continue
+        if r["kind"] == "must_include":
+            # 子模板门槛：applies_to 非空且不与本文档类型相交 → 该必备项不适用
+            applies = set(r.get("applies_to") or [])
+            if applies and not (applies & doc_types_set):
+                continue
+            # 触发式门槛：trigger 非空且未命中文本 → 该必备项不适用
+            trig = r.get("_trigger_re")
+            if trig is not None and not trig.search(body):
+                continue
+            m = r["_re"].search(body)
+            hit = not m
+        else:
+            m = r["_re"].search(body)
+            hit = bool(m)
+        if hit:
+            excerpt = (m.group(0) if m else "")
+            violations.append({
+                "id": r["id"], "kind": r["kind"], "severity": r["severity"],
+                "message": r["message"], "excerpt": excerpt[:80],
+            })
+    sev = {"high": 0, "medium": 0, "low": 0}
+    for v in violations:
+        sev[v["severity"]] = sev.get(v["severity"], 0) + 1
+    blocked = sev["high"] > 0
+    return {"violations": violations, "blocked": bool(blocked),
+            "severity_counts": sev, "count": len(violations),
+            "rules_loaded": len(rules), "load_error": info["error"]}
+
+
+_SEV_RANK = {"low": 1, "medium": 2, "high": 3}
+
+
+def scan_office62_blob(texts, scope=None, path=None) -> dict:
+    """对多个文本片段（答案 + 文件正文等）合并扫描，去重并按最高严重度合并。
+
+    返回结构与 scan_office62 一致；便于把「答案文本」与「生成的 docx/pptx/xlsx
+    正文」一起过同一套硬规则，避免只看 answer 漏掉文件里的红线。
+    """
+    merged: dict[str, dict[str, str]] = {}
+    for t in texts:
+        if not t:
+            continue
+        res = scan_office62(t, scope=scope, path=path)
+        for v in res["violations"]:
+            cur = merged.get(v["id"])
+            if cur is None or _SEV_RANK.get(v["severity"], 0) > _SEV_RANK.get(cur["severity"], 0):
+                merged[v["id"]] = v
+    violations = list(merged.values())
+    sev = {"high": 0, "medium": 0, "low": 0}
+    for v in violations:
+        sev[v["severity"]] = sev.get(v["severity"], 0) + 1
+    blocked = sev["high"] > 0
+    info = load_office62_rules(path=path)
+    return {"violations": violations, "blocked": bool(blocked),
+            "severity_counts": sev, "count": len(violations),
+            "rules_loaded": len(info["rules"]), "load_error": info["error"]}
+
+
+def extract_office_text(data: bytes, ext: str) -> str:
+    """从办公文件字节抽取纯文本，供办公62文件正文扫描复用。
+
+    懒加载 python-docx / python-pptx / openpyxl；任一库缺失或解析失败均返回空串
+    （调用方据此跳过文件正文扫描，不影响主链路）。
+    """
+    ext = (ext or "").lower().lstrip(".")
+    try:
+        if ext == "docx":
+            from docx import Document
+            import io
+            doc = Document(io.BytesIO(data))
+            return "\n".join(p.text for p in doc.paragraphs)
+        if ext == "pptx":
+            from pptx import Presentation
+            import io
+            prs = Presentation(io.BytesIO(data))
+            out: list[str] = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        out.append(shape.text_frame.text)
+            return "\n".join(out)
+        if ext in ("xlsx", "xlsm"):
+            from openpyxl import load_workbook
+            import io
+            wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+            out = []
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    out.append(" ".join("" if c is None else str(c) for c in row))
+            return "\n".join(out)
+    except Exception:
+        return ""
+    return ""
+
+
+# 由技能默认产出格式推断办公62 scope；非办公产出格式返回 None（仅命中 GLOBAL 规则）。
+_OFFICE62_FORMAT_SCOPE = {"docx": "office_doc", "xlsx": "office_sheet",
+                          "pptx": "office_ppt"}
+
+
+# 文档子模板标签 → 触发正则。office62_classify_doc 据此把文本归类到一组子模板标签，
+# 供 must_include 的 applies_to 门槛使用。标签分两类：
+#   结构型（合同/纪要/报告/财务/计划/PPT）—— 由文档形态关键词判定；
+#   语义型（含数据/风险/对比/外部引用/个人信息/长篇/下载）—— 由内容是否触发某类必备项判定。
+# 这是启发式分类（非硬过滤）：标签过宽最多让某必备项「被要求」，若该必备项本身已满足则无违规。
+_OFFICE62_DOC_TAGS = {
+    "contract": r"(?i)(合同|协议书?|本协议|缔约|双方约定|签署方|合同条款)",
+    "meeting": r"(?i)(会议纪要|会议记录|出席|列席|主持人|会议议程|与会人员|会议时间|会议地点)",
+    "report": r"(?i)(报告|调研|评估|汇报材料|情况说明|分析总结|总结如下|工作报告|分析报告)",
+    "financial": r"(?i)(财务|测算|预算|营收|利润|成本|现金流|资产负债表|损益|收益率|毛利率)",
+    "plan": r"(?i)(项目计划|实施方案|排期|里程碑|进度表|工作计划|行动方案|时间表|工作排期)",
+    "ppt": r"(?i)(幻灯片|演示文稿|演讲稿|ppt|slide)",
+    "data_rich": r"(?i)(数据|统计|金额|营收|利润|同比|环比|图表|占比|增长率|万元|亿元|百分比|%)",
+    "comparison": r"(?i)(对比|比较| versus | vs\.? |相较|差距|优劣势|对标)",
+    "external_ref": r"(?i)(参考|参见|引用|据.{0,6}(报道|研究|调查|显示|统计)|文献|出处说明)",
+    "personal_info": r"(?i)(处理|收集|使用|共享).{0,12}(个人信息|隐私数据|用户数据|敏感信息)",
+    "long_doc": r"(?i)(目录|章节|第一章|一、|第.{1,3}章|全文|前言|引言)",
+    "download": r"(?i)(下载|附件|详见|见附件|点击下载|附表下载)",
+}
+
+
+def office62_classify_doc(text: str) -> set[str]:
+    """把办公文本归类到一组子模板标签（见 _OFFICE62_DOC_TAGS）。
+
+    空文本返回空集合。任何标签正则异常均跳过该标签（不阻断主链路）。该结果是
+    must_include applies_to 门槛的输入；分类越准，条件化必备项越贴合实际子模板。
+    """
+    body = text if isinstance(text, str) else str(text or "")
+    tags: set[str] = set()
+    if not body:
+        return tags
+    for tag, pat in _OFFICE62_DOC_TAGS.items():
+        try:
+            if re.search(pat, body):
+                tags.add(tag)
+        except Exception:
+            continue
+    return tags
+
+
+def office62_scope_for_agent(agent: dict) -> str | None:
+    """由技能默认产出格式推断办公62 scope；非办公产出格式返回 None。
+
+    覆盖全部办公类技能（公共库 + 办公角色包），无需硬编码白名单。
+    返回 None 时 scan_office62 仍会应用 GLOBAL（scope 空）规则。
+    """
+    if not isinstance(agent, dict):
+        return None
+    fmt = str(agent.get("default_format") or "").lower()
+    return _OFFICE62_FORMAT_SCOPE.get(fmt)
+
+
 # ==================================================================== 6/7. 回显 / 复位
 def policy() -> dict:
     """回显开关与规则数量，绝不回显任何密钥。"""
@@ -628,6 +917,10 @@ def policy() -> dict:
         "masking_rules": len(_MASK_RULES),
         "allowed_tools": sorted(_ALLOWED_TOOLS),
         "allowed_tools_count": len(_ALLOWED_TOOLS),
+        "office62_rules": len(load_office62_rules()["rules"]),
+        "office62_loaded": _OFFICE62_CACHE["loaded"],
+        "office62_error": (_OFFICE62_CACHE["error"][:120]
+                           if _OFFICE62_CACHE["error"] else ""),
         "stats": stats,
     }
 

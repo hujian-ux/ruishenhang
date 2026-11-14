@@ -1,0 +1,19 @@
+{
+  "workspace_root": "data/tools_workspace",
+  "allow_symlink_escape": false,
+  "deny_secret_keys": [
+    "api_key", "apikey", "secret", "password", "passwd", "pwd", "token",
+    "private_key", "access_key", "ak", "sk", "credential", "authorization"
+  ],
+  "tools": {
+    "rag_retrieve": { "enabled": true },
+    "web_search": { "enabled": true },
+    "file_read": { "enabled": true, "scope": "workspace" },
+    "file_write": { "enabled": true, "scope": "workspace" },
+    "kb_write": { "enabled": true }
+  },
+  "shell": {
+    "enabled": true,
+    "command_whitelist": ["ls", "cat", "grep", "wc", "python", "python3", "node", "echo", "date", "head", "tail"]
+  }
+}

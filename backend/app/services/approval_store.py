@@ -80,12 +80,15 @@ def create_ticket(agent_id: str, requester_id: str, dept_id: str,
         "requester_id": requester_id,
         "dept_id": dept_id,
         "tenant_id": tenant_id,    # M43：租户隔离；平台级 115 导入留空
+        "ticket_type": "agent_publish",  # agent_publish（默认）| tool_execution（P0-2 高危工具落单）
+        "payload": {},             # tool_execution 时放 {tool, args, session_id}
         "stages": stages,          # M46：多级审批链路（默认单级）
         "current_stage": 0,
         "decisions": [],           # 每级决策记录
         "status": "pending",  # pending | approved | rejected
         "decided_by": None,
         "comment": None,
+        "decision_result": None,   # tool_execution 审批通过后的工具执行结果
         "created_at": time.time(),
         "decided_at": None,
     }
@@ -116,18 +119,66 @@ def create_batch_ticket(agent_ids: List[str], requester_id: str, dept_id: str,
         "requester_id": requester_id,
         "dept_id": dept_id,
         "tenant_id": tenant_id,    # M43：租户隔离；平台级 115 导入留空
+        "ticket_type": "agent_publish",
+        "payload": {},
         "stages": stages,          # M46：多级审批链路（默认单级）
         "current_stage": 0,
         "decisions": [],
         "status": "pending",
         "decided_by": None,
         "comment": None,
+        "decision_result": None,
         "created_at": time.time(),
         "decided_at": None,
     }
     _TICKETS[approval_id] = ticket
     _persist(ticket)
     return ticket
+
+
+def create_tool_approval_ticket(caller: Any, agent_id: str, tool: str, args: dict,
+                                session_id: str = "") -> Dict[str, Any]:
+    """P0-2 收尾：高危工具调用（如 shell）落单到审批流。
+
+    复用 approval_tickets 表 + M46/M47 多级审批 / IM 卡片 / 审批助手基础设施，
+    但 ticket_type=tool_execution，decide 通过时**真正执行工具**而非迁移智能体状态。
+    租户隔离随 caller 写入；审批通过后的执行也严格按 caller 的租户/部门边界。
+    """
+    tenant_id = getattr(caller, "tenantId", "") or ""
+    stages = resolve_stages(tenant_id)
+    approval_id = "apr_" + uuid.uuid4().hex[:12]
+    ticket = {
+        "approval_id": approval_id,
+        "agent_id": agent_id,
+        "agent_ids": [agent_id] if agent_id else [],
+        "batch": False,
+        "batch_name": None,
+        "requester_id": getattr(caller, "userId", "system"),
+        "dept_id": getattr(caller, "deptId", ""),
+        "tenant_id": tenant_id,    # M43：租户隔离
+        "ticket_type": "tool_execution",
+        "payload": {"tool": tool, "args": args, "session_id": session_id},
+        "stages": stages,
+        "current_stage": 0,
+        "decisions": [],
+        "status": "pending",
+        "decided_by": None,
+        "comment": None,
+        "decision_result": None,
+        "created_at": time.time(),
+        "decided_at": None,
+    }
+    _TICKETS[approval_id] = ticket
+    _persist(ticket)
+    return ticket
+
+
+def record_execution(approval_id: str, result: dict) -> Dict[str, Any]:
+    """记录高危工具审批通过后的执行结果（落 ticket.decision_result 并持久化）。"""
+    t = get_ticket(approval_id)
+    t["decision_result"] = result
+    _persist(t)
+    return t
 
 
 def get_ticket(approval_id: str) -> Dict[str, Any]:

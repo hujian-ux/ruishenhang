@@ -48,6 +48,10 @@ for _k in ("LLM_API_KEY", "LLM_MODEL_CHAIN", "LLM_BASE_URL", "LITELLM_MASTER_KEY
     os.environ[_k] = ""
 os.environ["LLM_PROVIDER"] = "litellm"
 os.environ["LLM_VENDOR"] = "zhipu"
+# 仓库根 .env 现已作为基础层被 config._load_env_files 读取（修复「配置假通」），
+# 其中 LLM_STRICT=1 是生产严格态；测试环境强制无模型，必须回退 stub 而非抛错，
+# 故显式中立化，避免根 .env 的严格标志让无模型用例集体报错。
+os.environ["LLM_STRICT"] = "0"
 os.environ["LLM_DEFAULT_MODEL"] = "glm-4.6"
 os.environ["ROUTING_ENABLED"] = "1"
 os.environ["ROUTING_SMALL_MODEL"] = "glm-4.6-air"

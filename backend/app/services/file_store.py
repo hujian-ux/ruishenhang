@@ -44,6 +44,14 @@ CONTENT_TYPES = {
     "txt": "text/plain; charset=utf-8",
     "md": "text/markdown; charset=utf-8",
     "json": "application/json",
+    # P1-10 多模态：图片上传后按二进制原件下载/预览，content_type 必须正确，
+    # 否则浏览器拿到 octet-stream 无法内联显示（视觉通道本身不依赖这里）。
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "webp": "image/webp",
+    "gif": "image/gif",
+    "bmp": "image/bmp",
 }
 
 
@@ -70,11 +78,18 @@ def _save(rec: Dict[str, Any]) -> Dict[str, Any]:
 def put(data: bytes, filename: str, caller, kind: str = KIND_UPLOAD,
         agent_id: str = "", run_id: str = "", trace_id: str = "",
         meta: Optional[Dict[str, Any]] = None,
-        reuse_same_hash: bool = True) -> Dict[str, Any]:
+        reuse_same_hash: bool = True,
+        artifact_key: str = "", version: int = 0, prev_file_id: str = "") -> Dict[str, Any]:
     """写入一份文件：算 sha256、落对象存储、登记元信息，返回记录。
 
     `reuse_same_hash`：同一用户重复上传同一份文件时复用原记录（避免 MinIO 里
     堆满同一份 5MB 台账的副本，也让「重新上传后再执行」不必重算解析）。
+
+    P1-7 逻辑制品版本链：`artifact_key` 非空时，同一键的多次写入自动升版本
+    （version = 已有最大版本 + 1），并把 `prev_file_id` 链到上一版本。
+    版本键形如 `会话ID::问题序号::格式`——同一问题反复重生成（含 steer 中途补充要求）
+    命中同一键自然升版；全新问题因 user 轮数 +1 而成一条新链。上传件（kind=upload）
+    不参与版本链，artifact_key 缺省为空。
     """
     digest = hashlib.sha256(data).hexdigest()
     if reuse_same_hash and kind == KIND_UPLOAD:
@@ -82,6 +97,16 @@ def put(data: bytes, filename: str, caller, kind: str = KIND_UPLOAD,
             if (r.get("kind") == KIND_UPLOAD and r.get("sha256") == digest
                     and r.get("owner_id") == caller.userId):
                 return r
+
+    # P1-7：同键自动升版并链到上一版本
+    if artifact_key:
+        existing = [r for r in _FILES.values() if r.get("artifact_key") == artifact_key]
+        if existing:
+            version = max(r.get("version", 0) for r in existing) + 1
+            prev = max(existing, key=lambda r: r.get("version", 0))
+            prev_file_id = prev.get("file_id", "")
+        else:
+            version = 1          # 新链首版从 1 起算（public_view 的 version 语义统一为 ≥1）
 
     prefix = "file" if kind == KIND_UPLOAD else "art"
     file_id = f"{prefix}_{uuid.uuid4().hex[:12]}"
@@ -103,6 +128,9 @@ def put(data: bytes, filename: str, caller, kind: str = KIND_UPLOAD,
         "agent_id": agent_id,
         "run_id": run_id,
         "trace_id": trace_id,
+        "artifact_key": artifact_key,
+        "version": version,
+        "prev_file_id": prev_file_id,
         "created_at": time.time(),
         "meta": meta or {},
     }
@@ -159,6 +187,9 @@ def public_view(rec: Dict[str, Any], base_path: str = "/api/v1/agent/files") -> 
         "sha256": rec.get("sha256"),
         "agent_id": rec.get("agent_id") or "",
         "run_id": rec.get("run_id") or "",
+        "artifact_key": rec.get("artifact_key") or "",
+        "version": rec.get("version", 0),
+        "prev_file_id": rec.get("prev_file_id") or "",
         "created_at": rec.get("created_at"),
         "meta": rec.get("meta") or {},
         "download_url": f"{base_path}/{rec['file_id']}",
@@ -176,6 +207,78 @@ def delete(file_id: str) -> bool:
         return False
     object_store.delete_object(rec["object_key"])
     return True
+
+
+def versions(key: str, caller, limit: int = 50) -> List[Dict[str, Any]]:
+    """P1-7：返回某条制品链（artifact_key）下可见的版本列表（版本降序，最新在前）。"""
+    items = [r for r in _FILES.values()
+             if r.get("artifact_key") == key and can_access(r, caller)]
+    items.sort(key=lambda r: r.get("version", 0), reverse=True)
+    return items[:limit]
+
+
+def rollback_version(key: str, version: int, caller) -> Optional[Dict[str, Any]]:
+    """P1-7 非破坏式回滚：把目标版本的字节复制成一条「最新版本」（version = 当前最大 + 1），
+    旧版本全部保留，可再回滚回去。返回新建的版本记录（落库后由调用方转 public_view）。
+
+    与全平台「不硬删」哲学一致——回滚不是覆盖，而是把历史某一刻的内容重新发布为当前版本，
+    时间线向前走，任何历史版本都还能单独下载/再回滚。
+    """
+    target = next((r for r in _FILES.values()
+                   if r.get("artifact_key") == key and r.get("version") == version
+                   and can_access(r, caller)), None)
+    if not target:
+        return None
+    data = read(target)
+    if data is None:
+        return None
+    meta = dict(target.get("meta") or {})
+    meta["rollback"] = True
+    meta["rollback_source_version"] = version
+    # put 会按同键自动算 next version 并链 prev_file_id；kind 为 artifact，不复用同 hash 记录。
+    return put(data, target.get("filename", "artifact"), caller,
+               kind=KIND_ARTIFACT,
+               agent_id=target.get("agent_id", ""),
+               run_id=target.get("run_id", ""),
+               trace_id=target.get("trace_id", ""),
+               meta=meta,
+               artifact_key=key)
+
+
+def list_chains(caller, session_id: str = "", limit: int = 50) -> List[Dict[str, Any]]:
+    """P1-7：把可见的产出物按 artifact_key（会话ID::问题序号::格式）聚合成链。
+
+    返回每条链解析出的 session_id / 问题序号 / 格式、版本数、最新版本号与最新版的 public_view。
+    可按 session_id 过滤（只看某次对话的制品）。无 artifact_key 的旧产出物不进链。
+    """
+    groups: Dict[str, List[Dict[str, Any]]] = {}
+    for r in _FILES.values():
+        if r.get("kind") != KIND_ARTIFACT:
+            continue
+        ak = r.get("artifact_key") or ""
+        if not ak or ak.count("::") < 2:
+            continue
+        if not can_access(r, caller):
+            continue
+        if session_id and not ak.startswith(session_id + "::"):
+            continue
+        groups.setdefault(ak, []).append(r)
+    chains = []
+    for ak, recs in groups.items():
+        recs.sort(key=lambda r: r.get("version", 0))
+        latest = recs[-1]
+        parts = ak.split("::")
+        chains.append({
+            "artifact_key": ak,
+            "session_id": parts[0] if len(parts) >= 3 else "",
+            "q_index": int(parts[1]) if (len(parts) >= 3 and parts[1].isdigit()) else 0,
+            "format": parts[2] if len(parts) >= 3 else "",
+            "version_count": len(recs),
+            "latest_version": latest.get("version", 0),
+            "latest": public_view(latest),
+        })
+    chains.sort(key=lambda c: (c["latest"].get("created_at") or 0), reverse=True)
+    return chains[:limit]
 
 
 def load_from_pg() -> int:

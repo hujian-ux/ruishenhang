@@ -27,6 +27,19 @@ logger = logging.getLogger("enterprise_ai.mcp_client")
 MCP_TOOL_PREFIX = "mcp__"  # 工具名前缀：mcp__<server>__<tool>
 
 
+def _compute_requires_approval(server_cfg: "MCPServerConfig", annotations: Dict[str, Any]) -> bool:
+    """P1-3：计算某工具是否需人工审批（安全优先，默认 True）。
+
+    - server 级 requires_approval 默认为 True（外部工具是最大不可控面）；
+    - 仅当 server 显式设 requires_approval=False（受信任）且其工具 annotation
+      readOnlyHint=True（纯只读）时，才豁免审批；其余一律需审批。
+    """
+    server_default = bool(getattr(server_cfg, "requires_approval", True))
+    if server_default is False and (annotations or {}).get("readOnlyHint") is True:
+        return False
+    return server_default
+
+
 @dataclass
 class MCPServerConfig:
     name: str
@@ -37,6 +50,10 @@ class MCPServerConfig:
     url: Optional[str] = None
     headers: Dict[str, str] = field(default_factory=dict)
     timeout: float = 30.0
+    # P1-3：外部 MCP 工具审批闸。默认 True（安全优先：外部工具是最大不可控面，
+    # 无审批不能开给客户）；设为 False 表示「受信任 server」，仅其只读工具免审，
+    # 其余（含变更类）仍走审批。
+    requires_approval: bool = True
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any], name: Optional[str] = None) -> "MCPServerConfig":
@@ -49,6 +66,7 @@ class MCPServerConfig:
             url=d.get("url"),
             headers=dict(d.get("headers") or {}),
             timeout=float(d.get("timeout") or 30.0),
+            requires_approval=bool(d.get("requires_approval", True)),
         )
 
 
@@ -123,16 +141,30 @@ class _ServerConn:
                 self._ready.set()
                 await self._stop.wait()
 
-    @staticmethod
-    async def _list_tools(session: Any) -> List[Dict[str, Any]]:
+    async def _list_tools(self, session: Any) -> List[Dict[str, Any]]:
+        """枚举工具，捕获 MCP annotations（readOnlyHint / destructiveHint 等），
+        并据此 + server 级 requires_approval 计算每工具的是否需审批。"""
         res = await session.list_tools()
         out = []
         for t in getattr(res, "tools", []) or []:
-            out.append({
+            ann = getattr(t, "annotations", None)
+            annotations: Dict[str, Any] = {}
+            if ann is not None:
+                annotations = {
+                    "title": getattr(ann, "title", None),
+                    "readOnlyHint": getattr(ann, "readOnlyHint", None),
+                    "destructiveHint": getattr(ann, "destructiveHint", None),
+                    "idempotentHint": getattr(ann, "idempotentHint", None),
+                    "openWorldHint": getattr(ann, "openWorldHint", None),
+                }
+            rec = {
                 "name": getattr(t, "name", ""),
                 "description": getattr(t, "description", "") or "",
                 "input_schema": getattr(t, "inputSchema", {}) or {},
-            })
+                "annotations": annotations,
+            }
+            rec["requires_approval"] = _compute_requires_approval(self.cfg, annotations)
+            out.append(rec)
         return out
 
     async def call(self, tool: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -277,9 +309,26 @@ class ExternalMCPManager:
                     "name": t["name"],
                     "description": t["description"],
                     "input_schema": t["input_schema"],
+                    "annotations": t.get("annotations", {}),
+                    "requires_approval": bool(t.get("requires_approval", True)),
+                    "server_requires_approval": bool(s.config.requires_approval),
                     "qualified": f"{MCP_TOOL_PREFIX}{name}__{t['name']}",
                 })
         return out
+
+    def requires_approval(self, qualified: str) -> bool:
+        """P1-3：查询某 MCP 工具是否需要人工审批。未命中（未知工具）fail-closed 返回 True。"""
+        try:
+            server, tool = _split_qualified(qualified)
+        except ValueError:
+            return True
+        s = self._sessions.get(server)
+        if s is None:
+            return True  # fail-closed：未连接 / 未知 server
+        for t in s.tools:
+            if t["name"] == tool:
+                return bool(t.get("requires_approval", True))
+        return True  # fail-closed：未知工具
 
     def call(self, qualified: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         server, tool = _split_qualified(qualified)
@@ -331,6 +380,11 @@ def list_mcp_tools() -> List[Dict[str, Any]]:
 
 def call_mcp_tool(qualified: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return _manager.call(qualified, arguments)
+
+
+def mcp_requires_approval(qualified: str) -> bool:
+    """P1-3：查询某 MCP 工具是否需要人工审批（fail-closed 默认 True）。"""
+    return _manager.requires_approval(qualified)
 
 
 def reload_mcp() -> None:
