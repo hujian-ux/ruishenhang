@@ -1,0 +1,15 @@
+{
+  "_comment": "P1-2 示例：把本平台当 MCP Server 接入客户 IDE / 自有 Agent（HTTP 传输）。",
+  "_transport": "streamable-http（JSON-RPC 2.0 over POST），端点见 mcp_endpoint。",
+  "_auth": "Authorization 头携带平台裸 token（不带 Bearer 前缀）：dev <...> / JWT / sso <...>。",
+  "_how_to_get_token": "开发/演示：POST /api/v1/auth/sso/callback {code:\"dev\"} 返回 data.token 即为 dev token；生产用企业 SSO 或飞书换得的 sso 令牌。",
+  "mcpServers": {
+    "enterprise-ai-http": {
+      "type": "http",
+      "url": "http://localhost:8080/api/v1/mcp/serve",
+      "headers": {
+        "Authorization": "<你的平台裸 token：dev <...> / JWT / sso <...>>"
+      }
+    }
+  }
+}

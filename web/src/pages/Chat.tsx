@@ -11,6 +11,16 @@ type Attachment = {
   preview?: { ok: boolean; sheet_count?: number; total_rows?: number };
 };
 
+// P0 收尾1：工具循环流式时，把每一步「调用 / 结果 / 转审批」实时展示在气泡内
+type ToolStep = {
+  tool: string;
+  args?: any;
+  ok?: boolean;        // 执行结果（tool_result 后才有）
+  content?: string;    // 结果摘要
+  escalated?: boolean; // 高危操作转审批
+  ticketId?: string;
+};
+
 type Turn = {
   role: "user" | "assistant";
   content: string;
@@ -25,6 +35,8 @@ type Turn = {
   webSearch?: { mode?: string; degraded?: boolean; provider?: string; error?: string } | null;
   // M52：这一轮自动挂了哪些包内样例（让用户知道结论是基于什么数据算的）
   samplesUsed?: string[];
+  // P0 收尾1：本次流式过程中实际发生的工具调用步骤
+  toolSteps?: ToolStep[];
 };
 
 export type ChatSeed = {
@@ -40,6 +52,26 @@ function cleanAnswer(s: string) {
   return (s || "")
     .replace(/^\[stub[^\]]*\]\s*/i, "")
     .replace(/^\[第\d+轮\|LLM生成\]\s*/, "");
+}
+
+// P0 收尾1：工具循环期间模型会在答案里夹带 ```tool_call{...}``` 块（给运行时解析用），
+// 不让它原样显示给用户；前端只把工具调用渲染成结构化步骤卡片。
+function stripToolBlocks(s: string) {
+  return (s || "")
+    .replace(/```tool_call\s*[\s\S]*?```/g, "")
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function summarizeArgs(args: any) {
+  if (!args) return "";
+  try {
+    const j = JSON.stringify(args);
+    return j.length > 160 ? j.slice(0, 160) + "…" : j;
+  } catch {
+    return String(args).slice(0, 160);
+  }
 }
 
 const ACCEPT = ".xlsx,.xlsm,.csv,.tsv,.txt,.md,.markdown,.json";
@@ -126,6 +158,45 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
     if (previewUrlRef.current) { URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = null; }
     setPreview(null);
   }, []);
+
+  // P1-7 制品版本链：每张卡片可展开的历史版本面板（按 artifact_key 区分）
+  const [versOpen, setVersOpen] = useState<string | null>(null);
+  const [versData, setVersData] = useState<Record<string, any>>({});
+  const [versBusy, setVersBusy] = useState("");
+
+  const toggleVersions = useCallback(async (a: any) => {
+    const k = a?.artifact_key;
+    if (!k) return;
+    if (versOpen === k) { setVersOpen(null); return; }
+    setVersOpen(k); setErr("");
+    if (!versData[k]) {
+      try {
+        const r = await api.listArtifactVersions(k);
+        setVersData((d) => ({ ...d, [k]: r.data }));
+      } catch (e: any) { setErr(e?.message || "拉取版本失败"); }
+    }
+  }, [versOpen, versData]);
+
+  // 非破坏式回滚：把历史版本复制成最新，旧版本保留可再回滚。回滚后把该轮卡片与版本列表都刷成最新。
+  const rollbackVersion = useCallback(async (a: any, version: number) => {
+    const k = a?.artifact_key;
+    if (!k) return;
+    setVersBusy(`${k}:${version}`); setErr("");
+    try {
+      const r = await api.rollbackArtifact(k, version);
+      const nr = r.data.artifact;
+      setTurns((ts) => ts.map((t) => (t.role === "assistant" && t.artifacts
+        ? { ...t, artifacts: (t.artifacts as any[]).map((x: any) =>
+            x.artifact_key === k
+              ? { ...x, file_id: nr.file_id, version: nr.version, download_url: nr.download_url,
+                  filename: nr.filename, size: nr.size }
+              : x) }
+        : t)));
+      const rv = await api.listArtifactVersions(k);
+      setVersData((d) => ({ ...d, [k]: rv.data }));
+    } catch (e: any) { setErr(e?.message || "回滚失败"); }
+    finally { setVersBusy(""); }
+  }, []);
   // 打开历史对话时沿用当时选的格式，否则会出现"上次出了 5 种，这次突然只剩 Excel"
   const [formats, setFormats] = useState<string[]>(() => {
     const seen = Array.from(new Set(
@@ -150,6 +221,11 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // P0-1：当前流式请求的句柄，用来点「停止」时取消（abort + DELETE /agent/stream/{id}）
+  const streamRef = useRef<{ done: Promise<void>; cancel: () => Promise<void> } | null>(null);
+  // P1-5：每一代流式请求递增一个 id；旧请求（被 steer 取消的）的回调全部以 genId 失配早退，
+  // 避免旧流 finally 把 busy 复位 / 旧流的 token 回填覆盖新一轮答案。
+  const genRef = useRef(0);
 
   // 技能清单跟着岗位走：选完岗位只拉本岗 + 公共库 + 通用助手。
   // 之前拉全量 115 个，用户在「换一个」里能看到别的岗位的包，等于岗位没边界。
@@ -286,39 +362,173 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
     }
   };
 
-  const send = async () => {
+  // 刷新会话轮次（回滚后用）：把后端返回的 turns 映射成前端 Turn 结构
+  const refreshTurns = useCallback(async (sid: string) => {
+    try {
+      const r = await api.getSession(sid);
+      const list = (r?.data?.turns || []) as any[];
+      setTurns(list.map((t: any) => ({
+        role: t.role, content: t.content, artifacts: t.artifacts,
+        llmReal: t.llmReal, webSources: t.webSources, webSearch: t.webSearch,
+      })));
+    } catch { /* ignore */ }
+  }, []);
+
+  // P1-5 轮次回滚：截断会话到指定轮数（turn 缺省回退一轮），然后刷新界面轮次。
+  // 制品版本化不动，旧的 artifact 仍在文件库可单独打开。
+  const rollbackTurn = useCallback(async (turn?: number) => {
+    if (!sessionId) { setErr("当前没有可回滚的会话"); return; }
+    if (busy) { setErr("生成中无法回滚，请先停止或等完成"); return; }
+    setErr("");
+    try {
+      await api.rollbackSession(sessionId, turn);
+      await refreshTurns(sessionId);
+    } catch (e: any) {
+      setErr(e?.message || "回滚失败");
+    }
+  }, [sessionId, busy, refreshTurns]);
+
+  // P0-1：流式发送核心。先挂 user 轮 + 空 assistant 占位轮（steer 模式则清空最后一条
+  // assistant 轮、不新增 user 轮），再逐 token 增量填充；点「停止」走 streamRef.cancel()
+  // （abort + DELETE），后端 emit cancelled 后流自然结束。
+  // opts.steer=true：把「上一轮用户问题 + 补充约束」合并重生成（取消本会话旧流后执行）。
+  const runStream = (opts: {
+    input: string; fileIds?: string[]; fileNames?: string[]; sampleRun?: boolean;
+    steer?: boolean; steerInput?: string;
+  }) => {
+    if (!agentId) return;
+    const genId = ++genRef.current;            // 本代 id；旧代回调凭失配早退
+    setBusy(true); setErr("");
+    if (opts.steer) {
+      // 不新增 user 轮：追加一条新的空 assistant 轮（后端会重生成答案并 append 到此轮），
+      // 旧的（被取消的）助手回答保留在上一条，形成「旧答案→补充要求→新答案」的对照。
+      setTurns((t) => [...t, { role: "assistant", content: "" }]);
+    } else {
+      const names = opts.fileNames || [];
+      setTurns((t) => [...t,
+        { role: "user", content: opts.input, files: names },
+        { role: "assistant", content: "" },
+      ]);
+    }
+    setInput("");
+    if (!opts.steer) setAttachments([]);
+
+    const acc = { answer: "", done: null as any, finalized: null as any, steps: [] as ToolStep[],
+                  cancelled: false, cancelledSessionId: null as string | null, errored: "" };
+    const flush = (extra: Partial<Turn>) => {
+      if (genId !== genRef.current) return;     // 已被新一代取代，不再写
+      setTurns((t) => {
+        const copy = t.slice();
+        const last = copy[copy.length - 1];
+        if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, ...extra };
+        return copy;
+      });
+    };
+    const flushSteps = () => flush({ toolSteps: acc.steps });
+
+    const stream = api.streamAgent(agentId, opts.input, sessionId || undefined,
+      opts.fileIds, formats, !!opts.sampleRun, (ev) => {
+        if (genId !== genRef.current) return;   // 旧流残余事件，丢弃
+        if (ev.type === "token") {
+          acc.answer += ev.text;
+          flush({ content: acc.answer });
+        } else if (ev.type === "tool_call") {
+          acc.steps = [...acc.steps, { tool: ev.tool, args: ev.args }];
+          flushSteps();
+        } else if (ev.type === "tool_result") {
+          const idx = [...acc.steps].reverse().findIndex((s) => s.tool === ev.tool && s.ok === undefined);
+          if (idx >= 0) {
+            const realIdx = acc.steps.length - 1 - idx;
+            acc.steps = acc.steps.map((s, i) =>
+              i === realIdx ? { ...s, ok: ev.ok, content: ev.content } : s);
+          } else {
+            acc.steps = [...acc.steps, { tool: ev.tool, ok: ev.ok, content: ev.content }];
+          }
+          flushSteps();
+        } else if (ev.type === "tool_escalated") {
+          acc.steps = [...acc.steps, { tool: ev.tool, args: ev.args, escalated: true, ticketId: ev.ticketId }];
+          flushSteps();
+        } else if (ev.type === "done") {
+          acc.done = ev.result;
+          const r = ev.result || {};
+          flush({
+            content: r.answer ?? acc.answer,
+            skillApplied: r.agent?.skill_applied,
+            llmReal: r.usage?.real,
+            llmError: r.usage?.error,
+            webSources: r.web_sources || [],
+            webSearch: r.web_search,
+            samplesUsed: (r.samples_used || []).map((s: any) => s.filename),
+          });
+        } else if (ev.type === "finalized") {
+          acc.finalized = ev;
+          flush({ runId: ev.run_id, artifacts: ev.artifacts || [] });
+        } else if (ev.type === "cancelled") {
+          acc.cancelled = true;
+          acc.cancelledSessionId = ev.session_id || null;
+        } else if (ev.type === "error") {
+          acc.errored = ev.detail || "生成失败";
+        }
+      }, !!opts.steer, opts.steerInput);
+    streamRef.current = stream;
+
+    stream.done
+      .then(() => {
+        if (genId !== genRef.current) return;   // 已被新一代取代
+        const f = acc.finalized || {};
+        const sid = (acc.done?.session?.session_id) || f.session_id || acc.cancelledSessionId;
+        if (sid) setSessionId(sid);
+        // steer 复用已有会话，不覆盖原标题；普通发送才用首句命名
+        onSession(sid, opts.steer ? undefined : (opts.input || "").slice(0, 26));
+        setAttachments([]);
+        const arts = (f.artifacts || []) as any[];
+        if (arts.length) openPreview(arts[0]);
+        if (acc.cancelled) setErr("已取消生成（已保留已输出的内容）");
+        else if (acc.errored) setErr(acc.errored);
+      })
+      .catch((e: any) => {
+        if (genId !== genRef.current) return;
+        const msg = e?.message || "执行失败，请重试";
+        if (msg.includes("session_busy")) {
+          // P1-5：会话正忙。提示等待完成，或输入补充要求重新生成（不要并发打穿）
+          setErr("该会话正在生成中，请等待完成；或输入补充要求后发送以重新生成");
+        } else if (!acc.cancelled) {
+          setErr(msg);
+        }
+      })
+      .finally(() => {
+        if (genId !== genRef.current) return;   // 旧代不复位（新一代仍在进行）
+        setBusy(false); streamRef.current = null;
+      });
+  };
+
+  const send = () => {
     const text = input.trim();
-    // 开了「用样例数据」时不写提示词也能跑：样例本身就是这次要处理的数据
     const sampleRun = useSamples && !!pkg?.can_run_with_samples;
-    if ((!text && !attachments.length && !sampleRun) || !agentId || busy) return;
+    if ((!text && !attachments.length && !sampleRun) || !agentId) return;
     const fileIds = attachments.map((a) => a.file_id);
     const fileNames = attachments.map((a) => a.filename);
-    setBusy(true); setErr("");
-    setInput("");
-    setTurns((t) => [...t, { role: "user", content: text || "请按技能包处理附件", files: fileNames }]);
-    try {
-      const r = await api.invokeAgent(agentId, text || "请按技能包处理附件",
-                                      sessionId || undefined, fileIds, formats, sampleRun);
-      const d = r.data;
-      setSessionId(d.session.session_id);
-      setTurns((t) => [...t, {
-        role: "assistant", content: d.answer,
-        artifacts: d.artifacts || [], runId: d.run_id,
-        skillApplied: d.agent?.skill_applied,
-        llmReal: d.llm?.real, llmError: d.llm?.error,
-        webSources: d.web_sources || [], webSearch: d.web_search,
-        samplesUsed: (d.samples_used || []).map((s: any) => s.filename),
-      }]);
-      setAttachments([]);
-      onSession(d.session.session_id, (text || fileNames[0] || "").slice(0, 26));
-      // 新产出自动在右侧看板打开预览，用户不必先下载
-      if (d.artifacts?.length) openPreview(d.artifacts[0]);
-    } catch (e: any) {
-      setErr(e.message || "执行失败，请重试");
-    } finally {
-      setBusy(false);
-    }
+    const userContent = text || "请按技能包处理附件";
+    runStream({ input: userContent, fileIds, fileNames, sampleRun });
   };
+
+  // P1-5 中途补充要求：取消本会话旧流（后端 ACTIVE_STREAMS 置 cancelled），再以
+  // 「上一轮问题 + 补充约束」重生成。文本即约束，不另起 user 轮。
+  const steerSend = () => {
+    const text = input.trim();
+    if (!text) return;
+    runStream({ input: text, steer: true, steerInput: text });
+  };
+
+  // 发送按钮统一入口：生成中且输入非空 → 补充要求重生成；生成中无输入 → 停止；
+  // 非生成中 → 普通发送。
+  const onSendButton = () => {
+    if (busy) { if (input.trim()) steerSend(); else stopStream(); }
+    else send();
+  };
+
+  // 取消：abort fetch + 通知后端停生成；后端 emit cancelled 后流自然结束，finally 清 busy
+  const stopStream = () => { streamRef.current?.cancel(); };
 
   const download = async (a: any) => {
     setDlBusy(a.file_id); setErr("");
@@ -445,23 +655,83 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                                      alignItems: "center", justifyContent: "center" }}>AI</span>
                       {agent?.name || "AI 工作台"}
                     </div>
-                    <div className="body">{cleanAnswer(t.content)}</div>
+                    <div className="body">
+                      {busy && i === turns.length - 1 && !t.content && !t.toolSteps?.length ? (
+                        <span className="pending">
+                          <span className="dot" /><span className="dot" /><span className="dot" />
+                          正在按技能包流程执行…
+                        </span>
+                      ) : stripToolBlocks(cleanAnswer(t.content))}
+                    </div>
+                    {!!t.toolSteps?.length && (
+                      <div className="tool-steps">
+                        <div className="ts-t">本次流式过程中调用了 {t.toolSteps.length} 个工具</div>
+                        {t.toolSteps.map((s, si) => (
+                          <div key={si} className={"ts" + (s.escalated ? " esc"
+                            : s.ok === false ? " bad" : s.ok ? " ok" : "")}>
+                            <b>🔧 {s.tool}</b>
+                            {s.escalated ? (
+                              <span className="ts-res"> → 高危操作已转人工审批（单 {s.ticketId}），通过后自动执行并回灌本会话</span>
+                            ) : (
+                              <>
+                                {s.args !== undefined && (
+                                  <span className="ts-args">{summarizeArgs(s.args)}</span>
+                                )}
+                                {s.ok !== undefined && (
+                                  <span className="ts-res">{s.ok ? " · 执行成功" : " · 执行失败"}：{s.content || ""}</span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {!!t.artifacts?.length && (
                       <div className="artifacts">
                         {t.artifacts.map((a: any) => {
                           const ext = extOf(a.filename);
                           const onPrev = preview?.a.file_id === a.file_id;
+                          const key = a.artifact_key;
+                          const vOpen = versOpen === key;
+                          const vData = key ? versData[key] : undefined;
+                          const latestVer = vData?.versions?.[0]?.version ?? a.version;
                           return (
-                            <div key={a.file_id}
-                                 className={"artifact" + (onPrev ? " on" : "")}
-                                 onClick={() => openPreview(a)}
-                                 title={`${a.filename} · ${kb(a.size)} · 点击右侧预览`}>
-                              <div className={"ext " + ext}>{dlBusy === a.file_id ? "…" : ext.toUpperCase()}</div>
-                              <div className="meta">
-                                <b>{niceName(a.filename)}</b>
-                                <span>{dlBusy === a.file_id ? "准备中…"
-                                  : `${ext.toUpperCase()} · ${kb(a.size)} · 点击预览`}</span>
+                            <div key={a.file_id} style={{ display: "flex", flexDirection: "column", width: 212 }}>
+                              <div className={"artifact" + (onPrev ? " on" : "")}
+                                   onClick={() => openPreview(a)}
+                                   title={`${a.filename} · ${kb(a.size)} · 点击右侧预览`}>
+                                <div className={"ext " + ext}>{dlBusy === a.file_id ? "…" : ext.toUpperCase()}</div>
+                                <div className="meta">
+                                  <b>{niceName(a.filename)}</b>
+                                  <span>{dlBusy === a.file_id ? "准备中…"
+                                    : `${ext.toUpperCase()} · ${kb(a.size)} · 点击预览`}</span>
+                                </div>
+                                {a.version > 0 && (
+                                  <span className="vbadge" onClick={(e) => { e.stopPropagation(); toggleVersions(a); }}
+                                        title="查看历史版本 / 回滚">v{a.version} ↺</span>
+                                )}
                               </div>
+                              {vOpen && vData && (
+                                <div className="vpanel" onClick={(e) => e.stopPropagation()}>
+                                  <div className="vp-t">历史版本 · 共 {vData.count} 个（最新 v{latestVer}）</div>
+                                  {vData.versions.map((v: any) => (
+                                    <div key={v.file_id} className="vp-row">
+                                      <span className="vp-v">v{v.version}</span>
+                                      <span className="vp-name" title={v.filename}>{niceName(v.filename)}</span>
+                                      <span className="vp-size">{kb(v.size)}</span>
+                                      {v.meta?.rollback && <span className="vp-roll">回滚</span>}
+                                      <button className="vp-dl" onClick={() => openPreview({ ...a, ...v })}
+                                              title="预览该版本">预览</button>
+                                      <button className="vp-rb"
+                                              disabled={v.version === latestVer || versBusy === `${key}:${v.version}`}
+                                              onClick={() => rollbackVersion(a, v.version)}
+                                              title={v.version === latestVer ? "已是最新版本" : "把此版本复制为最新（旧版本保留）"}>
+                                        {versBusy === `${key}:${v.version}` ? "…" : "回滚到此"}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -505,20 +775,6 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                 )}
               </div>
             ))}
-            {busy && (
-              <div className="msg assistant">
-                <div className="who">
-                  <span style={{ width: 16, height: 16, borderRadius: 5, background: "var(--ink)",
-                                 color: "#fff", fontSize: 9, display: "inline-flex",
-                                 alignItems: "center", justifyContent: "center" }}>AI</span>
-                  {agent?.name || "AI 工作台"}
-                </div>
-                <div className="pending">
-                  <span className="dot" /><span className="dot" /><span className="dot" />
-                  正在按技能包流程执行…
-                </div>
-              </div>
-            )}
             {err && <div className="err">{err}</div>}
           </div>
         )}
@@ -590,18 +846,19 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
             ref={taRef}
             rows={1}
             value={input}
-            placeholder={agent && !agent.builtin
-              ? (useSamples && pkg?.can_run_with_samples
-                  ? "样例数据已就位，说明要处理什么即可；留空直接回车也行"
-                  : pkg?.can_run_with_samples
-                    ? `说明这次要处理什么；不想准备数据可勾上方「用样例数据试跑」`
-                    : `说明这次要处理什么，${agent.name}会按流程执行`)
-              : empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件"}
+            placeholder={busy
+              ? "生成中——输入补充要求后发送将重新生成（不新增问题轮）；留空发送则停止"
+              : (agent && !agent.builtin
+                ? (useSamples && pkg?.can_run_with_samples
+                    ? "样例数据已就位，说明要处理什么即可；留空直接回车也行"
+                    : pkg?.can_run_with_samples
+                      ? `说明这次要处理什么；不想准备数据可勾上方「用样例数据试跑」`
+                      : `说明这次要处理什么，${agent.name}会按流程执行`)
+                : empty ? "描述你要做的事，或先上传文件…" : "继续追问，或上传新文件")}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSendButton(); }
             }}
-            disabled={busy}
           />
 
           <div className="ctools">
@@ -624,11 +881,17 @@ export function ChatPage({ seed, userName, onSession, onOpenSkills }: {
                 : formats.map((f) => FORMATS.find((x) => x.key === f)?.label).join(" / ")}
             </button>
 
-            <button className="send" onClick={send}
-                    disabled={!agentId || busy || (!input.trim() && !attachments.length
-                              && !(useSamples && pkg?.can_run_with_samples))}
-                    title="发送（Enter）">
-              {busy ? "·" : "↑"}
+            <button className="tool" onClick={() => rollbackTurn()}
+                    disabled={busy || !sessionId || turns.length === 0}
+                    title="回滚一轮：删掉最后一轮（通常是不满意的助手回答），再重新发问；制品旧版本仍在文件库">
+              ↩ 回滚一轮
+            </button>
+
+            <button className="send" onClick={onSendButton}
+                    disabled={!busy && (!agentId || (!input.trim() && !attachments.length
+                              && !(useSamples && pkg?.can_run_with_samples)))}
+                    title={busy ? "生成中：输入补充要求发送=重新生成；留空发送=停止" : "发送（Enter）"}>
+              {busy ? "■" : "↑"}
             </button>
           </div>
 

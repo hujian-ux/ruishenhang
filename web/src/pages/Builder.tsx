@@ -266,7 +266,7 @@ type WfNode = { id: string; type: WfType; name: string; config: any; x: number; 
 type WfEdge = { from: string; to: string };
 
 const NODE_META: Record<WfType, { label: string; cls: string; desc: string }> = {
-  llm: { label: "LLM 生成", cls: "nt-llm", desc: "占位节点：仅汇总上下文，不调模型（dry_run），不冒充真实生成" },
+  llm: { label: "LLM 生成", cls: "nt-llm", desc: "真实调用模型：按节点指令结合前序上下文生成结果（P1-6 真执行）" },
   rag: { label: "知识检索", cls: "nt-rag", desc: "检索授权知识片段，严格带调用者身份过滤" },
   tool: { label: "工具调用", cls: "nt-tool", desc: "经统一权限校验调用工具；拒绝/不可用时不冒充执行" },
   approval: { label: "人工审批", cls: "nt-approval", desc: "停下等人工审核，不自动跳过后续节点" },
@@ -278,7 +278,7 @@ function nodeSummary(n: WfNode): string {
   if (n.type === "rag") return n.config.query || "检索授权知识片段";
   if (n.type === "tool") return (n.config.tool_name || "未命名工具") + (n.config.args && n.config.args !== "{}" ? " · 已带参数" : "");
   if (n.type === "approval") return n.config.note || "停下待人工审核";
-  return "dry_run 占位（不调模型）";
+  return n.config.instruction || "真实调用模型生成（基于前序上下文）";
 }
 
 function connectPath(a: WfNode, b: WfNode): string {
@@ -296,6 +296,7 @@ function cleanConfig(n: WfNode): any {
   }
   if (n.type === "rag") return { query: n.config.query || "" };
   if (n.type === "approval") return { note: n.config.note || "" };
+  if (n.type === "llm") return { instruction: n.config.instruction || "" };
   return {};
 }
 
@@ -309,6 +310,7 @@ function WorkflowCanvas() {
   const [msg, setMsg] = useState<string>("");
   const [wfList, setWfList] = useState<any[]>([]);
   const [runInput, setRunInput] = useState("");
+  const [agentId, setAgentId] = useState("");
   const [linkFrom, setLinkFrom] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -422,9 +424,10 @@ function WorkflowCanvas() {
     if (!id) { id = await doSave(); }
     if (!id) return;
     try {
-      const r = await api.runWorkflow(id, runInput);
+      const r = await api.runWorkflowReal(id, runInput, agentId || undefined);
       setRun(r.data);
-      setMsg(`运行完成：status=${r.data.status} · dry_run=${r.data.dry_run} · 步骤=${r.data.steps.length}`);
+      setMsg(`真执行完成：status=${r.data.status} · dry_run=${r.data.dry_run} · 节点=${r.data.steps.length}` +
+        (r.data.agent_id ? ` · 人设=${r.data.agent_id}` : ""));
     } catch (e: any) { setMsg("运行失败：" + e.message); }
   };
 
@@ -457,7 +460,7 @@ function WorkflowCanvas() {
         <h3>L3 工作流编排画布（节点式 DAG，拖拽摆位）</h3>
         <div className="hint" style={{ marginBottom: 12 }}>
           点下方按钮添加节点 → 拖动卡片摆位 → 点卡片改配置 → 从节点底部<b>蓝点</b>拖到另一节点顶部<b>白点</b>连线（点连线可删除）。
-          保存后布局与连线一并持久化，再载入会原样恢复。注意：当前为 dry_run 框架，rag/tool 真实行为由后端按身份过滤，不冒充执行。
+          保存后布局与连线一并持久化，再载入会原样恢复。LLM 节点已为<b>真执行</b>（真实调用模型，前序节点输出贯穿后续节点）；rag/tool 严格按身份过滤，approval 停下等人工。
         </div>
         {linkFrom && (
           <div className="hint" style={{ color: "var(--blue)", marginBottom: 8 }}>
@@ -474,7 +477,7 @@ function WorkflowCanvas() {
           ))}
           <span className="grow" />
           <button className="btn blue" onClick={doSave}>保存工作流</button>
-          <button className="btn" onClick={doRun}>保存并运行</button>
+          <button className="btn" onClick={doRun}>保存并真实运行</button>
         </div>
 
         <div className="wf-wrap">
@@ -546,7 +549,10 @@ function WorkflowCanvas() {
                   <textarea rows={3} value={selNode.config.note || ""} onChange={(e) => patchConfig({ note: e.target.value })} /></div>
               )}
               {selNode.type === "llm" && (
-                <div className="hint">无需配置：运行到该节点时仅汇总前面各节点的输出上下文（dry_run）。</div>
+                <div className="field"><label>本节点指令（任务说明）</label>
+                  <textarea rows={4} value={selNode.config.instruction || ""}
+                    onChange={(e) => patchConfig({ instruction: e.target.value })}
+                    placeholder="例如：根据检索到的报销标准，判断这份单据是否合规，并逐条列出风险点" /></div>
               )}
               <div className="row" style={{ marginTop: 8 }}>
                 <button className="btn ghost" onClick={() => moveOrder(-1)}>↑ 上移</button>
@@ -562,6 +568,8 @@ function WorkflowCanvas() {
         <h3>运行输入与已有工作流</h3>
         <div className="field"><label>运行输入（传给第一个节点的 input）</label>
           <textarea rows={2} value={runInput} onChange={(e) => setRunInput(e.target.value)} placeholder="如：帮我查一下出差报销标准" /></div>
+        <div className="field"><label>人设（可选 agent_id）</label>
+          <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="留空用通用执行引擎；填已注册智能体 id 借用其技能人设" /></div>
         <div className="field"><label>载入已有工作流</label>
           <select value="" onChange={(e) => e.target.value && loadWf(e.target.value)}>
             <option value="">— 选择 —</option>
@@ -573,18 +581,28 @@ function WorkflowCanvas() {
         {run && (
           <>
             <div className="hint" style={{ marginTop: 6 }}>
-              运行结果：status=<b>{run.status}</b> · dry_run={String(run.dry_run)} · 上下文键={run.context_keys?.join(", ")}
+              真执行结果：status=<b>{run.status}</b> · dry_run={String(run.dry_run)} · 节点={run.steps.length}
+              {run.agent_id ? ` · 人设=${run.agent_id}` : ""}
+              {run.usage?.calls ? ` · 模型调用 ${run.usage.calls} 次` : ""}
             </div>
+            {run.answer && (
+              <div className="run-step ok" style={{ marginBottom: 8 }}>
+                <div className="rs-h"><span className="nt nt-llm">最终生成</span><span className="tag">产出</span></div>
+                <div className="mono" style={{ whiteSpace: "pre-wrap" }}>{run.answer}</div>
+              </div>
+            )}
             <div className="run-steps">
               {run.steps.map((s: any, i: number) => (
                 <div key={i} className={"run-step " + (s.ok ? "ok" : "bad")}>
                   <div className="rs-h">
-                    <span className={"nt " + NODE_META[s.type as WfType]?.cls || "nt-llm"}>{NODE_META[s.type as WfType]?.label || s.type}</span>
+                    <span className={"nt " + (NODE_META[s.type as WfType]?.cls || "nt-llm")}>{NODE_META[s.type as WfType]?.label || s.type}</span>
                     <span>{s.name}</span>
                     <span className="tag">{s.ok ? "通过" : "异常"}</span>
                   </div>
                   <div className="mono" style={{ whiteSpace: "pre-wrap", maxHeight: 180, overflow: "auto" }}>
-                    {JSON.stringify(s.output, null, 2)}
+                    {s.type === "llm"
+                      ? (s.output?.text || JSON.stringify(s.output, null, 2))
+                      : JSON.stringify(s.output, null, 2)}
                   </div>
                 </div>
               ))}

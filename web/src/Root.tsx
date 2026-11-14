@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { App } from "./App";
 import { LoginPage } from "./pages/Login";
 import { CallbackPage } from "./pages/Callback";
+import { FeishuCallbackPage } from "./pages/FeishuCallback";
 import { ConnectSetupPage } from "./pages/ConnectSetup";
 import { clearSession, getSession, sessionExpired } from "./auth/session";
 
@@ -21,6 +22,7 @@ export function Root() {
 
   const path = window.location.pathname;
   if (path === "/callback") return <CallbackPage />;
+  if (path === "/callback/feishu") return <FeishuCallbackPage />;
   if (path === "/setup") return <ConnectSetupPage />;
 
   const session = getSession();

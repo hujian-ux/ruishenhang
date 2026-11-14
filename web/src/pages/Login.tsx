@@ -16,6 +16,8 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
   // 收口默认 fail-closed：默认视为已收口（隐藏演示入口），只有后端明确回传
   // enforce_oidc=false 才放开。后端不可达也不暴露 dev 后门。
   const [enforce, setEnforce] = useState(true);
+  // 飞书身份源是否在后端启用（启用且配齐 APP_ID/SECRET 才 True），决定是否展示飞书入口。
+  const [feishuEnabled, setFeishuEnabled] = useState(false);
 
   // 收口开关：AUTH_ENFORCE_OIDC=1 时禁止 dev 捷径，且已配身份源则直接跳 SSO。
   useEffect(() => {
@@ -24,6 +26,7 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
       if (!alive) return;
       const on = !!r?.data?.enforce_oidc;
       setEnforce(on);   // 仅当后端明确说「未收口」才放开演示入口
+      setFeishuEnabled(!!r?.data?.feishu_enabled);
       if (on && configured) oidcLogin();
     }).catch(() => { /* 拿不到也保持收口（fail-closed），不暴露演示入口 */ });
     return () => { alive = false; };
@@ -68,6 +71,21 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
     } catch (e: any) {
       setErr(`演示登录失败：${e?.message || e}`);
       setDevBusy(false);
+    }
+  };
+
+  const feishuLogin = async () => {
+    setErr("");
+    setBusy(true);
+    try {
+      const state = randomString(24);
+      sessionStorage.setItem("rsp_feishu_state", state);
+      // 回调地址用当前站点 + /callback/feishu（须与飞书应用登记的回跳一致）
+      const r = await api.getFeishuAuthorize(state, `${window.location.origin}/callback/feishu`);
+      window.location.href = r.data.authorize_url;
+    } catch (e: any) {
+      setErr(`发起飞书登录失败：${e?.message || e}`);
+      setBusy(false);
     }
   };
 
@@ -121,6 +139,11 @@ export function LoginPage({ notice = "" }: { notice?: string }) {
               <button className="btn blue" disabled={busy || !configured} onClick={oidcLogin}>
                 {busy ? "正在跳转…" : "使用企业身份登录"}
               </button>
+              {feishuEnabled && (
+                <button className="btn ghost" disabled={busy} onClick={feishuLogin}>
+                  {busy ? "正在跳转…" : "使用飞书登录"}
+                </button>
+              )}
               <button className="btn ghost" onClick={() => (window.location.href = "/setup")}>
                 配置身份源
               </button>

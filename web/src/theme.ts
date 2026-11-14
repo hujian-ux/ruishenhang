@@ -228,6 +228,18 @@ button{font-family:inherit}
 .notice{margin-top:9px;font-size:12px;color:var(--err);background:#fdf3f2;border:1px solid #f3cdc8;
   border-radius:8px;padding:7px 10px;max-width:560px}
 
+/* P0 收尾1：工具循环步骤卡片（流式期间实时展示调用 / 结果 / 转审批） */
+.tool-steps{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:8px 10px;max-width:560px}
+.tool-steps .ts-t{font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.tool-steps .ts{font-size:12px;line-height:1.6;padding:3px 0;border-top:1px dashed #e7ecf3}
+.tool-steps .ts:first-of-type{border-top:none}
+.tool-steps .ts b{color:var(--ink)}
+.tool-steps .ts .ts-args{display:block;font-family:var(--mono);font-size:11px;color:#5b6470;white-space:pre-wrap;word-break:break-word;margin-top:2px}
+.tool-steps .ts .ts-res{color:#2e6b3e}
+.tool-steps .ts.bad .ts-res{color:var(--err)}
+.tool-steps .ts.esc{background:#fff8e8;border-radius:6px;padding:4px 6px;margin:0 -6px}
+.tool-steps .ts.esc b{color:#9a6a00}
+
 /* 产出物卡片 */
 .artifacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .artifact{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;
@@ -243,6 +255,25 @@ button{font-family:inherit}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .artifact .meta span{font-size:11px;color:var(--muted)}
 .artifact.on{border-color:#9cc0f6;background:#f3f8ff;box-shadow:0 1px 6px rgba(26,95,208,.12)}
+/* P1-7 制品版本徽标 + 历史版本面板 */
+.artifact .vbadge{margin-left:6px;font-size:10px;font-family:var(--mono);color:var(--blue);
+  background:#eaf2ff;border:1px solid #cfe0ff;border-radius:999px;padding:1px 7px;cursor:pointer;
+  white-space:nowrap;transition:.15s}
+.artifact .vbadge:hover{background:#dbe9ff}
+.vpanel{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;
+  padding:7px 9px;font-size:11.5px}
+.vpanel .vp-t{color:var(--muted);margin-bottom:5px;font-size:11px}
+.vpanel .vp-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed #e7ecf3}
+.vpanel .vp-row:first-of-type{border-top:none}
+.vpanel .vp-v{font-family:var(--mono);font-weight:700;color:var(--ink);min-width:30px}
+.vpanel .vp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.vpanel .vp-size{color:var(--muted);font-family:var(--mono)}
+.vpanel .vp-roll{font-size:9.5px;color:#9a6a00;background:#fff3d6;border:1px solid #ffe0a3;
+  border-radius:6px;padding:0 5px}
+.vpanel .vp-dl,.vpanel .vp-rb{border:1px solid var(--line);background:#fff;border-radius:7px;
+  padding:2px 8px;font-size:11px;color:var(--ink);cursor:pointer;transition:.15s}
+.vpanel .vp-dl:hover,.vpanel .vp-rb:hover{border-color:#b9d3f7;background:#f3f8ff}
+.vpanel .vp-rb:disabled{color:#9aa3ad;cursor:not-allowed;border-color:var(--line);background:#f4f6f9}
 
 /* ── 右侧看板：产出物内联预览 ── */
 .preview-pane{flex:none;width:460px;min-height:0;display:flex;flex-direction:column;

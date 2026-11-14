@@ -134,6 +134,74 @@ export const api = {
       ...(useSamples ? { use_samples: true } : {}),
     }),
 
+  // ── P0-1 会话流式化：SSE 增量推 + 中途取消 ──
+  // 返回 { done, cancel }：done 是流结束的 Promise；cancel 会先 abort fetch，
+  // 再 DELETE /agent/stream/{request_id} 通知后端停生成（两路都做，谁先到谁生效）。
+  // onEvent 收到逐条 SSE 事件：meta / token / done / cancelled / finalized / error。
+  streamAgent: (
+    agentId: string, input: string, sessionId?: string,
+    fileIds?: string[], outputFormats?: string[], useSamples?: boolean,
+    onEvent?: (ev: any) => void,
+    steer = false, steerInput?: string,
+  ) => {
+    const t = authToken();
+    const body: Record<string, unknown> = {
+      agent_id: agentId, input, stream: true,
+      ...(sessionId ? { session_id: sessionId } : {}),
+      ...(fileIds && fileIds.length ? { file_ids: fileIds } : {}),
+      ...(outputFormats && outputFormats.length ? { output_formats: outputFormats } : {}),
+      ...(useSamples ? { use_samples: true } : {}),
+      // P1-5 中途补充要求：取消本会话旧流后，以「上一轮问题 + 补充约束」重生成，不新增 user 轮
+      ...(steer ? { steer: true, steer_input: steerInput } : {}),
+    };
+    const ctrl = new AbortController();
+    let requestId = "";
+    const run = (async () => {
+      const res = await fetch(`${BASE}/agent/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(t ? { Authorization: t } : {}) },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) {
+        let detail = `${res.status}`;
+        try { detail = (await res.json())?.detail || detail; } catch { /* ignore */ }
+        throw new Error(detail);
+      }
+      requestId = res.headers.get("X-Request-Id") || "";
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = chunk.split("\n").find((l) => l.startsWith("data: "));
+          if (line) {
+            try { onEvent?.(JSON.parse(line.slice(6))); } catch { /* ignore malformed */ }
+          }
+        }
+      }
+    })();
+    return {
+      done: run,
+      cancel: async () => {
+        ctrl.abort();
+        if (requestId) {
+          try {
+            await fetch(`${BASE}/agent/stream/${requestId}`, {
+              method: "DELETE", headers: t ? { Authorization: t } : {},
+            });
+          } catch { /* ignore */ }
+        }
+      },
+    };
+  },
+
   // ── M52 技能包的输入清单与自带样例 ──
   // checklist 是包作者写在 skill.md 里的「要给什么」；samples 是包目录里的文件，
   // input 类可一键挂载试跑（can_run_with_samples）。
@@ -153,10 +221,12 @@ export const api = {
     return uploadFile("/agent/files", form) as Promise<{
       code: number; data: {
         file_id: string; filename: string; size: number; kind: string;
-        meta: { parse_ok: boolean; parse_error?: string; sheets?: number; rows?: number; store?: string };
+        meta: { parse_ok: boolean; parse_error?: string; sheets?: number; rows?: number;
+                store?: string; vision?: boolean; image_format?: string };
         preview: { ok: boolean; sheet_count?: number; total_rows?: number;
+                   kind?: string; valid?: boolean; format?: string; hint?: string;
                    sheets?: { name: string; rows: number; cols: number; headers: string[] }[] };
-        download_url: string; object_store_available: boolean;
+        content_type?: string; download_url: string; object_store_available: boolean;
       };
     }>;
   },
@@ -165,6 +235,19 @@ export const api = {
       "GET", `/agent/files?kind=${kind}${runId ? `&run_id=${runId}` : ""}`,
     ),
   deleteAgentFile: (fileId: string) => req<any>("DELETE", `/agent/files/${fileId}`),
+
+  // ── P1-7 制品版本化与回滚 ──
+  // 版本键形如 `会话ID::问题序号::格式`；同一问题反复重生成（含中途补充要求 steer）升版，
+  // 全新问题成新链。回滚是非破坏式的：把历史版本复制成新版本，旧版本保留可再回滚。
+  listArtifactChains: (sessionId = "") =>
+    req<{ code: number; data: { chains: any[]; count: number } }>(
+      "GET", `/agent/files/artifacts${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ""}`),
+  listArtifactVersions: (key: string) =>
+    req<{ code: number; data: { artifact_key: string; versions: any[]; count: number } }>(
+      "GET", `/agent/files/artifacts/${encodeURIComponent(key)}/versions`),
+  rollbackArtifact: (key: string, version: number) =>
+    req<{ code: number; data: { artifact: any; artifact_key: string; rolled_back_from: number; new_version: number } }>(
+      "POST", `/agent/files/artifacts/${encodeURIComponent(key)}/rollback?version=${version}`),
 
   getSession: (sessionId: string) =>
     req<any>("GET", `/agent/sessions/${sessionId}`),
@@ -222,6 +305,9 @@ export const api = {
   // ── M7 会话管理 ──
   listSessions: (limit = 20) => req<{ code: number; data: { sessions: any[]; count: number } }>("GET", `/agent/sessions?limit=${limit}`),
   deleteSession: (sessionId: string) => req<any>("DELETE", `/agent/sessions/${sessionId}`),
+  // P1-5 轮次回滚：截断会话到指定轮数（turn 缺省回退一轮）。制品版本化不动，旧版本仍在文件库。
+  rollbackSession: (sessionId: string, turn?: number) =>
+    req<any>("POST", `/agent/sessions/${sessionId}/rollback${turn != null ? `?turn=${turn}` : ""}`),
 
   // ── M7 模型管理 ──
   listModelsAll: (status = "all") => req<{ code: number; data: { models: any[]; gateway: any } }>("GET", `/models?status=${status}`),
@@ -250,6 +336,19 @@ export const api = {
   // 注意：/auth/oidc/health 返回裸 JSON（无 code/data 包裹），调用方用 r.data || r 兜底
   getOidcHealth: () => req<any>("GET", "/auth/oidc/health"),
   getAuthSettings: () => req<any>("GET", "/auth/settings"),
+  // P1-1 飞书身份源：前端「使用飞书登录」按钮预留——拿授权页 URL 后跳转，回跳本地把
+  // code 交给 feishuCallback 后端换身份。FEISHU_ENABLED 未开时返回 503，前端据此隐藏入口。
+  getFeishuAuthorize: (state = "", redirectUri = "") => {
+    const qs = new URLSearchParams();
+    if (state) qs.set("state", state);
+    if (redirectUri) qs.set("redirect_uri", redirectUri);
+    const q = qs.toString();
+    return req<any>("GET", `/auth/feishu/authorize${q ? `?${q}` : ""}`);
+  },
+  feishuCallback: (body: { code: string; state?: string; redirect_uri?: string }) =>
+    req<{ code: number; data: { token: string; tenant_id: string; user: any } }>(
+      "POST", "/auth/feishu/callback", body,
+    ),
   saveImConfig: (body: {
     provider: "wecom" | "dingtalk"; corp_id: string; secret: string;
     agent_id: string; webhook_token: string; encoding_aes_key?: string;
@@ -307,9 +406,103 @@ export const api = {
   getWorkflow: (wid: string) => req<any>("GET", `/builder/workflows/${wid}`),
   updateWorkflow: (wid: string, body: any) => req<any>("PUT", `/builder/workflows/${wid}`, body),
   runWorkflow: (wid: string, input: string) => req<any>("POST", `/builder/workflows/${wid}/run`, { input }),
+  runWorkflowReal: (wid: string, input: string, agentId?: string) =>
+    req<any>("POST", `/builder/workflows/${wid}/execute`, { input, ...(agentId ? { agent_id: agentId } : {}) }),
   getModelTiers: () => req<any>("GET", "/models/tiers"),
   getCacheStats: () => req<any>("GET", "/ops/cache/stats"),
   getMlopsPipeline: () => req<any>("GET", "/mlops/pipeline"),
+
+  // ── P1-8 技能索引台账（#303）：覆盖度看板 + 可过滤台账 ──
+  // 维度 key：prompt/hard_rules/role/inputs/outputs/source/samples/fewshot/materials
+  getSkillLedgerStats: () => req<{ code: number; data: any }>("GET", "/skills/stats"),
+  getSkillLedger: (opts?: {
+    industry?: string; role?: string; status?: string; q?: string;
+    kind?: string; flag?: string; limit?: number; offset?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (opts?.industry) qs.set("industry", opts.industry);
+    if (opts?.role) qs.set("role", opts.role);
+    if (opts?.status) qs.set("status", opts.status);
+    if (opts?.q) qs.set("q", opts.q);
+    if (opts?.kind) qs.set("kind", opts.kind);
+    if (opts?.flag) qs.set("flag", opts.flag);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    const s = qs.toString();
+    return req<{ code: number; data: { items: any[]; total: number; count: number } }>(
+      "GET", "/skills" + (s ? `?${s}` : ""));
+  },
+  getSkillLedgerDetail: (agentId: string) =>
+    req<{ code: number; data: any }>("GET", `/skills/${encodeURIComponent(agentId)}`),
+
+  // ── P1-9 子代理 / 专家执行（#304）：专家目录 + 单次/批量委派 + 执行台账 ──
+  getExperts: (opts?: { industry?: string; role?: string; q?: string; kind?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.industry) qs.set("industry", opts.industry);
+    if (opts?.role) qs.set("role", opts.role);
+    if (opts?.q) qs.set("q", opts.q);
+    if (opts?.kind) qs.set("kind", opts.kind);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const s = qs.toString();
+    return req<{ code: number; data: { items: any[]; total: number; count: number } }>(
+      "GET", "/experts" + (s ? `?${s}` : ""));
+  },
+  dispatchExpert: (body: { agent_id: string; task: string; context?: string; parent_agent_id?: string }) =>
+    req<{ code: number; data: any }>("POST", "/experts/dispatch", body),
+  dispatchExpertBatch: (body: {
+    tasks: { agent_id: string; task: string; context?: string }[];
+    context?: string; parent_agent_id?: string;
+  }) => req<{ code: number; data: any }>("POST", "/experts/dispatch-batch", body),
+  getExpertStats: () => req<{ code: number; data: any }>("GET", "/experts/stats"),
+  getExpertRuns: (opts?: { agent_id?: string; status?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.agent_id) qs.set("agent_id", opts.agent_id);
+    if (opts?.status) qs.set("status", opts.status);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    const s = qs.toString();
+    return req<{ code: number; data: { items: any[]; total: number; count: number } }>(
+      "GET", "/experts/runs" + (s ? `?${s}` : ""));
+  },
+  getExpertRun: (runId: string) =>
+    req<{ code: number; data: any }>("GET", `/experts/runs/${encodeURIComponent(runId)}`),
+
+  // ── P1-10 多模态图像理解 ──
+  getVisionStatus: () => req<{ code: number; data: any }>("GET", "/vision/status"),
+  analyzeVision: (body: { file_ids: string[]; prompt?: string }) =>
+    req<{ code: number; data: any }>("POST", "/vision/analyze", body),
+
+  // ── P1-11 审计哈希链 ──
+  getAuditLogs: (opts?: { action?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.action) qs.set("action", opts.action);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const s = qs.toString();
+    return req<{ code: number; data: { count: number; backend: string; logs: any[] } }>(
+      "GET", "/audit/logs" + (s ? `?${s}` : ""));
+  },
+  getAuditChainStatus: () => req<{ code: number; data: any }>("GET", "/audit/chain/status"),
+  verifyAuditChain: (opts?: { tenant_id?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.tenant_id) qs.set("tenant_id", opts.tenant_id);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const s = qs.toString();
+    return req<{ code: number; data: any }>("GET", "/audit/chain/verify" + (s ? `?${s}` : ""));
+  },
+
+  // ── P1-12 上下文窗口 + 压缩 ──
+  getContextStatus: () => req<{ code: number; data: any }>("GET", "/agent/context/status"),
+  previewContext: (opts?: { session_id?: string; context_window?: number; compress?: boolean; runtime?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (opts?.session_id) qs.set("session_id", opts.session_id);
+    if (opts?.context_window != null) qs.set("context_window", String(opts.context_window));
+    if (opts?.compress != null) qs.set("compress", String(opts.compress));
+    if (opts?.runtime != null) qs.set("runtime", String(opts.runtime));
+    const s = qs.toString();
+    return req<{ code: number; data: any }>("GET", "/agent/context/preview" + (s ? `?${s}` : ""));
+  },
+  previewContextCustom: (body: { turns: any[]; context_window?: number; compress?: boolean | null; runtime?: boolean }) =>
+    req<{ code: number; data: any }>("POST", "/agent/context/preview", body),
 };
 
 // 下载必须带鉴权头，所以不能直接用 <a href>（浏览器不会补 Authorization）。

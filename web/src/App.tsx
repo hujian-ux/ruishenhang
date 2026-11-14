@@ -12,6 +12,11 @@ import { ModelsPage } from "./pages/Models";
 import { PilotPage } from "./pages/Pilot";
 import { SkillsPage } from "./pages/Skills";
 import { PlatformOpsPage } from "./pages/PlatformOps";
+import { SkillLedgerPage } from "./pages/SkillLedger";
+import { ExpertsPage } from "./pages/Experts";
+import { VisionPage } from "./pages/Vision";
+import { AuditChainPage } from "./pages/AuditChain";
+import { ContextWindowPage } from "./pages/ContextWindow";
 import { TenantConfigPage } from "./pages/TenantConfig";
 import { IdentityPage } from "./pages/Identity";
 import { BuilderPage } from "./pages/Builder";
@@ -30,6 +35,11 @@ const ADMIN_TABS: { k: string; label: string }[] = [
   { k: "retrieve", label: "召回演示" },
   { k: "platform", label: "平台运营台" },
   { k: "identity", label: "身份与集成" },
+  { k: "ledger", label: "技能台账" },
+  { k: "experts", label: "专家执行台" },
+  { k: "vision", label: "图像理解" },
+  { k: "chain", label: "审计完整性" },
+  { k: "context", label: "上下文窗口" },
   { k: "tenant", label: "租户配置" },
 ];
 
@@ -358,6 +368,11 @@ export function App({ session, onLogout }: { session: Session; onLogout: () => v
                 {adminTab === "models" && <ModelsPage isAdmin={isAdmin} />}
                 {adminTab === "retrieve" && <RetrievePage />}
                 {adminTab === "platform" && <PlatformOpsPage isAdmin={isAdmin} />}
+                {adminTab === "ledger" && <SkillLedgerPage />}
+                {adminTab === "experts" && <ExpertsPage />}
+                {adminTab === "vision" && <VisionPage />}
+                {adminTab === "chain" && <AuditChainPage />}
+                {adminTab === "context" && <ContextWindowPage />}
                 {adminTab === "identity" && <IdentityPage isAdmin={isAdmin} />}
                 {adminTab === "tenant" && session.user.role === "platform_admin" && <TenantConfigPage />}
               </div>
